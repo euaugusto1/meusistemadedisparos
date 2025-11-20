@@ -38,7 +38,7 @@ export default async function LogsPage() {
       status,
       error_message,
       sent_at,
-      campaign:campaigns(id, title, user_id)
+      campaign:campaigns!campaign_items_campaign_id_fkey(id, title, user_id)
     `)
     .order('sent_at', { ascending: false })
     .not('sent_at', 'is', null)
