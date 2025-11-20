@@ -30,7 +30,7 @@ export default async function LogsPage() {
     .limit(500)
 
   // Buscar logs de campanhas
-  const { data: campaignLogs } = await supabase
+  const { data: campaignLogsRaw } = await supabase
     .from('campaign_items')
     .select(`
       id,
@@ -38,11 +38,17 @@ export default async function LogsPage() {
       status,
       error_message,
       sent_at,
-      campaign:campaigns!campaign_items_campaign_id_fkey(id, title, user_id)
+      campaign:campaigns(id, title, user_id)
     `)
     .order('sent_at', { ascending: false })
     .not('sent_at', 'is', null)
     .limit(200)
+
+  // Transform array to single object
+  const campaignLogs = campaignLogsRaw?.map(log => ({
+    ...log,
+    campaign: Array.isArray(log.campaign) ? log.campaign[0] : log.campaign
+  })) || []
 
   return (
     <div className="space-y-6">
@@ -55,7 +61,7 @@ export default async function LogsPage() {
 
       <LogsViewer
         systemLogs={logs || []}
-        campaignLogs={campaignLogs || []}
+        campaignLogs={campaignLogs as any}
       />
     </div>
   )
