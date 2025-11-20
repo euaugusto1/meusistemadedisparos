@@ -1,0 +1,4 @@
+{
+  "buildPack": "nixpacks",
+  "port": 3000
+}
