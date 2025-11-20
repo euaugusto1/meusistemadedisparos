@@ -4,6 +4,8 @@ import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'WhatsApp SaaS - Automação de Mensagens',
   description: 'Sistema de automação e disparo de mensagens WhatsApp',
