@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
   images: {
     remotePatterns: [
       {
@@ -13,10 +12,6 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '10mb',
     },
-  },
-  // Disable static generation for pages that need dynamic rendering
-  generateBuildId: async () => {
-    return 'build-' + Date.now()
   },
 }
 
