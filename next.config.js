@@ -14,6 +14,10 @@ const nextConfig = {
       bodySizeLimit: '10mb',
     },
   },
+  // Disable static generation for pages that need dynamic rendering
+  generateBuildId: async () => {
+    return 'build-' + Date.now()
+  },
 }
 
 module.exports = nextConfig
