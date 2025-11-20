@@ -1,5 +1,4 @@
 {
-  "buildPack": "dockerfile",
-  "port": 3000,
-  "dockerFile": "Dockerfile"
+  "buildPack": "nixpacks",
+  "port": 3000
 }
