@@ -35,7 +35,7 @@ export default async function DashboardPage() {
 
       <StatsCards stats={stats} />
 
-      <DashboardCharts campaigns={campaigns || []} stats={stats} />
+      <DashboardCharts campaigns={campaigns as any || []} stats={stats} />
     </div>
   )
 }
