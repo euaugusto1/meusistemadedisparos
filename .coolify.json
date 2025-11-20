@@ -1,10 +1,5 @@
 {
-  "buildPack": "nixpacks",
-  "nixpacks": {
-    "buildCommand": "npm ci --legacy-peer-deps && npm run build",
-    "startCommand": "npm start"
-  },
+  "buildPack": "dockerfile",
   "port": 3000,
-  "dockerComposeFile": null,
-  "dockerFile": null
+  "dockerFile": "Dockerfile"
 }
