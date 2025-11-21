@@ -70,24 +70,30 @@ export function UsersManager({ users: initialUsers }: UsersManagerProps) {
     if (!editingUser) return
 
     setLoading(true)
-    const supabase = createClient()
 
     // Calculate new expiration date
     const newExpiration = new Date()
     newExpiration.setDate(newExpiration.getDate() + planDays)
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
+      const response = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: editingUser.id,
           role,
           plan_tier: planTier,
           credits,
           plan_expires_at: newExpiration.toISOString(),
-        })
-        .eq('id', editingUser.id)
+        }),
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to update user')
+      }
 
       setUsers(prev =>
         prev.map(u =>

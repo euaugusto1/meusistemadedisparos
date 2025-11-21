@@ -291,15 +291,19 @@ export function SystemSettings({ stats, settings }: SystemSettingsProps) {
           <div className="grid md:grid-cols-3 gap-4">
             <div>
               <div className="text-sm text-muted-foreground">Versão</div>
-              <div className="font-medium">1.0.0</div>
+              <div className="font-medium">{process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'}</div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Ambiente</div>
-              <Badge variant="outline">Produção</Badge>
+              <Badge variant={process.env.NODE_ENV === 'production' ? 'default' : 'outline'}>
+                {process.env.NODE_ENV === 'production' ? 'Produção' : 'Desenvolvimento'}
+              </Badge>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Database</div>
-              <Badge variant="outline">Supabase PostgreSQL</Badge>
+              <Badge variant="outline">
+                Supabase PostgreSQL {process.env.NEXT_PUBLIC_SUPABASE_URL ? '(Conectado)' : '(Desconectado)'}
+              </Badge>
             </div>
           </div>
         </CardContent>

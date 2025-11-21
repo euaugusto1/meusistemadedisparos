@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { UsersManager } from '@/components/admin/UsersManager'
 
@@ -19,8 +19,9 @@ export default async function AdminUsersPage() {
     redirect('/dashboard')
   }
 
-  // Obter todos os usuários
-  const { data: users } = await supabase
+  // Admin usa service role para ver todos os usuários (bypass RLS)
+  const adminSupabase = createAdminClient()
+  const { data: users } = await adminSupabase
     .from('profiles')
     .select('*')
     .order('created_at', { ascending: false })

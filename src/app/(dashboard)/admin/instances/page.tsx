@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { InstancesManager } from '@/components/admin/InstancesManager'
 
@@ -28,8 +28,9 @@ export default async function AdminInstancesPage() {
     `)
     .order('created_at', { ascending: false })
 
-  // Obter todos os usuários para atribuição
-  const { data: users } = await supabase
+  // Admin usa service role para ver todos os usuários (bypass RLS)
+  const adminSupabase = createAdminClient()
+  const { data: users } = await adminSupabase
     .from('profiles')
     .select('id, email, full_name, role')
     .order('email', { ascending: true })

@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { User, LogOut, Settings, Crown, CreditCard, Shield } from 'lucide-react'
 import { getPlanColor } from '@/lib/utils'
+import { MobileSidebar } from './MobileSidebar'
 import type { Profile } from '@/types'
 
 interface HeaderProps {
@@ -51,6 +52,8 @@ export function Header({ profile }: HeaderProps) {
   return (
     <header className="h-16 border-b bg-card flex items-center justify-between px-6">
       <div className="flex items-center gap-4">
+        {/* Mobile Menu Button */}
+        <MobileSidebar profile={profile} />
         <div>
           <h2 className="text-lg font-semibold">
             Olá, {displayName}
