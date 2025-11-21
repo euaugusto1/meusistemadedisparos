@@ -17,6 +17,7 @@ import {
   Smartphone,
   ScrollText,
   Crown,
+  Sparkles,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { useUnreadSupport } from '@/hooks/useUnreadSupport'
@@ -109,9 +110,16 @@ export function Sidebar({ profile }: SidebarProps) {
 
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col bg-card border-r">
-      <div className="flex items-center h-16 px-6 border-b">
-        <MessageSquare className="h-6 w-6 text-primary mr-2" />
-        <span className="font-bold text-lg">WhatsApp SaaS</span>
+      <div className="flex items-center h-16 px-6 border-b gap-3">
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-lg blur-md opacity-50"></div>
+          <div className="relative bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-lg">
+            <Sparkles className="h-4 w-4 text-white" strokeWidth={2} />
+          </div>
+        </div>
+        <span className="font-bold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+          Araujo IA
+        </span>
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4">

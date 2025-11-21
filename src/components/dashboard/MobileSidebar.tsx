@@ -18,6 +18,7 @@ import {
   ScrollText,
   Crown,
   Menu,
+  Sparkles,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -126,9 +127,16 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
       </SheetTrigger>
       <SheetContent side="left" className="w-64 p-0">
         <SheetHeader className="border-b p-6">
-          <SheetTitle className="flex items-center gap-2">
-            <MessageSquare className="h-6 w-6 text-primary" />
-            <span className="font-bold text-lg">WhatsApp SaaS</span>
+          <SheetTitle className="flex items-center gap-3">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-lg blur-md opacity-50"></div>
+              <div className="relative bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-lg">
+                <Sparkles className="h-4 w-4 text-white" strokeWidth={2} />
+              </div>
+            </div>
+            <span className="font-bold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              Araujo IA
+            </span>
           </SheetTitle>
         </SheetHeader>
 
