@@ -63,11 +63,11 @@ export function checkRateLimit(
 
   // Limpar entradas expiradas (cleanup básico)
   if (store.size > 10000) {
-    for (const [k, v] of store.entries()) {
+    Array.from(store.entries()).forEach(([k, v]) => {
       if (v.resetTime < now) {
         store.delete(k)
       }
-    }
+    })
   }
 
   let entry = store.get(key)

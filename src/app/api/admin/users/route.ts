@@ -55,7 +55,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // 5. Update user with validated data
-    const { userId, role, plan_tier, credits, plan_expires_at } = validation.data
+    const { userId, role, plan_tier, credits, plan_expires_at } = validation.data!
 
     const adminSupabase = createAdminClient()
     const { data, error } = await adminSupabase
