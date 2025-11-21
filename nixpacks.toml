@@ -1,14 +1,3 @@
-[phases.setup]
-nixPkgs = ["nodejs_20"]
-
-[phases.install]
-cmds = ["npm ci --legacy-peer-deps"]
-
-[phases.build]
-cmds = ["npm run build"]
-
-[start]
-cmd = "npm start"
-
-[variables]
-PORT = "3000"
+# Nixpacks disabled - using custom Dockerfile instead
+# This file exists only to prevent auto-detection
+# See .coolify.json for buildPack configuration
