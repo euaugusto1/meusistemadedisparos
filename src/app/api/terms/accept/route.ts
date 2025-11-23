@@ -92,7 +92,7 @@ export async function GET() {
     // Obter versão ativa
     const { data: activeTerms } = await supabase
       .rpc('get_active_terms_version')
-      .single()
+      .single<{ id: string; version: string; content: string }>()
 
     return NextResponse.json({
       success: true,
