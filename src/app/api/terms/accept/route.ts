@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     // Obter versão ativa dos termos
     const { data: activeTerms, error: termsError } = await supabase
       .rpc('get_active_terms_version')
-      .single()
+      .single<{ id: string; version: string; content: string }>()
 
     if (termsError || !activeTerms) {
       console.error('Error fetching active terms:', termsError)
