@@ -18,6 +18,7 @@ import {
   ScrollText,
   Crown,
   Sparkles,
+  BarChart3,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { useUnreadSupport } from '@/hooks/useUnreadSupport'
@@ -32,6 +33,12 @@ const menuItems = [
     title: 'Dashboard',
     href: '/dashboard',
     icon: LayoutDashboard,
+  },
+  {
+    title: 'Analytics',
+    href: '/dashboard/analytics',
+    icon: BarChart3,
+    badge: 'Novo',
   },
   {
     title: 'Minhas Instâncias',
@@ -127,7 +134,8 @@ export function Sidebar({ profile }: SidebarProps) {
           {menuItems.map((item) => {
             const isActive = pathname === item.href
             const isSupportItem = item.href === '/support'
-            const showBadge = isSupportItem && unreadCount > 0
+            const showUnreadBadge = isSupportItem && unreadCount > 0
+            const showNewBadge = item.badge === 'Novo'
 
             return (
               <Link
@@ -142,12 +150,20 @@ export function Sidebar({ profile }: SidebarProps) {
               >
                 <item.icon className="h-4 w-4" />
                 {item.title}
-                {showBadge && (
+                {showUnreadBadge && (
                   <Badge
                     variant="destructive"
                     className="ml-auto h-5 w-5 flex items-center justify-center p-0 text-xs"
                   >
                     {unreadCount > 99 ? '99+' : unreadCount}
+                  </Badge>
+                )}
+                {showNewBadge && (
+                  <Badge
+                    variant="default"
+                    className="ml-auto h-5 px-2 text-xs bg-gradient-to-r from-blue-500 to-purple-600"
+                  >
+                    Novo
                   </Badge>
                 )}
               </Link>

@@ -6,11 +6,13 @@
 export type UserRole = 'admin' | 'user'
 export type PlanTier = 'free' | 'bronze' | 'silver' | 'gold'
 export type InstanceStatus = 'connected' | 'disconnected' | 'connecting' | 'qr_code'
-export type CampaignStatus = 'draft' | 'scheduled' | 'processing' | 'completed' | 'failed' | 'cancelled'
+export type CampaignStatus = 'draft' | 'scheduled' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'paused'
 export type CampaignItemStatus = 'pending' | 'sent' | 'failed'
 export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed'
 export type MediaType = 'image' | 'video' | 'audio' | 'document'
 export type ButtonType = 'button' | 'list' | 'poll' | 'carousel'
+export type ScheduleType = 'immediate' | 'scheduled' | 'recurring' | 'smart'
+export type RecurrenceType = 'daily' | 'weekly' | 'monthly'
 
 // Profile
 export interface Profile {
@@ -87,6 +89,9 @@ export interface WhatsAppInstance {
   status: InstanceStatus
   phone_number: string | null
   webhook_url: string | null
+  is_test: boolean
+  expires_at: string | null
+  server_url: string | null
   created_at: string
   updated_at: string
 }
@@ -149,6 +154,14 @@ export interface Contact {
   name?: string
 }
 
+// Recurrence Pattern
+export interface RecurrencePattern {
+  type: RecurrenceType
+  interval: number // Every X days/weeks/months
+  days?: number[] // Days of week (0-6) for weekly, days of month for monthly
+  time: string // HH:mm format
+}
+
 // Campaign
 export interface Campaign {
   id: string
@@ -170,8 +183,31 @@ export interface Campaign {
   failed_count: number
   min_delay: number
   max_delay: number
+  // Smart Scheduling fields
+  schedule_type: ScheduleType
+  scheduled_at: string | null
+  timezone: string | null
+  recurrence_pattern: RecurrencePattern | null
+  throttle_enabled: boolean
+  throttle_rate: number | null // messages per minute
+  throttle_delay: number | null // delay in seconds
+  smart_timing: boolean
+  suggested_send_time: string | null
+  pause_until: string | null
+  is_paused: boolean
   created_at: string
   updated_at: string
+}
+
+// Schedule Log
+export interface CampaignScheduleLog {
+  id: string
+  campaign_id: string
+  user_id: string
+  action: 'scheduled' | 'paused' | 'resumed' | 'cancelled' | 'sent'
+  reason: string | null
+  metadata: Record<string, unknown> | null
+  created_at: string
 }
 
 // Campaign Item
@@ -272,4 +308,89 @@ export interface UazapiSendResponse {
   success: boolean
   message_id?: string
   error?: string
+}
+
+// =====================================================
+// ANALYTICS TYPES
+// =====================================================
+
+// Campaign Analytics
+export interface CampaignAnalytics {
+  campaign_id: string
+  campaign_title: string
+  total_recipients: number
+  sent_count: number
+  failed_count: number
+  delivery_rate: number
+  read_count: number
+  read_rate: number
+  response_count: number
+  response_rate: number
+  avg_response_time_minutes: number
+  created_at: string
+  completed_at: string | null
+}
+
+// Realtime Metrics
+export interface RealtimeMetrics {
+  active_campaigns: number
+  messages_sent_today: number
+  messages_sent_this_hour: number
+  current_delivery_rate: number
+  active_instances: number
+  avg_response_time_minutes: number
+}
+
+// Campaign Comparison
+export interface CampaignComparison {
+  campaign_id: string
+  campaign_title: string
+  sent_count: number
+  delivery_rate: number
+  read_rate: number
+  response_rate: number
+  created_at: string
+}
+
+// Conversion Funnel
+export interface ConversionFunnel {
+  total_sent: number
+  total_delivered: number
+  total_read: number
+  total_responded: number
+  total_converted: number
+}
+
+// Hourly Heatmap Data
+export interface HourlyHeatmap {
+  hour: number
+  day_of_week: number
+  message_count: number
+  delivery_rate: number
+  read_rate: number
+  response_rate: number
+}
+
+// Time Series Data
+export interface TimeSeriesData {
+  date: string
+  sent: number
+  delivered: number
+  read: number
+  failed: number
+}
+
+// Performance Metrics
+export interface PerformanceMetrics {
+  period: string
+  total_campaigns: number
+  total_sent: number
+  total_delivered: number
+  total_read: number
+  total_responses: number
+  avg_delivery_rate: number
+  avg_read_rate: number
+  avg_response_rate: number
+  best_hour: number
+  best_day_of_week: number
 }

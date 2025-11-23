@@ -1,0 +1,40 @@
+# Arquivos Essenciais - Sempre manter na raiz
+# Qualquer arquivo não listado aqui deve ir para temp/
+
+## Configuração Next.js/Node (ESSENCIAL)
+package.json
+package-lock.json
+next.config.js
+next-env.d.ts
+tsconfig.json
+postcss.config.js
+tailwind.config.ts
+
+## Documentação Principal (ESSENCIAL)
+README.md
+
+## Variáveis de Ambiente (ESSENCIAL)
+.env.local
+.env.example
+
+## Git (ESSENCIAL)
+.gitignore
+.git/
+
+## Pastas de Código (ESSENCIAL)
+src/
+public/
+supabase/
+
+## Pasta de Arquivos Não Essenciais
+temp/
+
+## Arquivos de Build (Auto-gerados, podem ser deletados)
+.next/
+node_modules/
+tsconfig.tsbuildinfo
+
+---
+
+# REGRA: Qualquer arquivo de documentação, script, SQL antigo,
+# ou configuração não crítica deve ir para temp/

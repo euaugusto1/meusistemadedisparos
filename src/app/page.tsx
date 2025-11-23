@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Sparkles, Loader2, MessageSquare, Zap, Shield, ArrowRight, Mail, Lock, CheckCircle2, Eye, EyeOff, Calendar, BarChart3, Library, FileText } from 'lucide-react'
+import Link from 'next/link'
 
 export default function LandingPage() {
   const router = useRouter()
@@ -278,10 +279,25 @@ export default function LandingPage() {
 
                 {/* Password Input */}
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-slate-200 text-sm font-medium flex items-center gap-2">
-                    <Lock className="h-4 w-4 text-purple-400" />
-                    Senha
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password" className="text-slate-200 text-sm font-medium flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-purple-400" />
+                      Senha
+                    </Label>
+                    {showLogin && (
+                      <button
+                        type="button"
+                        className="text-xs text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          router.push('/forgot-password')
+                        }}
+                      >
+                        Esqueceu sua senha?
+                      </button>
+                    )}
+                  </div>
                   <div className="relative">
                     <Input
                       id="password"

@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -37,7 +36,7 @@ import {
   User,
   Loader2,
   Crown,
-  Calendar,
+  Trash2,
 } from 'lucide-react'
 import { formatDate, formatNumber, getPlanColor } from '@/lib/utils'
 import type { Profile, UserRole, PlanTier } from '@/types'
@@ -50,6 +49,7 @@ export function UsersManager({ users: initialUsers }: UsersManagerProps) {
   const [users, setUsers] = useState(initialUsers)
   const [searchTerm, setSearchTerm] = useState('')
   const [editingUser, setEditingUser] = useState<Profile | null>(null)
+  const [deletingUser, setDeletingUser] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(false)
 
   // Edit form state
@@ -112,6 +112,36 @@ export function UsersManager({ users: initialUsers }: UsersManagerProps) {
       setEditingUser(null)
     } catch (error) {
       console.error('Error updating user:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deletingUser) return
+
+    setLoading(true)
+
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: deletingUser.id,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to delete user')
+      }
+
+      setUsers(prev => prev.filter(u => u.id !== deletingUser.id))
+      setDeletingUser(null)
+    } catch (error) {
+      console.error('Error deleting user:', error)
     } finally {
       setLoading(false)
     }
@@ -192,13 +222,23 @@ export function UsersManager({ users: initialUsers }: UsersManagerProps) {
                   </TableCell>
                   <TableCell>{formatDate(user.created_at)}</TableCell>
                   <TableCell>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => openEditDialog(user)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => openEditDialog(user)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => setDeletingUser(user)}
+                        className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -275,6 +315,50 @@ export function UsersManager({ users: initialUsers }: UsersManagerProps) {
             <Button onClick={handleSave} disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deletingUser} onOpenChange={() => setDeletingUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Exclusão</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir o usuário <strong>{deletingUser?.email}</strong>?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-sm text-red-800">
+                <strong>Atenção:</strong> Esta ação é irreversível. Todos os dados do usuário, incluindo:
+              </p>
+              <ul className="mt-2 ml-4 text-sm text-red-700 list-disc space-y-1">
+                <li>Instâncias do WhatsApp</li>
+                <li>Listas de contatos</li>
+                <li>Campanhas</li>
+                <li>Histórico de mensagens</li>
+                <li>Biblioteca de mídia</li>
+              </ul>
+              <p className="mt-2 text-sm text-red-800">
+                serão permanentemente excluídos.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletingUser(null)} disabled={loading}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={loading}
+            >
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Excluir Permanentemente
             </Button>
           </DialogFooter>
         </DialogContent>

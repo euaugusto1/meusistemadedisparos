@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -42,10 +43,12 @@ import {
   RefreshCw,
   RotateCcw,
   Play,
+  Calendar,
 } from 'lucide-react'
 import { formatDateTime, formatNumber, getStatusColor } from '@/lib/utils'
 import { dispatchCampaign } from '@/services/campaigns'
-import type { Campaign, CampaignStatus, WhatsAppInstance, MediaFile } from '@/types'
+import { SmartScheduler } from '@/components/campaigns/SmartScheduler'
+import type { Campaign, CampaignStatus, WhatsAppInstance, MediaFile, ScheduleType, RecurrencePattern } from '@/types'
 
 interface CampaignsListProps {
   campaigns: (Campaign & {
@@ -78,8 +81,21 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
   const [resendConfirm, setResendConfirm] = useState<Campaign | null>(null)
   const [startConfirm, setStartConfirm] = useState<Campaign | null>(null)
   const [viewCampaign, setViewCampaign] = useState<Campaign | null>(null)
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
+  const [campaignToSchedule, setCampaignToSchedule] = useState<Campaign | null>(null)
   const [loading, setLoading] = useState(false)
   const [dispatching, setDispatching] = useState<string | null>(null)
+
+  // Schedule data
+  const [scheduleType, setScheduleType] = useState<ScheduleType>('scheduled')
+  const [scheduledAt, setScheduledAt] = useState<string | null>(null)
+  const [timezone, setTimezone] = useState('America/Sao_Paulo')
+  const [recurrencePattern, setRecurrencePattern] = useState<RecurrencePattern | null>(null)
+  const [throttleEnabled, setThrottleEnabled] = useState(true)
+  const [throttleRate, setThrottleRate] = useState(60)
+  const [throttleDelay, setThrottleDelay] = useState(2)
+  const [smartTiming, setSmartTiming] = useState(false)
+  const [suggestedSendTime, setSuggestedSendTime] = useState<string | null>(null)
 
   const pendingCampaigns = campaigns.filter(c =>
     ['draft', 'scheduled', 'processing'].includes(c.status)
@@ -127,7 +143,7 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
       const recipients = items?.map(item => item.recipient) || []
 
       if (recipients.length === 0) {
-        alert('Não foi possível encontrar os destinatários da campanha original')
+        toast.error('Não foi possível encontrar os destinatários da campanha original')
         return
       }
 
@@ -169,10 +185,14 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
       // Adicionar à lista local
       setCampaigns(prev => [newCampaign, ...prev])
 
-      alert(`Campanha "${newCampaign.title}" criada com sucesso! Clique no botão "Play" para iniciá-la.`)
+      toast.success('Campanha criada com sucesso!', {
+        description: `"${newCampaign.title}" foi criada. Clique no botão Play para iniciá-la.`
+      })
     } catch (error) {
       console.error('Error resending campaign:', error)
-      alert('Erro ao reenviar campanha')
+      toast.error('Erro ao reenviar campanha', {
+        description: error instanceof Error ? error.message : 'Ocorreu um erro desconhecido'
+      })
     } finally {
       setLoading(false)
       setResendConfirm(null)
@@ -181,7 +201,7 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
 
   const handleStart = async (campaign: Campaign & { instance?: WhatsAppInstance | null }) => {
     if (!campaign.instance) {
-      alert('Esta campanha não tem uma instância WhatsApp associada')
+      toast.error('Esta campanha não tem uma instância WhatsApp associada')
       return
     }
 
@@ -236,15 +256,139 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
         } : c)
       )
 
-      alert(`Campanha concluída! ${result.sent} enviados, ${result.failed} falhas.`)
+      toast.success('Campanha concluída!', {
+        description: `${result.sent} mensagens enviadas, ${result.failed} falhas.`
+      })
     } catch (error) {
       console.error('Error starting campaign:', error)
       setCampaigns(prev =>
         prev.map(c => c.id === campaign.id ? { ...c, status: 'failed' as CampaignStatus } : c)
       )
-      alert('Erro ao iniciar campanha')
+      toast.error('Erro ao iniciar campanha', {
+        description: error instanceof Error ? error.message : 'Ocorreu um erro desconhecido'
+      })
     } finally {
       setDispatching(null)
+    }
+  }
+
+  // Open schedule dialog
+  const handleOpenSchedule = (campaign: Campaign) => {
+    setCampaignToSchedule(campaign)
+    setScheduleType('scheduled')
+    setScheduledAt(null)
+    setTimezone('America/Sao_Paulo')
+    setRecurrencePattern(null)
+    setThrottleEnabled(true)
+    setThrottleRate(60)
+    setThrottleDelay(2)
+    setSmartTiming(false)
+    setSuggestedSendTime(null)
+    setScheduleDialogOpen(true)
+  }
+
+  // Handle schedule data change
+  const handleScheduleChange = useCallback((data: any) => {
+    if (data.schedule_type !== undefined) setScheduleType(data.schedule_type)
+    if (data.scheduled_at !== undefined) setScheduledAt(data.scheduled_at)
+    if (data.timezone !== undefined) setTimezone(data.timezone)
+    if (data.recurrence_pattern !== undefined) setRecurrencePattern(data.recurrence_pattern)
+    if (data.throttle_enabled !== undefined) setThrottleEnabled(data.throttle_enabled)
+    if (data.throttle_rate !== undefined) setThrottleRate(data.throttle_rate)
+    if (data.throttle_delay !== undefined) setThrottleDelay(data.throttle_delay)
+    if (data.smart_timing !== undefined) setSmartTiming(data.smart_timing)
+    if (data.suggested_send_time !== undefined) setSuggestedSendTime(data.suggested_send_time)
+  }, [])
+
+  // Schedule campaign
+  const handleScheduleCampaign = async () => {
+    if (!campaignToSchedule) return
+
+    setLoading(true)
+    const supabase = createClient()
+
+    try {
+      // Buscar os itens da campanha original
+      const { data: items, error: itemsError } = await supabase
+        .from('campaign_items')
+        .select('recipient')
+        .eq('campaign_id', campaignToSchedule.id)
+
+      if (itemsError) throw itemsError
+
+      const recipients = items?.map(item => item.recipient) || []
+
+      if (recipients.length === 0) {
+        toast.error('Não foi possível encontrar os destinatários da campanha original')
+        return
+      }
+
+      // Criar nova campanha com agendamento
+      const { data: newCampaign, error: campaignError } = await supabase
+        .from('campaigns')
+        .insert({
+          user_id: campaignToSchedule.user_id,
+          instance_id: campaignToSchedule.instance_id,
+          title: `${campaignToSchedule.title} (Agendada)`,
+          message: campaignToSchedule.message,
+          media_id: campaignToSchedule.media_id,
+          link_url: campaignToSchedule.link_url,
+          button_type: campaignToSchedule.button_type,
+          buttons: campaignToSchedule.buttons,
+          total_recipients: recipients.length,
+          min_delay: campaignToSchedule.min_delay,
+          max_delay: campaignToSchedule.max_delay,
+          status: 'scheduled',
+          // Campos de agendamento
+          schedule_type: scheduleType,
+          scheduled_at: scheduledAt,
+          timezone: timezone,
+          recurrence_pattern: recurrencePattern,
+          throttle_enabled: throttleEnabled,
+          throttle_rate: throttleRate,
+          throttle_delay: throttleDelay,
+          smart_timing: smartTiming,
+          suggested_send_time: suggestedSendTime,
+        })
+        .select()
+        .single()
+
+      if (campaignError || !newCampaign) throw campaignError
+
+      // Criar os itens da nova campanha
+      const newItems = recipients.map(recipient => ({
+        campaign_id: newCampaign.id,
+        recipient,
+        status: 'pending',
+      }))
+
+      const { error: newItemsError } = await supabase
+        .from('campaign_items')
+        .insert(newItems)
+
+      if (newItemsError) throw newItemsError
+
+      // Adicionar à lista local
+      setCampaigns(prev => [newCampaign, ...prev])
+
+      // Fechar dialog
+      setScheduleDialogOpen(false)
+      setCampaignToSchedule(null)
+
+      toast.success('Campanha agendada com sucesso!', {
+        description: `A campanha "${newCampaign.title}" foi agendada para ${new Date(scheduledAt!).toLocaleString('pt-BR', {
+          dateStyle: 'short',
+          timeStyle: 'short',
+          timeZone: timezone
+        })}`
+      })
+    } catch (error) {
+      console.error('Error scheduling campaign:', error)
+      toast.error('Erro ao agendar campanha', {
+        description: error instanceof Error ? error.message : 'Ocorreu um erro desconhecido'
+      })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -329,14 +473,24 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
                 </Button>
               )}
               {['completed', 'failed', 'cancelled'].includes(campaign.status) && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setResendConfirm(campaign)}
-                  title="Reenviar campanha"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                </Button>
+                <>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => handleOpenSchedule(campaign)}
+                    title="Agendar campanha"
+                  >
+                    <Calendar className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setResendConfirm(campaign)}
+                    title="Reenviar campanha"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                </>
               )}
               {['draft', 'scheduled', 'processing'].includes(campaign.status) && (
                 <Button
@@ -562,6 +716,53 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule Campaign Dialog */}
+      <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Agendar Campanha</DialogTitle>
+            <DialogDescription>
+              Configure o agendamento para a campanha "{campaignToSchedule?.title}"
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <SmartScheduler
+              scheduleType={scheduleType}
+              scheduledAt={scheduledAt}
+              timezone={timezone}
+              recurrencePattern={recurrencePattern}
+              throttleEnabled={throttleEnabled}
+              throttleRate={throttleRate}
+              throttleDelay={throttleDelay}
+              smartTiming={smartTiming}
+              suggestedSendTime={suggestedSendTime}
+              onChange={handleScheduleChange}
+            />
+
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setScheduleDialogOpen(false)
+                  setCampaignToSchedule(null)
+                }}
+                disabled={loading}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleScheduleCampaign}
+                disabled={loading || !scheduledAt}
+              >
+                {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Agendar Campanha
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

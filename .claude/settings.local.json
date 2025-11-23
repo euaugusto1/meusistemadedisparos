@@ -18,7 +18,10 @@
       "Bash(git commit:*)",
       "Bash(git mv:*)",
       "Bash(dir:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(npm install:*)",
+      "Bash(del:*)",
+      "Bash(powershell:*)"
     ],
     "deny": [],
     "ask": []

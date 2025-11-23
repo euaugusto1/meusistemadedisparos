@@ -22,6 +22,8 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
+  TestTube2,
+  Clock,
 } from 'lucide-react'
 import { formatDate, getStatusColor } from '@/lib/utils'
 import type { WhatsAppInstance, Profile, InstanceStatus } from '@/types'
@@ -45,6 +47,7 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [checkingStatus, setCheckingStatus] = useState(false)
+  const [creatingTest, setCreatingTest] = useState(false)
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // Limpar intervalo ao desmontar
@@ -55,6 +58,32 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
       }
     }
   }, [])
+
+  // Auto-refresh time remaining for test instances
+  useEffect(() => {
+    const hasTestInstances = instances.some(i => i.is_test && i.expires_at)
+
+    if (!hasTestInstances) return
+
+    const interval = setInterval(() => {
+      // Force re-render to update time remaining
+      setInstances(prev => [...prev])
+
+      // Check for expired instances and remove them
+      const now = new Date()
+      const expiredIds = instances
+        .filter(i => i.is_test && i.expires_at && new Date(i.expires_at) < now)
+        .map(i => i.id)
+
+      if (expiredIds.length > 0) {
+        setInstances(prev => prev.filter(i => !expiredIds.includes(i.id)))
+        // Call API to clean up
+        fetch('/api/instances/test', { method: 'DELETE' }).catch(console.error)
+      }
+    }, 30000) // Update every 30 seconds
+
+    return () => clearInterval(interval)
+  }, [instances])
 
   // Poll para verificar status quando aguardando QR
   useEffect(() => {
@@ -195,15 +224,81 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
     }
   }
 
+  const handleCreateTestInstance = async () => {
+    setCreatingTest(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/instances/test', {
+        method: 'POST',
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao criar instância de teste')
+      }
+
+      // Add new instance to the list
+      setInstances(prev => [data.instance, ...prev])
+
+      // Show success message
+      alert(data.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao criar instância de teste')
+    } finally {
+      setCreatingTest(false)
+    }
+  }
+
+  const getTimeRemaining = (expiresAt: string | null): string => {
+    if (!expiresAt) return ''
+
+    const now = new Date()
+    const expires = new Date(expiresAt)
+    const diffMs = expires.getTime() - now.getTime()
+
+    if (diffMs <= 0) return 'Expirada'
+
+    const minutes = Math.floor(diffMs / 60000)
+    if (minutes < 60) {
+      return `${minutes}min restantes`
+    }
+
+    const hours = Math.floor(minutes / 60)
+    const remainingMinutes = minutes % 60
+    return `${hours}h ${remainingMinutes}min restantes`
+  }
+
   if (instances.length === 0) {
     return (
       <Card>
-        <CardContent className="py-12 text-center">
+        <CardContent className="py-12 text-center space-y-4">
           <Smartphone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
           <h3 className="text-lg font-semibold mb-2">Nenhuma instância disponível</h3>
           <p className="text-muted-foreground">
             Entre em contato com o administrador para solicitar uma instância WhatsApp.
           </p>
+
+          {/* Test Instance Button */}
+          <div className="pt-4">
+            <div className="inline-block p-4 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg">
+              <TestTube2 className="h-8 w-8 mx-auto mb-2 text-orange-600 dark:text-orange-400" />
+              <h4 className="font-semibold text-sm mb-1">Servidor gratuito para testes</h4>
+              <p className="text-xs text-muted-foreground mb-3">
+                Em desenvolvimento - Funcionalidade temporariamente indisponível
+              </p>
+              <Button
+                onClick={() => alert('Funcionalidade em desenvolvimento. Em breve você poderá criar instâncias de teste gratuitamente!')}
+                disabled={false}
+                variant="outline"
+                className="border-orange-600 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950 opacity-60"
+              >
+                <TestTube2 className="mr-2 h-4 w-4" />
+                Em Desenvolvimento
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
     )
@@ -211,13 +306,46 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
 
   return (
     <div className="space-y-4">
+      {/* Test Instance Creation Button */}
+      <Card className="bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-950 dark:to-yellow-950 border-orange-200 dark:border-orange-800">
+        <CardContent className="py-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3 text-left">
+              <TestTube2 className="h-8 w-8 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+              <div>
+                <h4 className="font-semibold text-sm">Servidor gratuito para testes</h4>
+                <p className="text-xs text-muted-foreground">
+                  Em desenvolvimento - Funcionalidade temporariamente indisponível
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => alert('Funcionalidade em desenvolvimento. Em breve você poderá criar instâncias de teste gratuitamente!')}
+              disabled={false}
+              variant="outline"
+              className="border-orange-600 text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900 flex-shrink-0 opacity-60"
+            >
+              <TestTube2 className="mr-2 h-4 w-4" />
+              Em Desenvolvimento
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Instances Grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {instances.map(instance => (
-          <Card key={instance.id} className="relative overflow-hidden">
+          <Card key={instance.id} className={`relative overflow-hidden ${instance.is_test ? 'border-orange-300 dark:border-orange-700' : ''}`}>
+            {/* Test Instance Badge */}
+            {instance.is_test && (
+              <div className="absolute top-0 right-0 bg-orange-500 text-white text-xs px-2 py-1 rounded-bl-lg font-semibold flex items-center gap-1">
+                <TestTube2 className="h-3 w-3" />
+                TESTE
+              </div>
+            )}
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
-                <div>
+                <div className="flex-1 pr-16">
                   <CardTitle className="text-lg">{instance.name}</CardTitle>
                   <CardDescription>
                     Criada em {formatDate(instance.created_at)}
@@ -241,6 +369,16 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Test Instance Timer */}
+              {instance.is_test && instance.expires_at && (
+                <div className="flex items-center gap-2 text-sm px-3 py-2 bg-orange-100 dark:bg-orange-900 border border-orange-300 dark:border-orange-700 rounded-lg">
+                  <Clock className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                  <span className="font-medium text-orange-700 dark:text-orange-300">
+                    {getTimeRemaining(instance.expires_at)}
+                  </span>
+                </div>
+              )}
+
               {/* Phone Number */}
               {instance.phone_number && (
                 <div className="flex items-center gap-2 text-sm">

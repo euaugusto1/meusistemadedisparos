@@ -1,0 +1,113 @@
+{
+  "success": true,
+  "count": 2,
+  "campaigns": [
+    {
+      "campaignId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "title": "Black Friday 2025 - Promoção Especial",
+      "message": "🔥 BLACK FRIDAY! Aproveite até 70% OFF em todos os produtos!\n\nAcesse agora e garanta o seu: {{link}}\n\n✨ Válido apenas hoje!",
+      "status": "scheduled",
+      "scheduledAt": "2025-01-22T10:00:00.000Z",
+      "timezone": "America/Sao_Paulo",
+
+      "instance": {
+        "id": "inst-uuid-1234",
+        "name": "WhatsApp Vendas",
+        "phoneNumber": "5511999887766",
+        "apiToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "apiUrl": "https://api.uazapi.com/v1",
+        "status": "connected"
+      },
+
+      "recipients": [
+        {
+          "id": "recip-uuid-0001",
+          "phoneNumber": "5511988887777",
+          "status": "pending"
+        },
+        {
+          "id": "recip-uuid-0002",
+          "phoneNumber": "5511977776666",
+          "status": "pending"
+        },
+        {
+          "id": "recip-uuid-0003",
+          "phoneNumber": "5521966665555",
+          "status": "pending"
+        }
+      ],
+      "totalRecipients": 3,
+
+      "media": {
+        "fileName": "black-friday-banner.jpg",
+        "mimeType": "image/jpeg",
+        "fileSize": 245678,
+        "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+      },
+
+      "linkUrl": "https://minhaloja.com.br/black-friday",
+      "buttonType": "url",
+      "buttons": [
+        {
+          "type": "url",
+          "text": "🛍️ Ver Ofertas",
+          "url": "https://minhaloja.com.br/black-friday"
+        }
+      ],
+
+      "throttling": {
+        "enabled": true,
+        "messagesPerMinute": 60,
+        "delayBetweenMessages": 2,
+        "minDelay": 1000,
+        "maxDelay": 3000
+      }
+    },
+    {
+      "campaignId": "b2c3d4e5-f6g7-8901-bcde-fg2345678901",
+      "title": "Lembrete de Consulta - Dr. Silva",
+      "message": "Olá! Este é um lembrete da sua consulta agendada para amanhã às 14h com Dr. Silva.\n\n📅 Data: 23/01/2025\n⏰ Horário: 14:00\n📍 Local: Clínica Saúde Mais\n\nPor favor, confirme sua presença.",
+      "status": "scheduled",
+      "scheduledAt": "2025-01-22T09:00:00.000Z",
+      "timezone": "America/Sao_Paulo",
+
+      "instance": {
+        "id": "inst-uuid-5678",
+        "name": "WhatsApp Clínica",
+        "phoneNumber": "5511988776655",
+        "apiToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.different...",
+        "apiUrl": "https://api.uazapi.com/v1",
+        "status": "connected"
+      },
+
+      "recipients": [
+        {
+          "id": "recip-uuid-1001",
+          "phoneNumber": "5511955554444",
+          "status": "pending"
+        },
+        {
+          "id": "recip-uuid-1002",
+          "phoneNumber": "5511944443333",
+          "status": "pending"
+        }
+      ],
+      "totalRecipients": 2,
+
+      "media": null,
+
+      "linkUrl": null,
+      "buttonType": null,
+      "buttons": null,
+
+      "throttling": {
+        "enabled": true,
+        "messagesPerMinute": 30,
+        "delayBetweenMessages": 3,
+        "minDelay": 2000,
+        "maxDelay": 5000
+      }
+    }
+  ],
+  "timestamp": "2025-01-22T10:00:05.123Z"
+}
