@@ -7,6 +7,18 @@ const N8N_API_KEY = process.env.N8N_API_KEY || ''
 
 export async function GET(request: NextRequest) {
   try {
+    // Verificar se as variáveis de ambiente estão configuradas
+    if (!N8N_API_URL || !N8N_API_KEY) {
+      console.error('N8N environment variables not configured')
+      return NextResponse.json(
+        {
+          error: 'Configuração do n8n ausente',
+          details: 'As variáveis de ambiente N8N_API_URL e N8N_API_KEY não estão configuradas no servidor.'
+        },
+        { status: 500 }
+      )
+    }
+
     const supabase = createClient()
     const { data: { user }, error: userError } = await supabase.auth.getUser()
 
