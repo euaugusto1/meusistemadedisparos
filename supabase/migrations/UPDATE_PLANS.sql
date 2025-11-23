@@ -56,7 +56,7 @@ VALUES
         0.00,
         10000,
         30,
-        '["Créditos personalizados", "Instâncias ilimitadas", "Templates ilimitados", "Suporte 24/7", "Relatórios personalizados", "API de integração", "Gerente de conta dedicado", "Treinamento incluído"]'::jsonb,
+        '["Créditos personalizados", "Instâncias ilimitadas", "Templates ilimitados", "Suporte 24/7", "Relatórios personalizados", "Agentes IA com n8n", "API de integração", "Gerente de conta dedicado", "Treinamento incluído"]'::jsonb,
         true,
         4
     )

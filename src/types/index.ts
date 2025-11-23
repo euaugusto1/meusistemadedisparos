@@ -64,6 +64,31 @@ export interface MercadoPagoSettings {
   use_sandbox: boolean
 }
 
+// Campaign Settings
+export interface CampaignSettings {
+  min_delay_seconds: number
+  max_delay_seconds: number
+}
+
+// Terms of Service
+export interface TermsVersion {
+  id: string
+  version: string
+  content: string
+  effective_date: string
+  created_at: string
+  is_active: boolean
+}
+
+export interface TermsAcceptance {
+  id: string
+  user_id: string
+  terms_version_id: string
+  accepted_at: string
+  ip_address: string | null
+  user_agent: string | null
+}
+
 // Payment Transaction
 export interface PaymentTransaction {
   id: string
@@ -270,6 +295,48 @@ export interface TimelineDataPoint {
   date: string
   sent: number
   failed: number
+}
+
+// N8N Integration Types
+export type N8nWorkflowStatus = 'active' | 'inactive' | 'error'
+export type N8nExecutionStatus = 'success' | 'error' | 'running' | 'waiting' | 'canceled'
+export type N8nExecutionMode = 'webhook' | 'trigger' | 'manual'
+export type N8nWorkflowType = 'ai_agent' | 'automation' | 'webhook' | 'scheduled'
+
+export interface N8nWorkflow {
+  id: string
+  name: string
+  active: boolean
+  isArchived: boolean
+  workflowType?: N8nWorkflowType
+  description?: string | null
+  tags: string[]
+  triggerCount: number
+  createdAt: string
+  updatedAt: string
+  nodes?: any[]
+  connections?: any
+  settings?: any
+}
+
+export interface N8nExecution {
+  id: string
+  workflowId: string
+  finished: boolean
+  mode: N8nExecutionMode
+  status: N8nExecutionStatus
+  startedAt: string
+  stoppedAt: string | null
+  error?: string | null
+  data?: any
+}
+
+export interface N8nAgent {
+  workflow: N8nWorkflow
+  lastExecution: N8nExecution | null
+  executionCount: number
+  successRate: number
+  status: N8nWorkflowStatus
 }
 
 // API Response Types

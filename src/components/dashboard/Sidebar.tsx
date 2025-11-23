@@ -19,6 +19,8 @@ import {
   Crown,
   Sparkles,
   BarChart3,
+  Scale,
+  Bot,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { useUnreadSupport } from '@/hooks/useUnreadSupport'
@@ -39,6 +41,13 @@ const menuItems = [
     href: '/dashboard/analytics',
     icon: BarChart3,
     badge: 'Novo',
+  },
+  {
+    title: 'Agentes IA',
+    href: '/agents',
+    icon: Bot,
+    badge: 'Exclusivo',
+    highlight: true,
   },
   {
     title: 'Minhas Instâncias',
@@ -71,14 +80,14 @@ const menuItems = [
     icon: Send,
   },
   {
-    title: 'Suporte',
-    href: '/support',
-    icon: HeadphonesIcon,
-  },
-  {
     title: 'Planos',
     href: '/plans',
     icon: Crown,
+  },
+  {
+    title: 'Suporte',
+    href: '/support',
+    icon: HeadphonesIcon,
   },
 ]
 
@@ -102,6 +111,11 @@ const adminItems = [
     title: 'Planos',
     href: '/admin/plans',
     icon: Crown,
+  },
+  {
+    title: 'Termos de Uso',
+    href: '/admin/terms',
+    icon: Scale,
   },
   {
     title: 'Configurações',
@@ -136,19 +150,28 @@ export function Sidebar({ profile }: SidebarProps) {
             const isSupportItem = item.href === '/support'
             const showUnreadBadge = isSupportItem && unreadCount > 0
             const showNewBadge = item.badge === 'Novo'
+            const showExclusiveBadge = item.badge === 'Exclusivo'
+            const isHighlighted = item.highlight
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors relative',
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200 relative group',
                   isActive
-                    ? 'bg-primary text-primary-foreground'
+                    ? isHighlighted
+                      ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-200 border border-yellow-500/30'
+                      : 'bg-primary text-primary-foreground'
+                    : isHighlighted
+                    ? 'bg-gradient-to-r from-yellow-500/10 to-orange-500/10 text-yellow-100 hover:from-yellow-500/20 hover:to-orange-500/20 border border-yellow-500/20 hover:border-yellow-500/40'
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                 )}
               >
-                <item.icon className="h-4 w-4" />
+                <item.icon className={cn(
+                  "h-4 w-4",
+                  isHighlighted && "text-yellow-400 group-hover:text-yellow-300"
+                )} />
                 {item.title}
                 {showUnreadBadge && (
                   <Badge
@@ -164,6 +187,14 @@ export function Sidebar({ profile }: SidebarProps) {
                     className="ml-auto h-5 px-2 text-xs bg-gradient-to-r from-blue-500 to-purple-600"
                   >
                     Novo
+                  </Badge>
+                )}
+                {showExclusiveBadge && (
+                  <Badge
+                    variant="default"
+                    className="ml-auto h-5 px-2 text-xs bg-gradient-to-r from-yellow-500 to-orange-600 text-white font-semibold shadow-lg"
+                  >
+                    Gold
                   </Badge>
                 )}
               </Link>
@@ -201,6 +232,17 @@ export function Sidebar({ profile }: SidebarProps) {
             </div>
           </>
         )}
+
+        {/* Footer Links */}
+        <div className="px-3 py-4 border-t">
+          <Link
+            href="/terms"
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          >
+            <Scale className="h-4 w-4" />
+            Termos de Uso
+          </Link>
+        </div>
       </nav>
     </aside>
   )

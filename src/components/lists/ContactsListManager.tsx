@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -48,10 +48,15 @@ import {
   UsersRound,
   Search,
   Star,
+  Lock,
+  CheckCircle2,
+  Sparkles,
+  Smartphone,
 } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
 import { formatDate, formatNumber, parseRecipients } from '@/lib/utils'
 import type { ContactsList, WhatsAppInstance, Contact } from '@/types'
+import { UpgradeModal } from '@/components/agents/UpgradeModal'
 
 interface WhatsAppGroup {
   id: string
@@ -87,7 +92,40 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
   const [savingGroups, setSavingGroups] = useState(false)
   const [groupSearchTerm, setGroupSearchTerm] = useState('')
 
+  // Plan access state
+  const [hasGoldPlan, setHasGoldPlan] = useState(false)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+
+  // Success modal state
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [successMessage, setSuccessMessage] = useState({ title: '', description: '' })
+
   const connectedInstances = instances.filter(i => i.status === 'connected')
+
+  // Check user plan on mount
+  useEffect(() => {
+    const checkUserPlan = async () => {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (!user) return
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('plan_tier, role')
+          .eq('id', user.id)
+          .single()
+
+        const hasAccess = profile?.role === 'admin' || profile?.plan_tier === 'gold'
+        setHasGoldPlan(hasAccess)
+      } catch (err) {
+        console.error('Error checking user plan:', err)
+      }
+    }
+
+    checkUserPlan()
+  }, [])
 
   // Buscar grupos da instância
   const fetchGroups = async (instanceId: string) => {
@@ -127,6 +165,13 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
 
   // Importar participantes dos grupos
   const importParticipants = async () => {
+    // Check if user has Gold plan
+    if (!hasGoldPlan) {
+      setShowImportTypeDialog(false)
+      setShowUpgradeModal(true)
+      return
+    }
+
     setShowImportTypeDialog(false)
     setSavingGroups(true)
     const supabase = createClient()
@@ -175,7 +220,11 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
 
       if (savedLists.length > 0) {
         setLists(prev => [...savedLists, ...prev])
-        alert(`${savedLists.length} lista(s) de participantes criada(s) com sucesso!`)
+        setSuccessMessage({
+          title: 'Importação concluída com sucesso!',
+          description: `${savedLists.length} lista(s) de participantes criada(s) com todos os números dos participantes.`
+        })
+        setShowSuccessModal(true)
         setShowGroupsDialog(false)
         setSelectedGroups([])
         setGroups([])
@@ -217,8 +266,8 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
         .join(', ')
 
       const listData = {
-        name: `JIDs de Grupos WhatsApp (${selectedGroups.length})`,
-        description: `Grupos: ${groupNames.substring(0, 150)}${groupNames.length > 150 ? '...' : ''}`,
+        name: `IDs de Grupos WhatsApp (${selectedGroups.length})`,
+        description: `Grupos selecionados: ${groupNames.substring(0, 150)}${groupNames.length > 150 ? '...' : ''}`,
         contacts,
         user_id: user.id,
       }
@@ -230,19 +279,23 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
         .single()
 
       if (error) {
-        console.error('Error saving group JIDs:', error)
-        alert(`Erro ao salvar JIDs dos grupos: ${error.message}`)
+        console.error('Error saving group IDs:', error)
+        alert(`Erro ao salvar IDs dos grupos: ${error.message}`)
       } else if (data) {
         setLists(prev => [data, ...prev])
-        alert(`Lista com ${selectedGroups.length} JID(s) de grupos criada com sucesso!`)
+        setSuccessMessage({
+          title: 'Importação concluída com sucesso!',
+          description: `Lista criada com ${selectedGroups.length} identificador(es) de grupos.`
+        })
+        setShowSuccessModal(true)
         setShowGroupsDialog(false)
         setSelectedGroups([])
         setGroups([])
         setSelectedInstance('')
       }
     } catch (error) {
-      console.error('Error saving group JIDs:', error)
-      alert('Erro ao salvar JIDs dos grupos')
+      console.error('Error saving group IDs:', error)
+      alert('Erro ao salvar IDs dos grupos')
     } finally {
       setSavingGroups(false)
     }
@@ -603,18 +656,28 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
 
       {/* Import Groups Dialog */}
       <Dialog open={showGroupsDialog} onOpenChange={setShowGroupsDialog}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Importar Grupos do WhatsApp</DialogTitle>
-            <DialogDescription>
-              Selecione uma instância e escolha os grupos para criar listas de contatos
-            </DialogDescription>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <UsersRound className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl">Importar Grupos do WhatsApp</DialogTitle>
+                <DialogDescription className="text-sm">
+                  Selecione uma instância e escolha os grupos para criar listas de contatos
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-4 py-4 flex-1 overflow-hidden flex flex-col">
+          <div className="px-6 py-4 space-y-4 flex-1 overflow-hidden flex flex-col">
             {/* Instance Selector */}
             <div className="space-y-2">
-              <Label>Instância WhatsApp</Label>
+              <Label className="text-sm font-semibold flex items-center gap-2">
+                <Smartphone className="h-4 w-4" />
+                Instância WhatsApp
+              </Label>
               <div className="flex gap-2">
                 <Select
                   value={selectedInstance}
@@ -623,13 +686,16 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
                     fetchGroups(value)
                   }}
                 >
-                  <SelectTrigger className="flex-1">
+                  <SelectTrigger className="flex-1 h-11">
                     <SelectValue placeholder="Selecione uma instância conectada" />
                   </SelectTrigger>
                   <SelectContent>
                     {connectedInstances.map(instance => (
                       <SelectItem key={instance.id} value={instance.id}>
-                        {instance.name}
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                          {instance.name}
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -638,6 +704,7 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
                   <Button
                     variant="outline"
                     size="icon"
+                    className="h-11 w-11"
                     onClick={() => fetchGroups(selectedInstance)}
                     disabled={loadingGroups}
                   >
@@ -649,14 +716,25 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
 
             {/* Groups List */}
             {loadingGroups ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <div className="flex flex-col items-center justify-center py-16 space-y-3">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Carregando grupos...</p>
               </div>
             ) : groups.length > 0 ? (
-              <div className="space-y-3 flex-1 overflow-hidden flex flex-col">
+              <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
                 <div className="flex items-center justify-between">
-                  <Label className="text-base font-semibold">Grupos Disponíveis ({groups.length})</Label>
-                  <Button variant="ghost" size="sm" onClick={toggleAllGroups}>
+                  <div className="flex items-center gap-2">
+                    <UsersRound className="h-4 w-4 text-muted-foreground" />
+                    <Label className="text-sm font-semibold">
+                      Grupos Disponíveis <span className="text-muted-foreground font-normal">({groups.length})</span>
+                    </Label>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleAllGroups}
+                    className="h-8 text-xs"
+                  >
                     {selectedGroups.length === groups.length ? 'Desmarcar todos' : 'Selecionar todos'}
                   </Button>
                 </div>
@@ -668,75 +746,94 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
                     placeholder="Pesquisar grupo..."
                     value={groupSearchTerm}
                     onChange={(e) => setGroupSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 h-11"
                   />
                 </div>
 
-                <div className="border rounded-lg flex-1 overflow-y-auto">
+                <div className="border rounded-lg flex-1 overflow-y-auto bg-muted/20">
                   {groups
                     .filter(group =>
                       group.name.toLowerCase().includes(groupSearchTerm.toLowerCase())
                     )
-                    .map(group => (
-                    <div
-                      key={group.id}
-                      className="flex items-center gap-3 p-4 border-b last:border-b-0 hover:bg-accent/50 cursor-pointer transition-colors"
-                      onClick={() => toggleGroup(group.id)}
-                    >
-                      <Checkbox
-                        checked={selectedGroups.includes(group.id)}
-                        onCheckedChange={() => toggleGroup(group.id)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm mb-1 truncate" title={group.name}>
-                          {group.name}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="text-xs">
-                            <Users className="h-3 w-3 mr-1" />
-                            {group.participants?.length || 0} participantes
-                          </Badge>
+                    .map(group => {
+                      const isSelected = selectedGroups.includes(group.id)
+                      return (
+                        <div
+                          key={group.id}
+                          className={`flex items-center gap-3 p-4 border-b last:border-b-0 cursor-pointer transition-all ${
+                            isSelected
+                              ? 'bg-primary/5 hover:bg-primary/10'
+                              : 'hover:bg-accent/50'
+                          }`}
+                          onClick={() => toggleGroup(group.id)}
+                        >
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => toggleGroup(group.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="mt-0.5"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className={`font-medium text-sm mb-1.5 truncate ${
+                              isSelected ? 'text-foreground' : 'text-foreground'
+                            }`} title={group.name}>
+                              {group.name}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="text-xs font-normal">
+                                <Users className="h-3 w-3 mr-1" />
+                                {group.participants?.length || 0} participantes
+                              </Badge>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ))}
+                      )
+                    })}
                   {groups.filter(group =>
                     group.name.toLowerCase().includes(groupSearchTerm.toLowerCase())
                   ).length === 0 && groupSearchTerm && (
-                    <div className="p-8 text-center text-muted-foreground">
-                      <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Nenhum grupo encontrado para "{groupSearchTerm}"</p>
+                    <div className="p-12 text-center text-muted-foreground">
+                      <Search className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                      <p className="text-sm font-medium">Nenhum grupo encontrado</p>
+                      <p className="text-xs mt-1">Tente outro termo de busca</p>
                     </div>
                   )}
                 </div>
                 {selectedGroups.length > 0 && (
-                  <div className="flex items-center justify-between px-1">
-                    <p className="text-sm font-medium text-primary">
-                      {selectedGroups.length} grupo(s) selecionado(s)
-                    </p>
+                  <div className="flex items-center justify-between px-2 py-3 bg-primary/5 rounded-lg border border-primary/20">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-primary" />
+                      <p className="text-sm font-semibold text-primary">
+                        {selectedGroups.length} grupo(s) selecionado(s)
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
             ) : selectedInstance ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <UsersRound className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p className="font-medium">Nenhum grupo encontrado</p>
-                <p className="text-sm mt-1">Esta instância não possui grupos</p>
+              <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+                <div className="p-4 rounded-full bg-muted/50 mb-4">
+                  <UsersRound className="h-10 w-10 opacity-50" />
+                </div>
+                <p className="font-semibold text-base">Nenhum grupo encontrado</p>
+                <p className="text-sm mt-2 max-w-xs">
+                  Esta instância não possui grupos ou você não é participante de nenhum grupo
+                </p>
               </div>
             ) : null}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="px-6 py-4 border-t bg-muted/20">
             <Button variant="outline" onClick={() => setShowGroupsDialog(false)}>
               Cancelar
             </Button>
             <Button
               onClick={openImportTypeDialog}
               disabled={savingGroups || selectedGroups.length === 0}
+              className="min-w-32"
             >
               {savingGroups && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Importar {selectedGroups.length > 0 ? `(${selectedGroups.length})` : ''}
+              {savingGroups ? 'Importando...' : `Importar ${selectedGroups.length > 0 ? `(${selectedGroups.length})` : ''}`}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -744,36 +841,93 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
 
       {/* Import Type Dialog */}
       <AlertDialog open={showImportTypeDialog} onOpenChange={setShowImportTypeDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Escolha o tipo de importação</AlertDialogTitle>
-            <AlertDialogDescription>
-              Você selecionou {selectedGroups.length} grupo(s). O que deseja importar?
+            <AlertDialogTitle className="text-2xl">Escolha o tipo de importação</AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
+              Você selecionou <span className="font-semibold text-foreground">{selectedGroups.length}</span> grupo(s). Como deseja importar?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="flex flex-col gap-3 py-4">
-            <Button
-              variant="outline"
-              className="h-auto py-4 flex flex-col items-start"
-              onClick={importParticipants}
-              disabled={savingGroups}
+          <div className="grid gap-4 py-6">
+            {/* Participantes dos Grupos - Gold Exclusive */}
+            <div
+              className={`relative overflow-hidden rounded-lg border-2 transition-all ${
+                !hasGoldPlan
+                  ? 'border-yellow-500/40 bg-gradient-to-br from-yellow-500/5 via-orange-500/5 to-yellow-500/5'
+                  : 'border-border hover:border-primary/50 cursor-pointer'
+              }`}
+              onClick={!savingGroups ? importParticipants : undefined}
             >
-              <div className="font-semibold">Participantes dos Grupos</div>
-              <div className="text-sm text-muted-foreground">
-                Criar uma lista para cada grupo com os números dos participantes
-              </div>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-auto py-4 flex flex-col items-start"
-              onClick={importGroupJIDs}
-              disabled={savingGroups}
+              {!hasGoldPlan && (
+                <div className="absolute top-3 right-3">
+                  <Badge className="bg-gradient-to-r from-yellow-500 to-orange-600 text-white font-semibold shadow-lg">
+                    <Lock className="h-3 w-3 mr-1" />
+                    Gold
+                  </Badge>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={importParticipants}
+                disabled={savingGroups}
+                className="w-full text-left p-6 focus:outline-none focus:ring-2 focus:ring-primary rounded-lg"
+              >
+                <div className="flex items-start gap-4">
+                  <div className={`p-3 rounded-lg ${
+                    !hasGoldPlan
+                      ? 'bg-gradient-to-br from-yellow-500/20 to-orange-500/20'
+                      : 'bg-primary/10'
+                  }`}>
+                    <UsersRound className={`h-6 w-6 ${
+                      !hasGoldPlan ? 'text-yellow-500' : 'text-primary'
+                    }`} />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-lg">Participantes dos Grupos</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Criar uma lista separada para cada grupo selecionado contendo todos os números de telefone dos participantes. Ideal para campanhas segmentadas por grupo.
+                    </p>
+                    {!hasGoldPlan && (
+                      <p className="text-xs text-yellow-600 dark:text-yellow-500 font-medium mt-3">
+                        🔒 Recurso exclusivo do plano Gold. Faça upgrade para desbloquear!
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {/* Grupos Selecionados (IDs) */}
+            <div
+              className="relative overflow-hidden rounded-lg border-2 border-border hover:border-primary/50 transition-all cursor-pointer"
+              onClick={!savingGroups ? importGroupJIDs : undefined}
             >
-              <div className="font-semibold">JIDs dos Grupos</div>
-              <div className="text-sm text-muted-foreground">
-                Criar uma lista única com os JIDs dos grupos selecionados
-              </div>
-            </Button>
+              <button
+                type="button"
+                onClick={importGroupJIDs}
+                disabled={savingGroups}
+                className="w-full text-left p-6 focus:outline-none focus:ring-2 focus:ring-primary rounded-lg"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-lg bg-primary/10">
+                    <Users className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <h3 className="font-semibold text-lg">IDs dos Grupos Selecionados</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Criar uma única lista contendo os identificadores (JIDs) dos grupos selecionados. Use para enviar mensagens diretamente para os grupos.
+                    </p>
+                    <div className="flex items-center gap-2 mt-3">
+                      <Badge variant="secondary" className="text-xs">
+                        Disponível em todos os planos
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            </div>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={savingGroups}>Cancelar</AlertDialogCancel>
@@ -802,6 +956,48 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Success Modal */}
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center justify-center mb-4">
+              <div className="relative">
+                <div className="absolute inset-0 bg-green-500/20 rounded-full blur-xl animate-pulse"></div>
+                <div className="relative bg-gradient-to-br from-green-500 to-emerald-600 p-3 rounded-full">
+                  <CheckCircle2 className="h-8 w-8 text-white" strokeWidth={2.5} />
+                </div>
+              </div>
+            </div>
+            <DialogTitle className="text-center text-2xl">{successMessage.title}</DialogTitle>
+            <DialogDescription className="text-center text-base pt-2">
+              {successMessage.description}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center gap-2 py-4">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted/50">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">
+                Suas listas estão prontas para uso!
+              </span>
+            </div>
+          </div>
+          <DialogFooter className="sm:justify-center">
+            <Button
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full sm:w-auto bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+            >
+              Entendi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        open={showUpgradeModal}
+        onOpenChange={setShowUpgradeModal}
+      />
     </div>
   )
 }
