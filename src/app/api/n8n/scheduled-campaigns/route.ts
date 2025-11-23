@@ -94,12 +94,12 @@ export async function GET(request: NextRequest) {
         let mediaBase64 = null
         let mediaInfo = null
 
-        if (campaign.media && campaign.media.storage_path) {
+        if (campaign.media && campaign.media.length > 0 && campaign.media[0].storage_path) {
           try {
             const { data: fileData, error: fileError } = await supabase
               .storage
               .from('media')
-              .download(campaign.media.storage_path)
+              .download(campaign.media[0].storage_path)
 
             if (!fileError && fileData) {
               const arrayBuffer = await fileData.arrayBuffer()
@@ -107,9 +107,9 @@ export async function GET(request: NextRequest) {
               mediaBase64 = buffer.toString('base64')
 
               mediaInfo = {
-                fileName: campaign.media.original_name,
-                mimeType: campaign.media.mime_type,
-                fileSize: campaign.media.file_size,
+                fileName: campaign.media[0].original_name,
+                mimeType: campaign.media[0].mime_type,
+                fileSize: campaign.media[0].file_size,
                 base64: mediaBase64
               }
             }
@@ -128,13 +128,13 @@ export async function GET(request: NextRequest) {
           timezone: campaign.timezone,
 
           // WhatsApp Instance info
-          instance: campaign.instance ? {
-            id: campaign.instance.id,
-            name: campaign.instance.name,
-            phoneNumber: campaign.instance.phone_number,
-            apiToken: campaign.instance.api_token,
-            apiUrl: campaign.instance.api_url,
-            status: campaign.instance.status
+          instance: campaign.instance && campaign.instance.length > 0 ? {
+            id: campaign.instance[0].id,
+            name: campaign.instance[0].name,
+            phoneNumber: campaign.instance[0].phone_number,
+            apiToken: campaign.instance[0].api_token,
+            apiUrl: campaign.instance[0].api_url,
+            status: campaign.instance[0].status
           } : null,
 
           // Recipients

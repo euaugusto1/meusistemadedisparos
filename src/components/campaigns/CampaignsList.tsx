@@ -64,6 +64,7 @@ const STATUS_LABELS: Record<CampaignStatus, string> = {
   completed: 'Concluída',
   failed: 'Falhou',
   cancelled: 'Cancelada',
+  paused: 'Pausada',
 }
 
 const STATUS_ICONS: Record<CampaignStatus, typeof Send> = {
@@ -73,6 +74,7 @@ const STATUS_ICONS: Record<CampaignStatus, typeof Send> = {
   completed: CheckCircle,
   failed: XCircle,
   cancelled: StopCircle,
+  paused: Clock,
 }
 
 export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProps) {

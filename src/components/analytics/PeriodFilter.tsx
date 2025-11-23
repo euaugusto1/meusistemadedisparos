@@ -79,7 +79,9 @@ export function PeriodFilter({ onPeriodChange }: PeriodFilterProps) {
         if (dateRange?.from && dateRange?.to) {
           return { start: dateRange.from, end: dateRange.to }
         }
-        return { start: last7, end: now }
+        const defaultLast7 = new Date(today)
+        defaultLast7.setDate(defaultLast7.getDate() - 6)
+        return { start: defaultLast7, end: now }
 
       default:
         const defaultStart = new Date(today)
