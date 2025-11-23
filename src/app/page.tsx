@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Sparkles, Loader2, MessageSquare, Zap, Shield, ArrowRight, Mail, Lock, CheckCircle2, Eye, EyeOff, Calendar, BarChart3, Library, FileText } from 'lucide-react'
@@ -16,6 +17,7 @@ export default function LandingPage() {
   const [mounted, setMounted] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showLogin, setShowLogin] = useState(false)
@@ -46,12 +48,18 @@ export default function LandingPage() {
   }
 
   const handleSignUp = async () => {
+    // Validar aceite dos termos
+    if (!acceptedTerms) {
+      setError('Você deve aceitar os Termos de Uso para criar uma conta.')
+      return
+    }
+
     setLoading(true)
     setError(null)
 
     const supabase = createClient()
     const redirectUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -66,6 +74,24 @@ export default function LandingPage() {
       setError(error.message)
       setLoading(false)
       return
+    }
+
+    // Se usuário foi criado, registrar aceite dos termos
+    if (data.user) {
+      try {
+        const response = await fetch('/api/terms/accept', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (!response.ok) {
+          console.error('Failed to register terms acceptance')
+        }
+      } catch (err) {
+        console.error('Error registering terms acceptance:', err)
+      }
     }
 
     setError('Verifique seu email para confirmar o cadastro.')
@@ -340,6 +366,38 @@ export default function LandingPage() {
                   </Alert>
                 )}
 
+                {/* Terms Acceptance Checkbox - Only for Sign Up */}
+                {!showLogin && (
+                  <div className="flex items-start space-x-3 p-4 border border-slate-700 rounded-lg bg-slate-800/50 animate-in slide-in-from-top duration-300">
+                    <Checkbox
+                      id="terms-landing"
+                      checked={acceptedTerms}
+                      onCheckedChange={(checked) => setAcceptedTerms(checked as boolean)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <label
+                        htmlFor="terms-landing"
+                        className="text-sm text-slate-300 leading-relaxed cursor-pointer"
+                      >
+                        Li e aceito os{' '}
+                        <Link
+                          href="/terms"
+                          target="_blank"
+                          className="text-blue-400 hover:text-blue-300 underline font-medium"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Termos de Uso
+                        </Link>
+                        {' '}da plataforma
+                      </label>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Obrigatório para criar uma nova conta
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="pt-2">
                   {showLogin ? (
                     <Button
@@ -362,9 +420,9 @@ export default function LandingPage() {
                   ) : (
                     <Button
                       type="button"
-                      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 h-12 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02]"
+                      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 h-12 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                       onClick={handleSignUp}
-                      disabled={loading}
+                      disabled={loading || !acceptedTerms}
                     >
                       {loading ? (
                         <>

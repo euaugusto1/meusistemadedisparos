@@ -11,7 +11,44 @@ import type {
   CampaignStatus,
   DispatchResult,
   WhatsAppInstance,
+  CampaignSettings,
 } from '@/types'
+
+// =====================================================
+// SYSTEM SETTINGS
+// =====================================================
+
+/**
+ * Buscar configurações de delay do sistema
+ */
+async function getCampaignDelaySettings(): Promise<CampaignSettings> {
+  const supabase = createClient()
+
+  try {
+    const { data, error } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'campaign_delays')
+      .single()
+
+    if (error || !data) {
+      // Retornar valores padrão se não houver configuração
+      return {
+        min_delay_seconds: 35,
+        max_delay_seconds: 250,
+      }
+    }
+
+    return data.value as CampaignSettings
+  } catch (error) {
+    console.error('Error fetching campaign delay settings:', error)
+    // Retornar valores padrão em caso de erro
+    return {
+      min_delay_seconds: 35,
+      max_delay_seconds: 250,
+    }
+  }
+}
 
 // =====================================================
 // CAMPAIGN CRUD
@@ -233,6 +270,13 @@ export async function dispatchCampaign(options: DispatchOptions): Promise<{
   const { campaign, instance, onProgress, onItemComplete, shouldStop } = options
   const supabase = createClient()
 
+  // Buscar configurações de delay do sistema
+  const delaySettings = await getCampaignDelaySettings()
+  const minDelay = delaySettings.min_delay_seconds
+  const maxDelay = delaySettings.max_delay_seconds
+
+  console.log('Using campaign delay settings:', { minDelay, maxDelay })
+
   // Atualizar status para processing
   await updateCampaignStatus(campaign.id, 'processing', {
     started_at: new Date().toISOString(),
@@ -331,7 +375,7 @@ export async function dispatchCampaign(options: DispatchOptions): Promise<{
 
     // Delay aleatório entre envios (exceto no último)
     if (i < pendingItems.length - 1) {
-      const delaySeconds = getRandomDelay(campaign.min_delay, campaign.max_delay)
+      const delaySeconds = getRandomDelay(minDelay, maxDelay)
 
       // Contagem regressiva com atualização a cada segundo
       for (let remaining = delaySeconds; remaining > 0; remaining--) {

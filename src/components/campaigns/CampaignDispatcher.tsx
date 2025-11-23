@@ -1,11 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { dispatchCampaign, createCampaign } from '@/services/campaigns'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
@@ -27,22 +25,26 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Separator } from '@/components/ui/separator'
 import {
   Rocket,
   StopCircle,
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Check,
-  Eye,
   Smartphone,
   FileText,
   Users,
-  ChevronRight,
   MessageSquare,
+  Coins,
+  Clock,
+  Send,
+  X,
 } from 'lucide-react'
 import { isPlanExpired, formatNumber } from '@/lib/utils'
-import type { WhatsAppInstance, Profile, DispatchResult, ContactsList, MessageTemplate } from '@/types'
+import type { WhatsAppInstance, Profile, DispatchResult, ContactsList, MessageTemplate, CampaignSettings } from '@/types'
+import { WhatsAppPreview } from './WhatsAppPreview'
+import { createClient } from '@/lib/supabase/client'
 
 interface CampaignDispatcherProps {
   instances: WhatsAppInstance[]
@@ -54,7 +56,7 @@ interface CampaignDispatcherProps {
 export function CampaignDispatcher({ instances = [], lists = [], templates = [], profile }: CampaignDispatcherProps) {
   // Form State
   const [instanceId, setInstanceId] = useState('')
-  const [listId, setListId] = useState('')
+  const [listIds, setListIds] = useState<string[]>([])
   const [templateIds, setTemplateIds] = useState<string[]>([])
   const [title, setTitle] = useState('')
 
@@ -75,6 +77,12 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
   // Refs
   const stopRequestedRef = useRef(false)
 
+  // Campaign Settings State
+  const [campaignSettings, setCampaignSettings] = useState<CampaignSettings>({
+    min_delay_seconds: 35,
+    max_delay_seconds: 250,
+  })
+
   // Computed - ensure arrays are never undefined
   const safeInstances = instances || []
   const safeLists = lists || []
@@ -82,9 +90,14 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
 
   const connectedInstances = safeInstances.filter(i => i.status === 'connected')
   const selectedInstance = safeInstances.find(i => i.id === instanceId)
-  const selectedList = safeLists.find(l => l.id === listId)
+  const selectedLists = safeLists.filter(l => listIds.includes(l.id))
   const selectedTemplates = safeTemplates.filter(t => templateIds.includes(t.id))
-  const recipientsList = selectedList?.contacts?.map(c => c.number) || []
+
+  // Combinar contatos de todas as listas, removendo duplicatas
+  const allContacts = selectedLists.flatMap(list => list.contacts || [])
+  const uniqueNumbers = Array.from(new Set(allContacts.map(c => c.number)))
+  const recipientsList = uniqueNumbers
+
   const planExpired = isPlanExpired(profile?.plan_expires_at || null)
   const userCredits = profile?.credits || 0
   // Créditos necessários: destinatários * número de templates
@@ -94,13 +107,20 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
   // Validation
   const isValid =
     instanceId &&
-    listId &&
+    listIds.length > 0 &&
     templateIds.length > 0 &&
     title.trim() &&
     selectedTemplates.every(t => t.message?.trim()) &&
     recipientsList.length > 0 &&
     !planExpired &&
     hasEnoughCredits
+
+  // Auto-fill title with first template name
+  useEffect(() => {
+    if (selectedTemplates.length > 0 && !title) {
+      setTitle(selectedTemplates[0].name)
+    }
+  }, [selectedTemplates, title])
 
   // Auto-select instance if only one is connected
   useEffect(() => {
@@ -109,15 +129,15 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
     }
   }, [connectedInstances, instanceId])
 
-  // Auto-select favorite list on mount
+  // Auto-select favorite lists on mount
   useEffect(() => {
-    if (!listId && safeLists.length > 0) {
-      const favoriteList = safeLists.find(l => l.is_favorite)
-      if (favoriteList) {
-        setListId(favoriteList.id)
+    if (listIds.length === 0 && safeLists.length > 0) {
+      const favoriteLists = safeLists.filter(l => l.is_favorite)
+      if (favoriteLists.length > 0) {
+        setListIds(favoriteLists.map(l => l.id))
       }
     }
-  }, [safeLists, listId])
+  }, [safeLists, listIds.length])
 
   // Auto-select favorite templates on mount
   useEffect(() => {
@@ -128,6 +148,33 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
       }
     }
   }, [safeTemplates, templateIds.length])
+
+  // Fetch campaign delay settings on mount
+  useEffect(() => {
+    const fetchCampaignSettings = async () => {
+      const supabase = createClient()
+      try {
+        const { data, error } = await supabase
+          .from('system_settings')
+          .select('*')
+          .eq('key', 'campaign_delays')
+          .single()
+
+        console.log('🔍 Campaign Settings Query Result:', { data, error })
+
+        if (!error && data) {
+          console.log('✅ Setting campaign delays:', data.value)
+          setCampaignSettings(data.value as CampaignSettings)
+        } else {
+          console.warn('⚠️ No campaign settings found, using defaults')
+        }
+      } catch (error) {
+        console.error('❌ Error fetching campaign settings:', error)
+      }
+    }
+
+    fetchCampaignSettings()
+  }, [])
 
   // Handle form submit
   const handleSubmit = (e: React.FormEvent) => {
@@ -184,8 +231,8 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
           media_id: template.media_id || undefined,
           button_type: template.button_type || undefined,
           buttons: validButtons,
-          min_delay: 35,
-          max_delay: 250,
+          min_delay: campaignSettings.min_delay_seconds,
+          max_delay: campaignSettings.max_delay_seconds,
         }
 
         const result = await createCampaign(campaignData, recipientsList)
@@ -257,24 +304,43 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
   }
 
   const handleSelectList = (id: string) => {
-    setListId(id)
-    setShowListModal(false)
+    setListIds(prev => {
+      if (prev.includes(id)) {
+        // Remove if already selected
+        return prev.filter(l => l !== id)
+      } else {
+        // Add to selection
+        return [...prev, id]
+      }
+    })
   }
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Rocket className="h-5 w-5 text-primary" />
-            Nova Campanha de Disparo
-          </CardTitle>
-          <CardDescription>
-            Configure e inicie o envio de mensagens em lote
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-4">
+      {/* Header - Compacto */}
+      <div className="flex items-center gap-3 pb-4 border-b">
+        <div className="p-2 bg-primary/10 rounded-lg">
+          <Rocket className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold">Nova Campanha</h1>
+          <p className="text-xs text-muted-foreground">Configure e inicie o envio em lote</p>
+        </div>
+      </div>
+
+      {/* Grid Layout: Form + Preview */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column: Form */}
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Configuração</CardTitle>
+              <CardDescription>
+                Preencha os campos abaixo para configurar sua campanha
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
             {/* Plan Warning */}
             {planExpired && (
               <Alert variant="destructive">
@@ -295,241 +361,189 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
               </Alert>
             )}
 
-            {/* Instance Selection Card */}
+            {/* Instance Selection */}
             <div className="space-y-2">
               <Label>Instância WhatsApp *</Label>
-              <Card
-                className={`cursor-pointer hover:border-primary transition-colors ${selectedInstance ? 'border-primary bg-primary/5' : ''}`}
-                onClick={() => !isProcessing && setShowInstanceModal(true)}
-              >
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${selectedInstance ? 'bg-primary/10 text-primary' : 'bg-muted'}`}>
-                      <Smartphone className="h-5 w-5" />
-                    </div>
-                    <div>
-                      {selectedInstance ? (
-                        <>
-                          <p className="font-medium">{selectedInstance.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {selectedInstance.phone_number || 'Sem número'}
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <p className="font-medium text-muted-foreground">Selecione uma instância</p>
-                          <p className="text-sm text-muted-foreground">
-                            {connectedInstances.length} instância(s) conectada(s)
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                </CardContent>
-              </Card>
+              <div className="flex flex-wrap gap-2 p-3 border rounded-lg min-h-[42px] bg-background">
+                {selectedInstance ? (
+                  <Badge
+                    className="pl-2 pr-1 py-1 gap-1 bg-blue-500/20 text-blue-300 border-blue-500/50 hover:bg-blue-500/30"
+                  >
+                    <Smartphone className="h-3 w-3" />
+                    <span className="text-xs font-medium">{selectedInstance.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setInstanceId('')}
+                      className="ml-1 hover:bg-blue-500/50 rounded-sm p-0.5 transition-colors"
+                      disabled={isProcessing}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ) : (
+                  <>
+                    {connectedInstances.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => setShowInstanceModal(true)}
+                        disabled={isProcessing}
+                      >
+                        + Selecionar
+                      </Button>
+                    )}
+                    {connectedInstances.length === 0 && (
+                      <span className="text-xs text-destructive py-1">
+                        Nenhuma instância conectada
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
 
-            {/* Campaign Title */}
-            <div className="space-y-2">
-              <Label>Título da Campanha *</Label>
-              <Input
-                placeholder="Ex: Promoção Black Friday"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                disabled={isProcessing}
-                required
-              />
-            </div>
-
-            {/* Template Selection Card */}
+            {/* Template Selection */}
             <div className="space-y-2">
               <Label>Templates de Mensagem * (máx. 3)</Label>
-              <Card
-                className={`cursor-pointer hover:border-primary transition-colors ${selectedTemplates.length > 0 ? 'border-primary bg-primary/5' : ''}`}
-                onClick={() => !isProcessing && setShowTemplateModal(true)}
-              >
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${selectedTemplates.length > 0 ? 'bg-primary/10 text-primary' : 'bg-muted'}`}>
-                      <FileText className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      {selectedTemplates.length > 0 ? (
-                        <>
-                          <p className="font-medium">
-                            {selectedTemplates.length} template(s) selecionado(s)
-                          </p>
-                          <p className="text-sm text-muted-foreground truncate max-w-[300px]">
-                            {selectedTemplates.map(t => t.name).join(', ')}
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <p className="font-medium text-muted-foreground">Selecione até 3 templates</p>
-                          <p className="text-sm text-muted-foreground">
-                            {safeTemplates.length} template(s) disponível(is)
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                </CardContent>
-              </Card>
-              {safeTemplates.length === 0 && (
-                <p className="text-sm text-destructive">
-                  Crie um template primeiro para enviar mensagens
-                </p>
-              )}
-            </div>
-
-            {/* List Selection Card */}
-            <div className="space-y-2">
-              <Label>Lista de Destinatários *</Label>
-              <Card
-                className={`cursor-pointer hover:border-primary transition-colors ${selectedList ? 'border-primary bg-primary/5' : ''}`}
-                onClick={() => !isProcessing && setShowListModal(true)}
-              >
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${selectedList ? 'bg-primary/10 text-primary' : 'bg-muted'}`}>
-                      <Users className="h-5 w-5" />
-                    </div>
-                    <div>
-                      {selectedList ? (
-                        <>
-                          <p className="font-medium">{selectedList.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatNumber(recipientsList.length)} destinatário(s)
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <p className="font-medium text-muted-foreground">Selecione uma lista</p>
-                          <p className="text-sm text-muted-foreground">
-                            {safeLists.length} lista(s) disponível(is)
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                </CardContent>
-              </Card>
-              {safeLists.length === 0 && (
-                <p className="text-sm text-destructive">
-                  Crie uma lista de contatos primeiro para enviar mensagens
-                </p>
-              )}
-            </div>
-
-            {/* WhatsApp Message Preview */}
-            {isValid && selectedTemplates.length > 0 && (
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Eye className="h-4 w-4" />
-                  Preview das Mensagens ({selectedTemplates.length} template{selectedTemplates.length > 1 ? 's' : ''})
-                </Label>
-                <div className="space-y-4">
-                  {selectedTemplates.map((template, templateIndex) => (
-                    <div key={template.id} className="bg-[#0b141a] rounded-lg p-4 border border-[#2a3942]">
-                      <div className="mb-2">
-                        <Badge variant="secondary" className="text-xs">
-                          {templateIndex + 1}. {template.name}
-                        </Badge>
-                      </div>
-                      <div
-                        className="relative rounded-lg p-3"
-                        style={{
-                          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23111b21' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-                          backgroundColor: '#0b141a'
-                        }}
-                      >
-                        <div className="max-w-[85%] ml-auto">
-                          <div className="bg-[#005c4b] rounded-lg p-3 relative shadow-md">
-                            <div
-                              className="absolute top-0 -right-2 w-0 h-0"
-                              style={{
-                                borderLeft: '8px solid transparent',
-                                borderTop: '8px solid #005c4b'
-                              }}
-                            />
-                            <p className="text-[#e9edef] text-sm whitespace-pre-wrap break-words">
-                              {template.message}
-                            </p>
-                            {template.link_url && (
-                              <a
-                                href={template.link_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[#53bdeb] text-sm hover:underline block mt-2 break-all"
-                              >
-                                {template.link_url}
-                              </a>
-                            )}
-                            {template.button_type === 'button' && template.buttons?.length > 0 && (
-                              <div className="mt-3 space-y-2">
-                                {template.buttons
-                                  .filter(b => b.name && b.url)
-                                  .map((button, idx) => (
-                                    <div
-                                      key={idx}
-                                      className="bg-[#0b141a]/50 rounded px-3 py-2 text-center"
-                                    >
-                                      <span className="text-[#53bdeb] text-sm font-medium">
-                                        {button.name}
-                                      </span>
-                                    </div>
-                                  ))
-                                }
-                              </div>
-                            )}
-                            <div className="flex items-center justify-end gap-1 mt-1">
-                              <span className="text-[10px] text-[#8696a0]">
-                                {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                              <div className="flex">
-                                <Check className="h-3 w-3 text-[#53bdeb]" />
-                                <Check className="h-3 w-3 text-[#53bdeb] -ml-1.5" />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="text-center">
-                  <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                    {formatNumber(creditsNeeded)} crédito(s) para {formatNumber(recipientsList.length)} destinatário(s) × {selectedTemplates.length} template(s)
+              <div className="flex flex-wrap gap-2 p-3 border rounded-lg min-h-[42px] bg-background">
+                {selectedTemplates.map(template => (
+                  <Badge
+                    key={template.id}
+                    className="pl-2 pr-1 py-1 gap-1 bg-purple-500/20 text-purple-300 border-purple-500/50 hover:bg-purple-500/30"
+                  >
+                    <FileText className="h-3 w-3" />
+                    <span className="text-xs font-medium">{template.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTemplateIds(prev => prev.filter(id => id !== template.id))
+                      }}
+                      className="ml-1 hover:bg-purple-500/50 rounded-sm p-0.5 transition-colors"
+                      disabled={isProcessing}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+                {selectedTemplates.length < 3 && safeTemplates.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => setShowTemplateModal(true)}
+                    disabled={isProcessing}
+                  >
+                    + Adicionar
+                  </Button>
+                )}
+                {selectedTemplates.length === 0 && safeTemplates.length > 0 && (
+                  <span className="text-xs text-muted-foreground py-1">
+                    Clique em "+ Adicionar" para selecionar templates
                   </span>
-                </div>
+                )}
               </div>
-            )}
+              {safeTemplates.length === 0 && (
+                <p className="text-xs text-destructive">
+                  Crie um template primeiro
+                </p>
+              )}
+            </div>
 
-            {/* Progress */}
+            {/* List Selection */}
+            <div className="space-y-2">
+              <Label>Listas de Destinatários *</Label>
+              <div className="flex flex-wrap gap-2 p-3 border rounded-lg min-h-[42px] bg-background">
+                {selectedLists.map(list => (
+                  <Badge
+                    key={list.id}
+                    className="pl-2 pr-1 py-1 gap-1 bg-green-500/20 text-green-300 border-green-500/50 hover:bg-green-500/30"
+                  >
+                    <Users className="h-3 w-3" />
+                    <span className="text-xs font-medium">{list.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setListIds(prev => prev.filter(id => id !== list.id))
+                      }}
+                      className="ml-1 hover:bg-green-500/50 rounded-sm p-0.5 transition-colors"
+                      disabled={isProcessing}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+                {safeLists.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => setShowListModal(true)}
+                    disabled={isProcessing}
+                  >
+                    + Adicionar
+                  </Button>
+                )}
+                {selectedLists.length === 0 && safeLists.length > 0 && (
+                  <span className="text-xs text-muted-foreground py-1">
+                    Clique em "+ Adicionar" para selecionar listas
+                  </span>
+                )}
+                {safeLists.length === 0 && (
+                  <span className="text-xs text-destructive py-1">
+                    Crie uma lista de contatos primeiro
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Progress - Visual Melhorado */}
             {isProcessing && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>{progressText}</span>
-                  <span className="font-bold text-primary">{progress}%</span>
-                </div>
-                <Progress value={progress} />
-              </div>
+              <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <Send className="h-5 w-5 text-primary animate-pulse" />
+                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                        </span>
+                      </div>
+                      <span className="font-semibold">Enviando mensagens...</span>
+                    </div>
+                    <span className="text-2xl font-bold text-primary">{progress}%</span>
+                  </div>
+                  <Progress value={progress} className="h-2" />
+                  <p className="text-sm text-muted-foreground">{progressText}</p>
+                </CardContent>
+              </Card>
             )}
 
-            {/* Results Summary */}
+            {/* Results Summary - Visual Melhorado */}
             {results.length > 0 && (
-              <div className="flex gap-4">
-                <Badge variant="success" className="flex items-center gap-1">
-                  <CheckCircle className="h-3 w-3" />
-                  {results.filter(r => r.success).length} Enviados
-                </Badge>
-                <Badge variant="destructive" className="flex items-center gap-1">
-                  <XCircle className="h-3 w-3" />
-                  {results.filter(r => !r.success).length} Falhas
-                </Badge>
+              <div className="grid grid-cols-2 gap-3">
+                <Card className="bg-green-500/10 border-green-500/20">
+                  <CardContent className="p-4 text-center">
+                    <CheckCircle className="h-8 w-8 text-green-400 mx-auto mb-2" />
+                    <p className="text-3xl font-bold text-green-400">
+                      {results.filter(r => r.success).length}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Enviados</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-red-500/10 border-red-500/20">
+                  <CardContent className="p-4 text-center">
+                    <XCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
+                    <p className="text-3xl font-bold text-red-400">
+                      {results.filter(r => !r.success).length}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Falhas</p>
+                  </CardContent>
+                </Card>
               </div>
             )}
 
@@ -553,28 +567,157 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
               {!isProcessing ? (
                 <Button
                   type="submit"
-                  className="flex-1"
+                  className="flex-1 relative overflow-hidden bg-gradient-to-r from-primary via-primary/90 to-primary hover:from-primary/90 hover:via-primary hover:to-primary/90 text-white font-semibold text-base py-6 shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none group"
                   disabled={!isValid || planExpired}
                 >
-                  <Rocket className="mr-2 h-4 w-4" />
-                  Iniciar Envios
+                  {/* Shine effect */}
+                  <div className="absolute inset-0 -top-full group-hover:top-full transition-all duration-700 ease-out bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+
+                  {/* Icon with animation */}
+                  <div className="relative mr-2">
+                    <Rocket className="h-5 w-5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-300" />
+                    {isValid && !planExpired && (
+                      <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                      </span>
+                    )}
+                  </div>
+
+                  <span className="relative">Iniciar Envios</span>
                 </Button>
               ) : (
                 <Button
                   type="button"
                   variant="destructive"
-                  className="flex-1"
+                  className="flex-1 font-semibold text-base py-6 shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/40 transition-all duration-300"
                   onClick={handleStop}
                 >
-                  <StopCircle className="mr-2 h-4 w-4" />
+                  <StopCircle className="mr-2 h-5 w-5" />
                   Parar Envios
                 </Button>
               )}
             </div>
-          </form>
-        </CardContent>
-      </Card>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
 
+        {/* Right Column: Preview + Stats */}
+        <div className="space-y-4">
+          {/* WhatsApp Preview */}
+          <WhatsAppPreview
+            messages={selectedTemplates.map((template, idx) => ({
+              message: template.message,
+              mediaUrl: template.media_id ? undefined : undefined, // TODO: Get media URL
+              linkUrl: template.link_url || undefined,
+              buttons: template.button_type === 'button' ? template.buttons : [],
+              templateName: template.name
+            }))}
+            recipientName="Cliente"
+          />
+
+          {/* Stats Card */}
+          {(recipientsList.length > 0 || selectedTemplates.length > 0) && (
+            <Card className="bg-gradient-to-br from-slate-900/90 to-slate-950/90 border-slate-800 relative z-0">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                  Resumo da Campanha
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Campanha Info */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between text-sm p-2 rounded-lg bg-slate-800/50">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-blue-400" />
+                      <span className="text-slate-300">Destinatários</span>
+                    </div>
+                    <span className="text-white font-semibold">{formatNumber(recipientsList.length)}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm p-2 rounded-lg bg-slate-800/50">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-purple-400" />
+                      <span className="text-slate-300">Templates</span>
+                    </div>
+                    <span className="text-white font-semibold">{selectedTemplates.length}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm p-2 rounded-lg bg-slate-800/50">
+                    <div className="flex items-center gap-2">
+                      <Send className="h-4 w-4 text-green-400" />
+                      <span className="text-slate-300">Total de mensagens</span>
+                    </div>
+                    <span className="text-white font-semibold">
+                      {formatNumber(recipientsList.length * (selectedTemplates.length || 1))}
+                    </span>
+                  </div>
+                </div>
+
+                <Separator className="bg-slate-700/50" />
+
+                {/* Créditos */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between text-sm p-2.5 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                    <div className="flex items-center gap-2">
+                      <Coins className="h-4 w-4 text-orange-400" />
+                      <span className="text-slate-300">Créditos necessários</span>
+                    </div>
+                    <span className="text-orange-400 font-bold text-base">{formatNumber(creditsNeeded)}</span>
+                  </div>
+
+                  <div className={`flex items-center justify-between text-sm p-2.5 rounded-lg border ${
+                    (userCredits - creditsNeeded) < 0
+                      ? 'bg-red-500/10 border-red-500/20'
+                      : 'bg-green-500/10 border-green-500/20'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <Coins className={`h-4 w-4 ${
+                        (userCredits - creditsNeeded) < 0 ? 'text-red-400' : 'text-green-400'
+                      }`} />
+                      <span className="text-slate-300">Saldo após envio</span>
+                    </div>
+                    <span className={`font-bold text-base ${
+                      (userCredits - creditsNeeded) < 0 ? 'text-red-400' : 'text-green-400'
+                    }`}>
+                      {formatNumber(userCredits - creditsNeeded)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Tempo estimado */}
+                {recipientsList.length > 0 && (
+                  <>
+                    <Separator className="bg-slate-700/50" />
+                    <div className="flex items-center justify-between text-sm p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-blue-400" />
+                        <span className="text-slate-300">Tempo estimado</span>
+                      </div>
+                      <span className="text-blue-400 font-semibold text-base">
+                        {(() => {
+                          const avgDelay = (campaignSettings.min_delay_seconds + campaignSettings.max_delay_seconds) / 2
+                          const totalSeconds = recipientsList.length * selectedTemplates.length * avgDelay
+                          const hours = Math.floor(totalSeconds / 3600)
+                          const minutes = Math.floor((totalSeconds % 3600) / 60)
+                          if (hours > 0) {
+                            return `~${hours}h ${minutes}m`
+                          }
+                          return `~${minutes}m`
+                        })()}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* Modals */}
       {/* Instance Selection Modal */}
       <Dialog open={showInstanceModal} onOpenChange={setShowInstanceModal}>
         <DialogContent className="max-w-md">
@@ -702,10 +845,10 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Selecionar Lista
+              Selecionar Listas
             </DialogTitle>
             <DialogDescription>
-              Escolha a lista de destinatários para a campanha
+              Escolha uma ou mais listas de destinatários para a campanha
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 max-h-[400px] overflow-y-auto">
@@ -716,61 +859,122 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
                 <p className="text-sm">Crie uma lista de contatos primeiro</p>
               </div>
             ) : (
-              safeLists.map(list => (
-                <Card
-                  key={list.id}
-                  className={`cursor-pointer hover:border-primary transition-colors ${listId === list.id ? 'border-primary bg-primary/5' : ''}`}
-                  onClick={() => handleSelectList(list.id)}
-                >
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${listId === list.id ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                        <Users className="h-4 w-4" />
+              safeLists.map(list => {
+                const isSelected = listIds.includes(list.id)
+                return (
+                  <Card
+                    key={list.id}
+                    className={`cursor-pointer hover:border-primary transition-colors ${isSelected ? 'border-primary bg-primary/5' : ''}`}
+                    onClick={() => handleSelectList(list.id)}
+                  >
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                          <Users className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{list.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {formatNumber(list.contact_count)} contato(s)
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{list.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {formatNumber(list.contact_count)} contato(s)
-                        </p>
-                      </div>
-                    </div>
-                    {listId === list.id && (
-                      <CheckCircle className="h-5 w-5 text-primary" />
-                    )}
-                  </CardContent>
-                </Card>
-              ))
+                      {isSelected && (
+                        <CheckCircle className="h-5 w-5 text-primary" />
+                      )}
+                    </CardContent>
+                  </Card>
+                )
+              })
             )}
           </div>
+          {selectedLists.length > 0 && (
+            <div className="pt-4 border-t">
+              <p className="text-sm text-muted-foreground mb-2">
+                {selectedLists.length} lista(s) selecionada(s) - Total: {formatNumber(recipientsList.length)} contato(s) único(s)
+              </p>
+              <Button
+                onClick={() => setShowListModal(false)}
+                className="w-full"
+              >
+                Confirmar Seleção
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
-      {/* Confirmation Dialog */}
+      {/* Confirmation Dialog - Elegante */}
       <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Envio em Lote</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>
-                Você está prestes a enviar <strong>{selectedTemplates.length}</strong> template(s) para{' '}
-                <strong>{recipientsList.length}</strong> destinatário(s).
-              </p>
-              <p>
-                Total de mensagens: <strong>{formatNumber(creditsNeeded)}</strong> ({formatNumber(creditsNeeded)} créditos)
-              </p>
-              <p>
-                O sistema aplicará um delay aleatório de 35 a 250 segundos entre cada envio.
-              </p>
-              <p className="text-yellow-500 font-medium mt-4">
-                <AlertTriangle className="inline h-4 w-4 mr-1" />
-                AVISO: Use com responsabilidade. O uso indevido pode resultar em
-                banimento do WhatsApp.
-              </p>
-            </AlertDialogDescription>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-3 bg-primary/10 rounded-xl">
+                <Rocket className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <AlertDialogTitle className="text-xl">Confirmar Envio em Lote</AlertDialogTitle>
+                <p className="text-sm text-muted-foreground">Revise os detalhes antes de iniciar</p>
+              </div>
+            </div>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleStartDispatch}>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-3 gap-3 my-4">
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-center">
+              <FileText className="h-5 w-5 text-blue-400 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-blue-400">{selectedTemplates.length}</p>
+              <p className="text-xs text-muted-foreground">Template{selectedTemplates.length > 1 ? 's' : ''}</p>
+            </div>
+            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 text-center">
+              <Users className="h-5 w-5 text-green-400 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-green-400">{recipientsList.length}</p>
+              <p className="text-xs text-muted-foreground">Destinatário{recipientsList.length > 1 ? 's' : ''}</p>
+            </div>
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3 text-center">
+              <Send className="h-5 w-5 text-orange-400 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-orange-400">{formatNumber(creditsNeeded)}</p>
+              <p className="text-xs text-muted-foreground">Mensagens</p>
+            </div>
+          </div>
+
+          <AlertDialogDescription className="space-y-3">
+            <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Clock className="h-4 w-4 text-blue-400" />
+                <span className="text-slate-300">Delay aleatório:</span>
+                <span className="font-semibold text-white">
+                  {campaignSettings.min_delay_seconds} a {campaignSettings.max_delay_seconds} segundos
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Coins className="h-4 w-4 text-orange-400" />
+                <span className="text-slate-300">Créditos necessários:</span>
+                <span className="font-semibold text-white">{formatNumber(creditsNeeded)}</span>
+              </div>
+            </div>
+
+            {/* Warning Alert */}
+            <div className="bg-yellow-500/10 border-2 border-yellow-500/30 rounded-lg p-4">
+              <div className="flex gap-3">
+                <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-yellow-500 mb-1">Uso Responsável</p>
+                  <p className="text-sm text-yellow-200/80">
+                    O uso indevido pode resultar em banimento do WhatsApp. Use apenas para fins legítimos e com consentimento dos destinatários.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </AlertDialogDescription>
+
+          <AlertDialogFooter className="gap-2 mt-2">
+            <AlertDialogCancel className="flex-1">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleStartDispatch}
+              className="flex-1 bg-primary hover:bg-primary/90"
+            >
+              <Rocket className="mr-2 h-4 w-4" />
               Sim, Iniciar
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -34,7 +34,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { formatNumber } from '@/lib/utils'
-import type { SystemSetting, MercadoPagoSettings } from '@/types'
+import type { SystemSetting, MercadoPagoSettings, CampaignSettings } from '@/types'
 
 interface SystemSettingsProps {
   stats: {
@@ -69,6 +69,17 @@ export function SystemSettings({ stats, settings }: SystemSettingsProps) {
   const [mpEnabled, setMpEnabled] = useState(initialMP.is_enabled)
   const [mpSandbox, setMpSandbox] = useState(initialMP.use_sandbox)
 
+  // Campaign Settings
+  const campaignSettings = settings.find(s => s.key === 'campaign_delays')
+  const initialCampaign: CampaignSettings = campaignSettings?.value as CampaignSettings || {
+    min_delay_seconds: 35,
+    max_delay_seconds: 250,
+  }
+
+  const [minDelay, setMinDelay] = useState(initialCampaign.min_delay_seconds)
+  const [maxDelay, setMaxDelay] = useState(initialCampaign.max_delay_seconds)
+  const [savingCampaign, setSavingCampaign] = useState(false)
+
   // Atualizar estados quando as configurações mudarem
   useEffect(() => {
     console.log('Settings received in component:', settings)
@@ -88,6 +99,15 @@ export function SystemSettings({ stats, settings }: SystemSettingsProps) {
     setMpWebhookSecret(mp.webhook_secret)
     setMpEnabled(mp.is_enabled)
     setMpSandbox(mp.use_sandbox)
+
+    // Atualizar Campaign Settings
+    const campaignSettings = settings.find(s => s.key === 'campaign_delays')
+    const campaign: CampaignSettings = campaignSettings?.value as CampaignSettings || {
+      min_delay_seconds: 35,
+      max_delay_seconds: 250,
+    }
+    setMinDelay(campaign.min_delay_seconds)
+    setMaxDelay(campaign.max_delay_seconds)
   }, [settings])
 
   const handleCleanup = async (type: string) => {
@@ -210,6 +230,65 @@ export function SystemSettings({ stats, settings }: SystemSettingsProps) {
     }
   }
 
+  const handleSaveCampaignSettings = async () => {
+    // Validação
+    if (minDelay < 10 || minDelay > 300) {
+      setResult('Delay mínimo deve estar entre 10 e 300 segundos.')
+      return
+    }
+    if (maxDelay < 10 || maxDelay > 600) {
+      setResult('Delay máximo deve estar entre 10 e 600 segundos.')
+      return
+    }
+    if (minDelay >= maxDelay) {
+      setResult('Delay mínimo deve ser menor que o delay máximo.')
+      return
+    }
+
+    setSavingCampaign(true)
+    const supabase = createClient()
+
+    try {
+      const delaySettings: CampaignSettings = {
+        min_delay_seconds: minDelay,
+        max_delay_seconds: maxDelay,
+      }
+
+      if (campaignSettings) {
+        // Atualizar configuração existente
+        const { error } = await supabase
+          .from('system_settings')
+          .update({ value: delaySettings })
+          .eq('id', campaignSettings.id)
+
+        if (error) throw error
+      } else {
+        // Criar nova configuração
+        const { error } = await supabase
+          .from('system_settings')
+          .insert({
+            key: 'campaign_delays',
+            value: delaySettings,
+            description: 'Configurações de delay para envio de campanhas',
+          })
+
+        if (error) throw error
+      }
+
+      setResult('Configurações de campanha salvas com sucesso!')
+
+      // Recarregar a página após 1 segundo para garantir que as configs sejam aplicadas
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
+    } catch (error) {
+      console.error('Error saving campaign settings:', error)
+      setResult('Erro ao salvar configurações de campanha.')
+    } finally {
+      setSavingCampaign(false)
+    }
+  }
+
   const statCards = [
     {
       title: 'Total de Usuários',
@@ -305,6 +384,90 @@ export function SystemSettings({ stats, settings }: SystemSettingsProps) {
                 Supabase PostgreSQL {process.env.NEXT_PUBLIC_SUPABASE_URL ? '(Conectado)' : '(Desconectado)'}
               </Badge>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Campaign Settings - Delay Configuration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Send className="h-5 w-5" />
+            Configurações de Campanhas
+          </CardTitle>
+          <CardDescription>
+            Configure o intervalo de delay entre envios de mensagens nas campanhas
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Delay Mínimo (segundos) *</Label>
+              <Input
+                type="number"
+                min={10}
+                max={300}
+                value={minDelay}
+                onChange={(e) => setMinDelay(Number(e.target.value))}
+                placeholder="35"
+              />
+              <p className="text-xs text-muted-foreground">
+                Tempo mínimo de espera entre envios (10-300s)
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Delay Máximo (segundos) *</Label>
+              <Input
+                type="number"
+                min={10}
+                max={600}
+                value={maxDelay}
+                onChange={(e) => setMaxDelay(Number(e.target.value))}
+                placeholder="250"
+              />
+              <p className="text-xs text-muted-foreground">
+                Tempo máximo de espera entre envios (10-600s)
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+            <div className="flex items-start gap-3">
+              <Clock className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-blue-400">Como funciona?</p>
+                <p className="text-sm text-muted-foreground">
+                  O sistema escolherá um delay aleatório entre o mínimo e máximo configurado para cada envio.
+                  Isso ajuda a evitar bloqueios do WhatsApp tornando os envios mais naturais.
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  <strong>Configuração atual:</strong> Entre {minDelay}s e {maxDelay}s (média de {Math.round((minDelay + maxDelay) / 2)}s)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button onClick={handleSaveCampaignSettings} disabled={savingCampaign} className="flex-1">
+              {savingCampaign && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar Configurações
+            </Button>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/admin/campaign-settings')
+                  const data = await response.json()
+                  console.log('📊 Current Settings:', data)
+                  alert(JSON.stringify(data, null, 2))
+                } catch (error) {
+                  console.error('Error:', error)
+                }
+              }}
+            >
+              Testar
+            </Button>
           </div>
         </CardContent>
       </Card>

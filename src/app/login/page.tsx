@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Sparkles, ArrowLeft } from 'lucide-react'
@@ -15,6 +16,7 @@ export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -41,12 +43,18 @@ export default function LoginPage() {
   }
 
   const handleSignUp = async () => {
+    // Validar aceite dos termos
+    if (!acceptedTerms) {
+      setError('Você deve aceitar os Termos de Uso para criar uma conta.')
+      return
+    }
+
     setLoading(true)
     setError(null)
 
     const supabase = createClient()
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -58,6 +66,24 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
       return
+    }
+
+    // Se usuário foi criado, registrar aceite dos termos
+    if (data.user) {
+      try {
+        const response = await fetch('/api/terms/accept', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (!response.ok) {
+          console.error('Failed to register terms acceptance')
+        }
+      } catch (err) {
+        console.error('Error registering terms acceptance:', err)
+      }
     }
 
     setError('Verifique seu email para confirmar o cadastro.')
@@ -140,6 +166,36 @@ export default function LoginPage() {
               </Alert>
             )}
 
+            {/* Terms Acceptance Checkbox */}
+            <div className="flex items-start space-x-3 p-4 border border-slate-700 rounded-lg bg-slate-800/50">
+              <Checkbox
+                id="terms"
+                checked={acceptedTerms}
+                onCheckedChange={(checked) => setAcceptedTerms(checked as boolean)}
+                className="mt-1"
+              />
+              <div className="flex-1">
+                <label
+                  htmlFor="terms"
+                  className="text-sm text-slate-300 leading-relaxed cursor-pointer"
+                >
+                  Li e aceito os{' '}
+                  <Link
+                    href="/terms"
+                    target="_blank"
+                    className="text-blue-400 hover:text-blue-300 underline font-medium"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Termos de Uso
+                  </Link>
+                  {' '}da plataforma
+                </label>
+                <p className="text-xs text-slate-500 mt-1">
+                  Obrigatório para criar uma nova conta
+                </p>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -150,18 +206,26 @@ export default function LoginPage() {
                 variant="outline"
                 className="w-full"
                 onClick={handleSignUp}
-                disabled={loading}
+                disabled={loading || !acceptedTerms}
               >
                 Criar Conta
               </Button>
             </div>
           </form>
 
-          <div className="mt-6 text-center">
-            <Link href="/" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-slate-300 transition-colors">
-              <ArrowLeft className="h-4 w-4" />
-              Voltar para página inicial
-            </Link>
+          <div className="mt-6 space-y-3">
+            <div className="text-center">
+              <Link href="/" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-slate-300 transition-colors">
+                <ArrowLeft className="h-4 w-4" />
+                Voltar para página inicial
+              </Link>
+            </div>
+            <div className="text-center text-xs text-slate-500">
+              Ao criar uma conta, você concorda com nossos{' '}
+              <Link href="/terms" className="text-blue-400 hover:text-blue-300 underline">
+                Termos de Uso
+              </Link>
+            </div>
           </div>
         </CardContent>
       </Card>
