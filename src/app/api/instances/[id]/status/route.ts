@@ -2,6 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { getServerForInstance } from '@/services/uazapi'
 
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || ''
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || ''
+
 // Helper function to make UAZAPI requests
 async function uazapiRequest(baseUrl: string, endpoint: string, token: string) {
   const response = await fetch(`${baseUrl}${endpoint}`, {
@@ -15,6 +18,26 @@ async function uazapiRequest(baseUrl: string, endpoint: string, token: string) {
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }))
     throw new Error(error.message || `UAZAPI Error: ${response.status}`)
+  }
+
+  return response.json()
+}
+
+// Helper function to make Evolution API requests
+async function evolutionApiRequest(instanceName: string) {
+  const response = await fetch(
+    `${EVOLUTION_API_URL}/instance/connectionState/${instanceName}`,
+    {
+      method: 'GET',
+      headers: {
+        'apikey': EVOLUTION_API_KEY,
+      },
+    }
+  )
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }))
+    throw new Error(error.message || `Evolution API Error: ${response.status}`)
   }
 
   return response.json()
@@ -46,30 +69,53 @@ export async function GET(
       return NextResponse.json({ error: 'Instância não encontrada' }, { status: 404 })
     }
 
-    // Obter servidor correto para esta instância
-    const { url: baseUrl, token: adminToken } = getServerForInstance(instance.instance_key)
+    let status: string
+    let phoneNumber: string | null = null
 
-    // Obter status do UAZAPI
-    const statusData = await uazapiRequest(
-      baseUrl,
-      `/instance/status?key=${instance.instance_key}`,
-      adminToken
-    )
+    // Detectar qual API usar baseado na presença de api_token
+    const isEvolutionApi = !!instance.api_token
 
-    // Normalizar status
-    let status = statusData.status || statusData.connectionStatus || statusData.state || 'disconnected'
-    if (status === 'open' || status === 'connected') {
-      status = 'connected'
-    } else if (status === 'qrcode' || status === 'qr_code') {
-      status = 'qr_code'
-    } else if (status === 'connecting') {
-      status = 'connecting'
+    if (isEvolutionApi) {
+      // Usar Evolution API
+      const statusData = await evolutionApiRequest(instance.instance_key)
+
+      // Normalizar status da Evolution API
+      const state = statusData.state || statusData.instance?.state || 'close'
+      if (state === 'open') {
+        status = 'connected'
+      } else if (state === 'connecting') {
+        status = 'connecting'
+      } else {
+        status = 'disconnected'
+      }
+
+      // Obter número de telefone se disponível
+      phoneNumber = statusData.instance?.profilePictureUrl ?
+        (statusData.instance.owner || null) : null
     } else {
-      status = 'disconnected'
-    }
+      // Usar UAZAPI
+      const { url: baseUrl, token: adminToken } = getServerForInstance(instance.instance_key)
 
-    // Atualizar status no banco
-    const phoneNumber = statusData.phone_number || statusData.phone || statusData.number || null
+      const statusData = await uazapiRequest(
+        baseUrl,
+        `/instance/status?key=${instance.instance_key}`,
+        adminToken
+      )
+
+      // Normalizar status
+      status = statusData.status || statusData.connectionStatus || statusData.state || 'disconnected'
+      if (status === 'open' || status === 'connected') {
+        status = 'connected'
+      } else if (status === 'qrcode' || status === 'qr_code') {
+        status = 'qr_code'
+      } else if (status === 'connecting') {
+        status = 'connecting'
+      } else {
+        status = 'disconnected'
+      }
+
+      phoneNumber = statusData.phone_number || statusData.phone || statusData.number || null
+    }
 
     await supabase
       .from('whatsapp_instances')
