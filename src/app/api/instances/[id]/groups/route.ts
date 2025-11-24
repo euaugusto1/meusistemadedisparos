@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { getServerForInstance } from '@/services/uazapi'
 
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || ''
+
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
@@ -36,68 +38,137 @@ export async function GET(
       }, { status: 400 })
     }
 
-    // Obter servidor correto para esta instância
-    const { url: baseUrl, token: adminToken } = getServerForInstance(instance.instance_key)
+    // Detectar qual API usar baseado na presença do api_token
+    const isEvolutionApi = !!instance.api_token
 
-    // Buscar parâmetros da URL
-    const url = new URL(request.url)
-    const force = url.searchParams.get('force') === 'true'
-    const noparticipants = url.searchParams.get('noparticipants') === 'true'
-
-    // Construir URL da API
-    const apiUrl = new URL(`${baseUrl}/group/list`)
-    if (force) apiUrl.searchParams.append('force', 'true')
-    if (noparticipants) apiUrl.searchParams.append('noparticipants', 'true')
-
-    const tokenToUse = instance.token || adminToken
-    console.log('Fetching groups from:', apiUrl.toString())
-    console.log('Instance key:', instance.instance_key)
-    console.log('Token being used:', tokenToUse?.substring(0, 10) + '...')
-
-    // Chamar API do UAZAPI
-    const response = await fetch(apiUrl.toString(), {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'token': tokenToUse,
-      },
+    console.log('API Detection:', {
+      isEvolutionApi,
+      instanceKey: instance.instance_key,
+      hasApiToken: !!instance.api_token,
+      hasToken: !!instance.token
     })
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      console.error('Error fetching groups:', errorData)
-      return NextResponse.json(
-        { error: errorData.message || 'Erro ao buscar grupos' },
-        { status: response.status }
-      )
-    }
+    if (isEvolutionApi) {
+      // ========== EVOLUTION API ==========
+      if (!EVOLUTION_API_URL) {
+        return NextResponse.json(
+          { error: 'Evolution API URL não configurada' },
+          { status: 500 }
+        )
+      }
 
-    const data = await response.json()
-    // API retorna {groups: [...]} ou diretamente [...]
-    const rawGroups = data.groups || data || []
-    console.log('Groups fetched:', Array.isArray(rawGroups) ? rawGroups.length : 0)
-    console.log('Sample group:', JSON.stringify(rawGroups[0]).substring(0, 500))
+      // Construir URL da Evolution API
+      const apiUrl = `${EVOLUTION_API_URL}/group/fetchAllGroups/${instance.instance_key}`
 
-    // Mapear campos da API UAZAPI para nosso formato
-    // UAZAPI usa: JID, Name, Topic, Participants
-    // Nosso formato: id, name, subject, participants
-    // Name = nome do grupo, Topic = descrição do grupo
-    const groups = Array.isArray(rawGroups) ? rawGroups.map((g: any) => ({
-      id: g.JID || g.id,
-      name: g.Name || g.name || 'Grupo sem nome',
-      subject: g.Topic || g.subject || '',
-      participants: (g.Participants || g.participants || []).map((p: any) => ({
-        id: p.JID || p.id || p,
-        admin: p.Admin || p.admin || false
+      console.log('Fetching groups from Evolution API:', apiUrl)
+
+      // Chamar API da Evolution
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'apikey': instance.api_token,
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Error fetching groups from Evolution API:', errorData)
+        return NextResponse.json(
+          { error: errorData.message || 'Erro ao buscar grupos' },
+          { status: response.status }
+        )
+      }
+
+      const data = await response.json()
+      // Evolution API retorna array direto
+      const rawGroups = Array.isArray(data) ? data : []
+
+      console.log('Groups fetched from Evolution API:', rawGroups.length)
+
+      // Mapear campos da Evolution API para nosso formato
+      // Evolution API retorna: id, subject, subjectOwner, subjectTime, pictureUrl, size, creation, owner, desc, descId, restrict, announce
+      const groups = rawGroups.map((g: any) => ({
+        id: g.id,
+        name: g.subject || 'Grupo sem nome',
+        subject: g.desc || '',
+        participants: [], // Evolution API não retorna participantes por padrão neste endpoint
+        size: g.size || 0,
+        pictureUrl: g.pictureUrl,
+        owner: g.owner,
+        creation: g.creation,
+        announce: g.announce,
+        restrict: g.restrict
       }))
-    })) : []
 
-    return NextResponse.json({
-      success: true,
-      groups,
-      total: groups.length,
-    })
+      return NextResponse.json({
+        success: true,
+        groups,
+        total: groups.length,
+        api: 'evolution'
+      })
+
+    } else {
+      // ========== UAZAPI ==========
+      // Obter servidor correto para esta instância
+      const { url: baseUrl, token: adminToken } = getServerForInstance(instance.instance_key)
+
+      // Buscar parâmetros da URL
+      const url = new URL(request.url)
+      const force = url.searchParams.get('force') === 'true'
+      const noparticipants = url.searchParams.get('noparticipants') === 'true'
+
+      // Construir URL da API
+      const apiUrl = new URL(`${baseUrl}/group/list`)
+      if (force) apiUrl.searchParams.append('force', 'true')
+      if (noparticipants) apiUrl.searchParams.append('noparticipants', 'true')
+
+      const tokenToUse = instance.token || adminToken
+      console.log('Fetching groups from UAZAPI:', apiUrl.toString())
+
+      // Chamar API do UAZAPI
+      const response = await fetch(apiUrl.toString(), {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'token': tokenToUse,
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Error fetching groups from UAZAPI:', errorData)
+        return NextResponse.json(
+          { error: errorData.message || 'Erro ao buscar grupos' },
+          { status: response.status }
+        )
+      }
+
+      const data = await response.json()
+      // API retorna {groups: [...]} ou diretamente [...]
+      const rawGroups = data.groups || data || []
+      console.log('Groups fetched from UAZAPI:', Array.isArray(rawGroups) ? rawGroups.length : 0)
+
+      // Mapear campos da API UAZAPI para nosso formato
+      // UAZAPI usa: JID, Name, Topic, Participants
+      const groups = Array.isArray(rawGroups) ? rawGroups.map((g: any) => ({
+        id: g.JID || g.id,
+        name: g.Name || g.name || 'Grupo sem nome',
+        subject: g.Topic || g.subject || '',
+        participants: (g.Participants || g.participants || []).map((p: any) => ({
+          id: p.JID || p.id || p,
+          admin: p.Admin || p.admin || false
+        }))
+      })) : []
+
+      return NextResponse.json({
+        success: true,
+        groups,
+        total: groups.length,
+        api: 'uazapi'
+      })
+    }
   } catch (error) {
     console.error('Erro ao listar grupos:', error)
     return NextResponse.json(
