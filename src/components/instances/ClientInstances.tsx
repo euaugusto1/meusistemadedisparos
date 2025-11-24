@@ -12,6 +12,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Wifi,
   WifiOff,
@@ -24,6 +33,9 @@ import {
   AlertTriangle,
   TestTube2,
   Clock,
+  Trash2,
+  Edit,
+  MoreVertical,
 } from 'lucide-react'
 import { formatDate, getStatusColor } from '@/lib/utils'
 import type { WhatsAppInstance, Profile, InstanceStatus } from '@/types'
@@ -48,6 +60,15 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
   const [error, setError] = useState<string | null>(null)
   const [checkingStatus, setCheckingStatus] = useState(false)
   const [creatingTest, setCreatingTest] = useState(false)
+
+  // Admin states
+  const [instanceToDelete, setInstanceToDelete] = useState<WhatsAppInstance | null>(null)
+  const [instanceToEdit, setInstanceToEdit] = useState<WhatsAppInstance | null>(null)
+  const [editName, setEditName] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [updating, setUpdating] = useState(false)
+
+  const isAdmin = profile?.role === 'admin'
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // Limpar intervalo ao desmontar
@@ -257,6 +278,69 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
     }
   }
 
+  const handleDeleteInstance = async () => {
+    if (!instanceToDelete) return
+
+    setDeleting(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/instances/${instanceToDelete.id}`, {
+        method: 'DELETE',
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.details || data.error || 'Erro ao deletar instância')
+      }
+
+      // Remove instance from the list
+      setInstances(prev => prev.filter(i => i.id !== instanceToDelete.id))
+      setInstanceToDelete(null)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao deletar instância'
+      setError(errorMessage)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const handleEditInstance = async () => {
+    if (!instanceToEdit) return
+
+    setUpdating(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/instances/${instanceToEdit.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: editName }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.details || data.error || 'Erro ao atualizar instância')
+      }
+
+      // Update instance in the list
+      setInstances(prev =>
+        prev.map(i => (i.id === instanceToEdit.id ? { ...i, name: editName } : i))
+      )
+      setInstanceToEdit(null)
+      setEditName('')
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar instância'
+      setError(errorMessage)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
   const getTimeRemaining = (expiresAt: string | null): string => {
     if (!expiresAt) return ''
 
@@ -358,28 +442,58 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
               </div>
             )}
             <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 pr-16">
                   <CardTitle className="text-lg">{instance.name}</CardTitle>
                   <CardDescription>
                     Criada em {formatDate(instance.created_at)}
                   </CardDescription>
                 </div>
-                <Badge
-                  variant="outline"
-                  className={`${getStatusColor(instance.status)} text-white border-none`}
-                >
-                  {instance.status === 'connected' ? (
-                    <Wifi className="h-3 w-3 mr-1" />
-                  ) : instance.status === 'qr_code' ? (
-                    <QrCode className="h-3 w-3 mr-1" />
-                  ) : instance.status === 'connecting' ? (
-                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                  ) : (
-                    <WifiOff className="h-3 w-3 mr-1" />
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className={`${getStatusColor(instance.status)} text-white border-none`}
+                  >
+                    {instance.status === 'connected' ? (
+                      <Wifi className="h-3 w-3 mr-1" />
+                    ) : instance.status === 'qr_code' ? (
+                      <QrCode className="h-3 w-3 mr-1" />
+                    ) : instance.status === 'connecting' ? (
+                      <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <WifiOff className="h-3 w-3 mr-1" />
+                    )}
+                    {STATUS_LABELS[instance.status]}
+                  </Badge>
+                  {(isAdmin || instance.user_id === profile?.id) && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setInstanceToEdit(instance)
+                            setEditName(instance.name)
+                          }}
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Editar nome
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => setInstanceToDelete(instance)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Deletar
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
-                  {STATUS_LABELS[instance.status]}
-                </Badge>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -525,6 +639,100 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
             <p className="text-xs text-center text-muted-foreground">
               O status será atualizado automaticamente quando você escanear o código
             </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Instance Dialog */}
+      <Dialog open={!!instanceToEdit} onOpenChange={() => {
+        setInstanceToEdit(null)
+        setEditName('')
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5 text-primary" />
+              Editar Instância
+            </DialogTitle>
+            <DialogDescription>
+              Edite o nome da instância "{instanceToEdit?.name}"
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="instance-name">Nome da instância</Label>
+              <Input
+                id="instance-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Digite o novo nome"
+                disabled={updating}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setInstanceToEdit(null)
+                  setEditName('')
+                }}
+                disabled={updating}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleEditInstance}
+                disabled={updating || !editName.trim()}
+              >
+                {updating ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Salvar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Instance Dialog */}
+      <Dialog open={!!instanceToDelete} onOpenChange={() => setInstanceToDelete(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Deletar Instância
+            </DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja deletar a instância "{instanceToDelete?.name}"?
+            </DialogDescription>
+          </DialogHeader>
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Esta ação não pode ser desfeita. A instância será removida permanentemente do banco de dados
+              {instanceToDelete?.api_token ? ' e da Evolution API' : ''}.
+            </AlertDescription>
+          </Alert>
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setInstanceToDelete(null)}
+              disabled={deleting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteInstance}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
+              Deletar
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
