@@ -1,0 +1,92 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import type { CampaignStatus } from '@/types'
+
+const N8N_API_KEY = process.env.N8N_API_KEY || ''
+
+const VALID_STATUSES: CampaignStatus[] = ['draft', 'scheduled', 'processing', 'completed', 'failed', 'cancelled', 'paused']
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // Verificar autenticação N8N
+    const authHeader = request.headers.get('authorization')
+    const apiKey = authHeader?.replace('Bearer ', '')
+
+    if (!apiKey || apiKey !== N8N_API_KEY) {
+      return NextResponse.json(
+        { error: 'Não autorizado' },
+        { status: 401 }
+      )
+    }
+
+    const campaignId = params.id
+    const body = await request.json()
+    const { status, started_at } = body
+
+    // Validar status
+    if (!status || !VALID_STATUSES.includes(status)) {
+      return NextResponse.json(
+        { error: 'Status inválido', validStatuses: VALID_STATUSES },
+        { status: 400 }
+      )
+    }
+
+    const supabase = createClient()
+
+    // Preparar dados para atualização
+    const updateData: any = {
+      status,
+      updated_at: new Date().toISOString()
+    }
+
+    // Se está começando o processamento, marcar started_at
+    if (status === 'processing' && !started_at) {
+      updateData.started_at = new Date().toISOString()
+    } else if (started_at) {
+      updateData.started_at = started_at
+    }
+
+    // Atualizar status da campanha
+    const { data: campaign, error } = await supabase
+      .from('campaigns')
+      .update(updateData)
+      .eq('id', campaignId)
+      .select('id, title, status, started_at, updated_at')
+      .single()
+
+    if (error) {
+      console.error('Error updating campaign status:', error)
+      return NextResponse.json(
+        { error: 'Erro ao atualizar status', details: error.message },
+        { status: 500 }
+      )
+    }
+
+    if (!campaign) {
+      return NextResponse.json(
+        { error: 'Campanha não encontrada' },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      campaign,
+      message: `Status atualizado para: ${status}`,
+      timestamp: new Date().toISOString()
+    })
+
+  } catch (error) {
+    console.error('Error in campaign status route:', error)
+    return NextResponse.json(
+      {
+        error: 'Erro interno do servidor',
+        details: error instanceof Error ? error.message : 'Erro desconhecido'
+      },
+      { status: 500 }
+    )
+  }
+}
