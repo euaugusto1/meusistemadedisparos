@@ -14,6 +14,18 @@ export function ThemeProvider() {
       const theme = getStoredTheme()
       const themeData = themes[theme]
 
+      console.log('ThemeProvider: Applying theme:', theme)
+
+      // Apply CSS variables to root element
+      const root = document.documentElement
+      Object.entries(themeData.cssVars).forEach(([key, value]) => {
+        root.style.setProperty(key, value)
+      })
+
+      // Also apply to --primary to ensure immediate update
+      root.style.setProperty('--primary', themeData.cssVars['--theme-primary'])
+      root.style.setProperty('--primary-foreground', themeData.cssVars['--theme-primary-foreground'])
+
       // Inject dynamic CSS for gradients
       const styleId = 'dynamic-theme-styles'
       let styleElement = document.getElementById(styleId) as HTMLStyleElement

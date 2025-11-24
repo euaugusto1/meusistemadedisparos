@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -44,6 +44,12 @@ import {
   Loader2,
   Minus,
   Star,
+  X,
+  Video,
+  Music,
+  File,
+  MessageSquare,
+  MousePointerClick,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import type { MessageTemplate, MediaFile, ButtonType, ButtonConfig } from '@/types'
@@ -51,6 +57,89 @@ import type { MessageTemplate, MediaFile, ButtonType, ButtonConfig } from '@/typ
 interface TemplatesListProps {
   templates: (MessageTemplate & { media?: MediaFile | null })[]
   media: MediaFile[]
+}
+
+// Componente de Preview de Mídia
+interface MediaPreviewProps {
+  media: MediaFile | undefined
+  onRemove: () => void
+  size?: 'sm' | 'md' | 'lg'
+}
+
+function MediaPreview({ media, onRemove, size = 'md' }: MediaPreviewProps) {
+  if (!media) {
+    return null
+  }
+
+  const sizeClasses = {
+    sm: 'h-24 w-24',
+    md: 'h-40 w-40',
+    lg: 'h-48 w-48',
+  }
+
+  const getMediaIcon = (type: string) => {
+    switch (type) {
+      case 'image':
+        return Image
+      case 'video':
+        return Video
+      case 'audio':
+        return Music
+      default:
+        return File
+    }
+  }
+
+  const Icon = getMediaIcon(media.type)
+  const [imageError, setImageError] = React.useState(false)
+
+  return (
+    <div className="relative w-full mt-3">
+      <div className="relative bg-card border-2 border-primary/30 rounded-xl p-4 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate">
+              {media.original_name}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {media.type.toUpperCase()} • {(media.size_bytes / 1024).toFixed(0)}KB
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 shrink-0 hover:bg-destructive/20 hover:text-destructive"
+            onClick={(e) => {
+              e.preventDefault()
+              onRemove()
+            }}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className={`${sizeClasses[size]} mx-auto rounded-lg overflow-hidden bg-muted border-2 flex items-center justify-center`}>
+          {media.type === 'image' && !imageError ? (
+            <img
+              src={media.public_url}
+              alt={media.original_name}
+              className="w-full h-full object-cover"
+              onError={() => {
+                console.error('Image load error:', media.public_url)
+                setImageError(true)
+              }}
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-2 p-4">
+              <Icon className="h-12 w-12 text-primary" />
+              <span className="text-xs font-medium text-center">{media.type}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export function TemplatesList({ templates: initialTemplates, media }: TemplatesListProps) {
@@ -266,7 +355,8 @@ export function TemplatesList({ templates: initialTemplates, media }: TemplatesL
               Novo Template
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto backdrop-blur-sm bg-background/95 border-2 shadow-2xl">
+          <DialogContent className="max-w-3xl max-h-[90vh] backdrop-blur-sm bg-background/95 border-2 shadow-2xl overflow-hidden">
+            <div className="max-h-[80vh] overflow-y-auto pr-2 scrollbar-hide [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-2xl">
                 <div className="bg-gradient-to-br from-primary to-blue-600 p-2 rounded-xl">
@@ -281,18 +371,25 @@ export function TemplatesList({ templates: initialTemplates, media }: TemplatesL
 
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>Nome do Template *</Label>
+                <Label className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" />
+                  Nome do Template *
+                </Label>
                 <Input
                   placeholder="Ex: Promoção Semanal"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>Tipo de Template</Label>
+                <Label className="flex items-center gap-2">
+                  <MousePointerClick className="h-4 w-4 text-primary" />
+                  Tipo de Template
+                </Label>
                 <Select value={buttonType || 'none'} onValueChange={(v) => setButtonType(v === 'none' ? '' : v as ButtonType)}>
-                  <SelectTrigger>
+                  <SelectTrigger className="transition-all duration-200 focus:ring-2 focus:ring-primary/20">
                     <SelectValue placeholder="Mensagem Simples" />
                   </SelectTrigger>
                   <SelectContent>
@@ -306,20 +403,30 @@ export function TemplatesList({ templates: initialTemplates, media }: TemplatesL
 
               {/* Mensagem - sempre visível */}
               <div className="space-y-2">
-                <Label>Mensagem *</Label>
+                <Label className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                  Mensagem *
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {message.length} caracteres
+                  </span>
+                </Label>
                 <Textarea
                   placeholder="Digite sua mensagem..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   rows={5}
+                  className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
                 />
               </div>
 
               {/* Imagem - sempre visível */}
-              <div className="space-y-2">
-                <Label>{buttonType === 'button' ? 'Imagem do Carousel' : 'Mídia'} (opcional)</Label>
+              <div className="space-y-3">
+                <Label className="flex items-center gap-2">
+                  <Image className="h-4 w-4 text-primary" />
+                  {buttonType === 'button' ? 'Imagem do Carousel' : 'Mídia'} (opcional)
+                </Label>
                 <Select value={mediaId || 'none'} onValueChange={(v) => setMediaId(v === 'none' ? '' : v)}>
-                  <SelectTrigger>
+                  <SelectTrigger className="transition-all duration-200 focus:ring-2 focus:ring-primary/20">
                     <SelectValue placeholder={buttonType === 'button' ? 'Selecione uma imagem' : 'Selecione uma mídia'} />
                   </SelectTrigger>
                   <SelectContent>
@@ -343,17 +450,30 @@ export function TemplatesList({ templates: initialTemplates, media }: TemplatesL
                     Nenhuma mídia disponível. Faça upload na Biblioteca de Mídia.
                   </p>
                 )}
+
+                {/* Preview da Mídia Selecionada */}
+                {mediaId && (
+                  <MediaPreview
+                    media={media.find(m => m.id === mediaId)}
+                    onRemove={() => setMediaId('')}
+                    size="md"
+                  />
+                )}
               </div>
 
               {/* Link - apenas para mensagem simples */}
               {buttonType !== 'button' && (
                 <div className="space-y-2">
-                  <Label>Link (opcional)</Label>
+                  <Label className="flex items-center gap-2">
+                    <LinkIcon className="h-4 w-4 text-primary" />
+                    Link (opcional)
+                  </Label>
                   <Input
                     type="url"
                     placeholder="https://exemplo.com"
                     value={linkUrl}
                     onChange={(e) => setLinkUrl(e.target.value)}
+                    className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
               )}
@@ -397,17 +517,24 @@ export function TemplatesList({ templates: initialTemplates, media }: TemplatesL
 
                       {/* Texto/Mensagem do cartão */}
                       <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Mensagem do Cartão</Label>
+                        <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                          <MessageSquare className="h-3 w-3" />
+                          Mensagem do Cartão
+                        </Label>
                         <Input
                           placeholder="Ex: Confira nossa oferta especial"
                           value={btn.text || ''}
                           onChange={(e) => handleButtonChange(index, 'text', e.target.value)}
+                          className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
 
                       {/* Imagem do cartão */}
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Imagem do Cartão</Label>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Image className="h-3 w-3" />
+                          Imagem do Cartão
+                        </Label>
                         <Select
                           value={btn.media_id || 'none'}
                           onValueChange={(v) => handleButtonChange(index, 'media_id', v === 'none' ? '' : v)}
@@ -424,32 +551,50 @@ export function TemplatesList({ templates: initialTemplates, media }: TemplatesL
                             ))}
                           </SelectContent>
                         </Select>
+
+                        {/* Preview da Mídia do Botão */}
+                        {btn.media_id && (
+                          <MediaPreview
+                            media={media.find(m => m.id === btn.media_id)}
+                            onRemove={() => handleButtonChange(index, 'media_id', '')}
+                            size="sm"
+                          />
+                        )}
                       </div>
 
                       {/* Nome do botão */}
                       <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Nome do Botão *</Label>
+                        <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                          <MousePointerClick className="h-3 w-3" />
+                          Nome do Botão *
+                        </Label>
                         <Input
                           placeholder="Ex: Comprar Agora"
                           value={btn.name}
                           onChange={(e) => handleButtonChange(index, 'name', e.target.value)}
+                          className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
 
                       {/* URL do botão */}
                       <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">URL do Botão *</Label>
+                        <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                          <LinkIcon className="h-3 w-3" />
+                          URL do Botão *
+                        </Label>
                         <Input
                           type="url"
                           placeholder="https://exemplo.com/produto"
                           value={btn.url || ''}
                           onChange={(e) => handleButtonChange(index, 'url', e.target.value)}
+                          className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
                     </div>
                   ))}
                 </div>
               )}
+            </div>
             </div>
 
             <DialogFooter>

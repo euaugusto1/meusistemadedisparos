@@ -214,6 +214,8 @@ export function applyTheme(variant: ThemeVariant) {
   const theme = getTheme(variant)
   const root = document.documentElement
 
+  console.log('applyTheme: Applying theme:', variant, theme)
+
   // Apply CSS variables
   Object.entries(theme.cssVars).forEach(([key, value]) => {
     root.style.setProperty(key, value)
@@ -223,6 +225,8 @@ export function applyTheme(variant: ThemeVariant) {
   root.style.setProperty('--primary', theme.cssVars['--theme-primary'])
   root.style.setProperty('--primary-foreground', theme.cssVars['--theme-primary-foreground'])
 
+  console.log('applyTheme: CSS vars applied to root')
+
   // Force repaint
   root.classList.add('theme-transition')
   setTimeout(() => {
@@ -231,11 +235,17 @@ export function applyTheme(variant: ThemeVariant) {
 
   // Store in localStorage
   localStorage.setItem('theme-variant', variant)
+  console.log('applyTheme: Theme saved to localStorage:', variant)
+
+  // Dispatch event for other components
+  window.dispatchEvent(new CustomEvent('theme-applied', { detail: { variant, theme } }))
 }
 
 export function getStoredTheme(): ThemeVariant {
   if (typeof window === 'undefined') return 'neutral'
-  return (localStorage.getItem('theme-variant') as ThemeVariant) || 'neutral'
+  const stored = (localStorage.getItem('theme-variant') as ThemeVariant) || 'neutral'
+  console.log('getStoredTheme: Retrieved theme from localStorage:', stored)
+  return stored
 }
 
 // Temas disponíveis por plano
