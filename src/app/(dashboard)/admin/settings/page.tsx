@@ -53,10 +53,13 @@ export default async function AdminSettingsPage() {
   console.log('Settings error:', settingsError)
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Configurações do Sistema</h1>
-        <p className="text-muted-foreground">
+    <div className="space-y-8">
+      {/* Header - Premium Style */}
+      <div className="text-center space-y-3">
+        <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-red-600 via-orange-600 to-red-600 bg-clip-text text-transparent">
+          Configurações do Sistema
+        </h1>
+        <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
           Configurações gerais e manutenção do sistema
         </p>
       </div>

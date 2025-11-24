@@ -254,18 +254,24 @@ export function TemplatesList({ templates: initialTemplates, media }: TemplatesL
 
   return (
     <div className="space-y-4">
-      {/* Header with Add Button */}
+      {/* Action Button */}
       <div className="flex justify-end">
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => openDialog()}>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button
+              onClick={() => openDialog()}
+              className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
+            >
+              <Plus className="mr-2 h-5 w-5" />
               Novo Template
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto backdrop-blur-sm bg-background/95 border-2 shadow-2xl">
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle className="flex items-center gap-2 text-2xl">
+                <div className="bg-gradient-to-br from-primary to-blue-600 p-2 rounded-xl">
+                  <FileText className="h-6 w-6 text-white" />
+                </div>
                 {editingTemplate ? 'Editar Template' : 'Novo Template'}
               </DialogTitle>
               <DialogDescription>
@@ -447,7 +453,11 @@ export function TemplatesList({ templates: initialTemplates, media }: TemplatesL
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsDialogOpen(false)}
+                className="transition-all duration-300 hover:scale-105"
+              >
                 Cancelar
               </Button>
               <Button
@@ -458,6 +468,7 @@ export function TemplatesList({ templates: initialTemplates, media }: TemplatesL
                   !message.trim() ||
                   (buttonType === 'button' && !buttons.some(b => b.name && b.url))
                 }
+                className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editingTemplate ? 'Salvar' : 'Criar'}
@@ -469,12 +480,27 @@ export function TemplatesList({ templates: initialTemplates, media }: TemplatesL
 
       {/* Templates Grid */}
       {templates.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Nenhum template criado</p>
-            <Button className="mt-4" onClick={() => openDialog()}>
-              <Plus className="mr-2 h-4 w-4" />
+        <Card className="border-2 border-dashed border-muted-foreground/20 bg-gradient-to-br from-background via-muted/5 to-background">
+          <CardContent className="py-16 text-center space-y-6">
+            <div className="relative inline-block">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary to-blue-600 rounded-full blur-2xl opacity-20 animate-pulse"></div>
+              <div className="relative bg-gradient-to-br from-primary/10 to-blue-600/10 p-6 rounded-full">
+                <FileText className="h-16 w-16 text-primary" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+                Crie seu primeiro template
+              </h3>
+              <p className="text-muted-foreground max-w-md mx-auto text-base">
+                Templates reutilizáveis economizam tempo e padronizam suas mensagens
+              </p>
+            </div>
+            <Button
+              className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
+              onClick={() => openDialog()}
+            >
+              <Plus className="mr-2 h-5 w-5" />
               Criar Primeiro Template
             </Button>
           </CardContent>
@@ -482,7 +508,7 @@ export function TemplatesList({ templates: initialTemplates, media }: TemplatesL
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {templates.map(template => (
-            <Card key={template.id} className="flex flex-col">
+            <Card key={template.id} className="flex flex-col transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary/50">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <CardTitle className="text-lg">{template.name}</CardTitle>
@@ -516,24 +542,29 @@ export function TemplatesList({ templates: initialTemplates, media }: TemplatesL
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-1">
-                <p className="text-sm text-muted-foreground line-clamp-3 mb-3">
-                  {template.message}
-                </p>
+                {/* Preview with decorative border */}
+                <div className="relative p-1 rounded-2xl bg-gradient-to-br from-primary via-blue-600 to-purple-600 mb-3">
+                  <div className="bg-background p-3 rounded-xl">
+                    <p className="text-sm text-muted-foreground line-clamp-3">
+                      {template.message}
+                    </p>
+                  </div>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {template.media_id && (
-                    <Badge variant="outline">
+                    <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
                       <Image className="h-3 w-3 mr-1" />
                       Mídia
                     </Badge>
                   )}
                   {template.link_url && (
-                    <Badge variant="outline">
+                    <Badge className="bg-green-500/10 text-green-600 border-green-500/20">
                       <LinkIcon className="h-3 w-3 mr-1" />
                       Link
                     </Badge>
                   )}
                   {template.button_type && (
-                    <Badge variant="outline">
+                    <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20">
                       {template.button_type}
                     </Badge>
                   )}

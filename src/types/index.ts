@@ -111,6 +111,7 @@ export interface WhatsAppInstance {
   name: string
   instance_key: string
   token: string
+  api_token?: string | null
   status: InstanceStatus
   phone_number: string | null
   webhook_url: string | null

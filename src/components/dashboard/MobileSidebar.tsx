@@ -19,6 +19,8 @@ import {
   Crown,
   Menu,
   Sparkles,
+  BarChart3,
+  Bot,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -43,44 +45,32 @@ const menuItems = [
     icon: LayoutDashboard,
   },
   {
-    title: 'Minhas Instâncias',
-    href: '/instances',
-    icon: Smartphone,
+    title: 'Analytics',
+    href: '/dashboard/analytics',
+    icon: BarChart3,
+    badge: 'Novo',
   },
   {
-    title: 'Biblioteca de Mídia',
-    href: '/media',
-    icon: Image,
-  },
-  {
-    title: 'Templates',
-    href: '/templates',
-    icon: FileText,
-  },
-  {
-    title: 'Listas de Contatos',
-    href: '/lists',
-    icon: Users,
-  },
-  {
-    title: 'Disparo',
-    href: '/dispatch',
-    icon: Rocket,
+    title: 'Agentes IA',
+    href: '/agents',
+    icon: Bot,
+    badge: 'Exclusivo',
+    highlight: true,
   },
   {
     title: 'Campanhas',
-    href: '/campaigns',
+    href: '/instances',
     icon: Send,
-  },
-  {
-    title: 'Suporte',
-    href: '/support',
-    icon: HeadphonesIcon,
   },
   {
     title: 'Planos',
     href: '/plans',
     icon: Crown,
+  },
+  {
+    title: 'Suporte',
+    href: '/support',
+    icon: HeadphonesIcon,
   },
 ]
 
@@ -117,6 +107,10 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
   const isAdmin = profile?.role === 'admin'
   const unreadCount = useUnreadSupport(profile)
 
+  // Rotas de campanhas
+  const campaignRoutes = ['/instances', '/lists', '/media', '/templates', '/dispatch', '/campaigns']
+  const isInCampaignRoute = campaignRoutes.some(route => pathname.startsWith(route))
+
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -143,29 +137,58 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
         <nav className="flex-1 overflow-y-auto py-4">
           <div className="px-3 space-y-1">
             {menuItems.map((item) => {
-              const isActive = pathname === item.href
+              // Se o item for "Campanhas", considerar ativo se estiver em qualquer rota de campanha
+              const isCampaignItem = item.title === 'Campanhas'
+              const isActive = isCampaignItem ? isInCampaignRoute : pathname === item.href
+
               const isSupportItem = item.href === '/support'
-              const showBadge = isSupportItem && unreadCount > 0
+              const showUnreadBadge = isSupportItem && unreadCount > 0
+              const showNewBadge = item.badge === 'Novo'
+              const showExclusiveBadge = item.badge === 'Exclusivo'
+              const isHighlighted = item.highlight
 
               return (
                 <Link
                   key={item.href}
-                  href={item.href}
+                  href={item.href!}
                   className={cn(
                     'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors relative',
                     isActive
-                      ? 'bg-primary text-primary-foreground'
+                      ? isHighlighted
+                        ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-200 border border-yellow-500/30'
+                        : 'bg-primary text-primary-foreground'
+                      : isHighlighted
+                      ? 'bg-gradient-to-r from-yellow-500/10 to-orange-500/10 text-yellow-100 border border-yellow-500/20'
                       : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                   )}
                 >
-                  <item.icon className="h-4 w-4" />
+                  <item.icon className={cn(
+                    "h-4 w-4",
+                    isHighlighted && "text-yellow-400"
+                  )} />
                   {item.title}
-                  {showBadge && (
+                  {showUnreadBadge && (
                     <Badge
                       variant="destructive"
                       className="ml-auto h-5 w-5 flex items-center justify-center p-0 text-xs"
                     >
                       {unreadCount > 99 ? '99+' : unreadCount}
+                    </Badge>
+                  )}
+                  {showNewBadge && (
+                    <Badge
+                      variant="default"
+                      className="ml-auto h-5 px-2 text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white"
+                    >
+                      Novo
+                    </Badge>
+                  )}
+                  {showExclusiveBadge && (
+                    <Badge
+                      variant="default"
+                      className="ml-auto h-5 px-2 text-xs bg-gradient-to-r from-yellow-500 to-orange-600 text-white font-semibold"
+                    >
+                      Gold
                     </Badge>
                   )}
                 </Link>

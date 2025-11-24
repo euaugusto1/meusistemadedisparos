@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { CampaignsList } from '@/components/campaigns/CampaignsList'
 import { ScheduledCampaignsDashboard } from '@/components/campaigns/ScheduledCampaignsDashboard'
+import { CampaignNavigation } from '@/components/campaigns/CampaignNavigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Campaign, WhatsAppInstance, MediaFile } from '@/types'
 
@@ -34,44 +35,50 @@ export default function CampaignsPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Minhas Campanhas</h1>
-          <p className="text-muted-foreground">
-            Acompanhe o histórico e status das suas campanhas
-          </p>
+      <>
+        <CampaignNavigation />
+        <div className="container mx-auto px-4 py-8 space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold">Histórico</h1>
+            <p className="text-muted-foreground">
+              Acompanhe o histórico e status das suas campanhas
+            </p>
+          </div>
+          <div className="text-center py-12">Carregando...</div>
         </div>
-        <div className="text-center py-12">Carregando...</div>
-      </div>
+      </>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Minhas Campanhas</h1>
-        <p className="text-muted-foreground">
-          Acompanhe o histórico e status das suas campanhas
-        </p>
+    <>
+      <CampaignNavigation />
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Histórico</h1>
+          <p className="text-muted-foreground">
+            Acompanhe o histórico e status das suas campanhas
+          </p>
+        </div>
+
+        <Tabs defaultValue="all" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="all">Todas as Campanhas</TabsTrigger>
+            <TabsTrigger value="scheduled">Agendadas</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="all">
+            <CampaignsList campaigns={campaigns || []} />
+          </TabsContent>
+
+          <TabsContent value="scheduled">
+            <ScheduledCampaignsDashboard
+              campaigns={campaigns || []}
+              onCampaignUpdate={fetchCampaigns}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
-
-      <Tabs defaultValue="all" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="all">Todas as Campanhas</TabsTrigger>
-          <TabsTrigger value="scheduled">Agendadas</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="all">
-          <CampaignsList campaigns={campaigns || []} />
-        </TabsContent>
-
-        <TabsContent value="scheduled">
-          <ScheduledCampaignsDashboard
-            campaigns={campaigns || []}
-            onCampaignUpdate={fetchCampaigns}
-          />
-        </TabsContent>
-      </Tabs>
-    </div>
+    </>
   )
 }

@@ -38,10 +38,13 @@ export default async function SupportPage() {
   const { data: tickets } = await ticketsQuery
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Suporte</h1>
-        <p className="text-muted-foreground">
+    <div className="space-y-8">
+      {/* Header - Premium Style */}
+      <div className="text-center space-y-3">
+        <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary via-blue-600 to-purple-600 bg-clip-text text-transparent">
+          Suporte
+        </h1>
+        <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
           {isAdmin
             ? 'Gerencie os tickets de suporte dos usuários'
             : 'Entre em contato com nossa equipe de suporte'}

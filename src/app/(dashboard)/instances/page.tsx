@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { ClientInstances } from '@/components/instances/ClientInstances'
+import { CampaignNavigation } from '@/components/campaigns/CampaignNavigation'
 
 export default async function InstancesPage() {
   const supabase = createClient()
@@ -22,18 +23,21 @@ export default async function InstancesPage() {
     .order('created_at', { ascending: false })
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Minhas Instâncias</h1>
-        <p className="text-muted-foreground">
-          Gerencie suas conexões WhatsApp
-        </p>
-      </div>
+    <>
+      <CampaignNavigation />
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Minhas Instâncias</h1>
+          <p className="text-muted-foreground">
+            Gerencie suas conexões WhatsApp
+          </p>
+        </div>
 
-      <ClientInstances
-        instances={instances || []}
-        profile={profile}
-      />
-    </div>
+        <ClientInstances
+          instances={instances || []}
+          profile={profile}
+        />
+      </div>
+    </>
   )
 }

@@ -50,19 +50,24 @@ export default async function AdminTermsPage() {
   }) || []
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
+    <div className="p-8 space-y-8">
+      <div>
         <Link href="/dashboard">
-          <Button variant="ghost" size="sm" className="mb-4">
+          <Button variant="ghost" size="sm" className="mb-4 transition-all duration-300 hover:scale-105">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar ao Painel
           </Button>
         </Link>
 
-        <h1 className="text-3xl font-bold">Gerenciar Termos de Uso</h1>
-        <p className="text-muted-foreground mt-2">
-          Controle de versões e aceites dos Termos de Uso
-        </p>
+        {/* Header - Premium Style */}
+        <div className="text-center space-y-3">
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-red-600 via-orange-600 to-red-600 bg-clip-text text-transparent">
+            Gerenciar Termos de Uso
+          </h1>
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+            Controle de versões e aceites dos Termos de Uso
+          </p>
+        </div>
       </div>
 
       <TermsManager

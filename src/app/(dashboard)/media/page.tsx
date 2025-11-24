@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { MediaGallery } from '@/components/media/MediaGallery'
+import { CampaignNavigation } from '@/components/campaigns/CampaignNavigation'
 
 export default async function MediaPage() {
   const supabase = createClient()
@@ -21,18 +22,21 @@ export default async function MediaPage() {
     .order('created_at', { ascending: false })
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Biblioteca de Mídia</h1>
-        <p className="text-muted-foreground">
-          Gerencie seus arquivos de mídia para usar nas campanhas
-        </p>
-      </div>
+    <>
+      <CampaignNavigation />
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Biblioteca de Mídia</h1>
+          <p className="text-muted-foreground">
+            Gerencie seus arquivos de mídia para usar nas campanhas
+          </p>
+        </div>
 
-      <MediaGallery
-        media={media || []}
-        profile={profile}
-      />
-    </div>
+        <MediaGallery
+          media={media || []}
+          profile={profile}
+        />
+      </div>
+    </>
   )
 }

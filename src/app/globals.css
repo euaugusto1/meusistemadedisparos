@@ -24,6 +24,13 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 24 100% 50%;
     --radius: 0.5rem;
+
+    /* Theme Variables - Default: Ocean Blue */
+    --theme-primary: 14 165 233;
+    --theme-primary-foreground: 255 255 255;
+    --theme-gradient-from: 6 182 212;
+    --theme-gradient-via: 37 99 235;
+    --theme-gradient-to: 79 70 229;
   }
 
   .dark {
@@ -55,6 +62,13 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Theme transition */
+  .theme-transition * {
+    transition: background-color 300ms ease-in-out,
+                border-color 300ms ease-in-out,
+                color 300ms ease-in-out !important;
   }
 }
 

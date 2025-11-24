@@ -27,10 +27,13 @@ export default async function AdminUsersPage() {
     .order('created_at', { ascending: false })
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Gestão de Usuários</h1>
-        <p className="text-muted-foreground">
+    <div className="space-y-8">
+      {/* Header - Premium Style */}
+      <div className="text-center space-y-3">
+        <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-red-600 via-orange-600 to-red-600 bg-clip-text text-transparent">
+          Gestão de Usuários
+        </h1>
+        <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
           Gerencie usuários, planos e permissões
         </p>
       </div>

@@ -36,5 +36,19 @@ export default async function AdminPlans() {
   console.log('Plans data:', plans)
   console.log('Plans error:', error)
 
-  return <PlansManager plans={plans || []} />
+  return (
+    <div className="space-y-8">
+      {/* Header - Premium Style */}
+      <div className="text-center space-y-3">
+        <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-red-600 via-orange-600 to-red-600 bg-clip-text text-transparent">
+          Gerenciar Planos
+        </h1>
+        <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+          Administre os planos e preços do sistema
+        </p>
+      </div>
+
+      <PlansManager plans={plans || []} />
+    </div>
+  )
 }

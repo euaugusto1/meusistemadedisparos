@@ -50,33 +50,8 @@ const menuItems = [
     highlight: true,
   },
   {
-    title: 'Minhas Instâncias',
-    href: '/instances',
-    icon: Smartphone,
-  },
-  {
-    title: 'Biblioteca de Mídia',
-    href: '/media',
-    icon: Image,
-  },
-  {
-    title: 'Templates',
-    href: '/templates',
-    icon: FileText,
-  },
-  {
-    title: 'Listas de Contatos',
-    href: '/lists',
-    icon: Users,
-  },
-  {
-    title: 'Disparo',
-    href: '/dispatch',
-    icon: Rocket,
-  },
-  {
     title: 'Campanhas',
-    href: '/campaigns',
+    href: '/instances',
     icon: Send,
   },
   {
@@ -129,6 +104,10 @@ export function Sidebar({ profile }: SidebarProps) {
   const isAdmin = profile?.role === 'admin'
   const unreadCount = useUnreadSupport(profile)
 
+  // Rotas de campanhas
+  const campaignRoutes = ['/instances', '/lists', '/media', '/templates', '/dispatch', '/campaigns']
+  const isInCampaignRoute = campaignRoutes.some(route => pathname.startsWith(route))
+
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col bg-card border-r">
       <div className="flex items-center h-16 px-6 border-b gap-3">
@@ -146,7 +125,10 @@ export function Sidebar({ profile }: SidebarProps) {
       <nav className="flex-1 overflow-y-auto py-4">
         <div className="px-3 space-y-1">
           {menuItems.map((item) => {
-            const isActive = pathname === item.href
+            // Se o item for "Campanhas", considerar ativo se estiver em qualquer rota de campanha
+            const isCampaignItem = item.title === 'Campanhas'
+            const isActive = isCampaignItem ? isInCampaignRoute : pathname === item.href
+
             const isSupportItem = item.href === '/support'
             const showUnreadBadge = isSupportItem && unreadCount > 0
             const showNewBadge = item.badge === 'Novo'
@@ -156,16 +138,16 @@ export function Sidebar({ profile }: SidebarProps) {
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={item.href!}
                 className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200 relative group',
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-300 relative group',
                   isActive
                     ? isHighlighted
-                      ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-200 border border-yellow-500/30'
-                      : 'bg-primary text-primary-foreground'
+                      ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-200 border border-yellow-500/30 shadow-lg hover:shadow-xl hover:scale-105'
+                      : 'bg-gradient-to-r from-primary to-blue-600 text-white shadow-md hover:shadow-xl hover:scale-105'
                     : isHighlighted
-                    ? 'bg-gradient-to-r from-yellow-500/10 to-orange-500/10 text-yellow-100 hover:from-yellow-500/20 hover:to-orange-500/20 border border-yellow-500/20 hover:border-yellow-500/40'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    ? 'bg-gradient-to-r from-yellow-500/10 to-orange-500/10 text-yellow-100 hover:from-yellow-500/20 hover:to-orange-500/20 border border-yellow-500/20 hover:border-yellow-500/40 hover:scale-105 hover:shadow-md'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:scale-105 hover:shadow-sm'
                 )}
               >
                 <item.icon className={cn(
@@ -184,7 +166,7 @@ export function Sidebar({ profile }: SidebarProps) {
                 {showNewBadge && (
                   <Badge
                     variant="default"
-                    className="ml-auto h-5 px-2 text-xs bg-gradient-to-r from-blue-500 to-purple-600"
+                    className="ml-auto h-5 px-2 text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md animate-pulse"
                   >
                     Novo
                   </Badge>
@@ -218,10 +200,10 @@ export function Sidebar({ profile }: SidebarProps) {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-300',
                       isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                        ? 'bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-md hover:shadow-xl hover:scale-105'
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:scale-105 hover:shadow-sm'
                     )}
                   >
                     <item.icon className="h-4 w-4" />
@@ -237,7 +219,7 @@ export function Sidebar({ profile }: SidebarProps) {
         <div className="px-3 py-4 border-t">
           <Link
             href="/terms"
-            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-300 hover:scale-105 hover:shadow-sm"
           >
             <Scale className="h-4 w-4" />
             Termos de Uso

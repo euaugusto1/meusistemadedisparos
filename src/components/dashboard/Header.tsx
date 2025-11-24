@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -14,9 +15,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { User, LogOut, Settings, Crown, CreditCard, Shield } from 'lucide-react'
+import { User, LogOut, Settings, Crown, CreditCard, Shield, Palette } from 'lucide-react'
 import { getPlanColor } from '@/lib/utils'
 import { MobileSidebar } from './MobileSidebar'
+import { ThemeSelector } from './ThemeSelector'
 import type { Profile } from '@/types'
 
 interface HeaderProps {
@@ -25,6 +27,7 @@ interface HeaderProps {
 
 export function Header({ profile }: HeaderProps) {
   const router = useRouter()
+  const [showThemeSelector, setShowThemeSelector] = useState(false)
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -63,13 +66,13 @@ export function Header({ profile }: HeaderProps) {
           </p>
         </div>
         {profile?.plan_tier && (
-          <Badge variant="outline" className={getPlanColor(profile.plan_tier)}>
+          <Badge variant="outline" className={`${getPlanColor(profile.plan_tier)} text-white border-none shadow-md`}>
             <Crown className="h-3 w-3 mr-1" />
             {profile.plan_tier.charAt(0).toUpperCase() + profile.plan_tier.slice(1)}
           </Badge>
         )}
         {isAdmin && (
-          <Badge variant="destructive" className="gap-1">
+          <Badge className="gap-1 bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-md border-none">
             <Shield className="h-3 w-3" />
             Admin
           </Badge>
@@ -79,7 +82,7 @@ export function Header({ profile }: HeaderProps) {
       <div className="flex items-center gap-4">
         {/* Créditos disponíveis */}
         {profile && (
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-primary/10 to-blue-600/10 border border-primary/20 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-105">
             <CreditCard className="h-4 w-4 text-primary" />
             <div className="text-sm">
               <span className="font-semibold text-primary">{profile.credits.toLocaleString('pt-BR')}</span>
@@ -116,6 +119,13 @@ export function Header({ profile }: HeaderProps) {
                 Meu Plano
               </Link>
             </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setShowThemeSelector(true)}
+              className="cursor-pointer"
+            >
+              <Palette className="mr-2 h-4 w-4" />
+              Escolher Tema
+            </DropdownMenuItem>
             {isAdmin && (
               <DropdownMenuItem asChild>
                 <Link href="/admin/settings" className="cursor-pointer">
@@ -132,6 +142,13 @@ export function Header({ profile }: HeaderProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* Theme Selector Modal */}
+      <ThemeSelector
+        open={showThemeSelector}
+        onOpenChange={setShowThemeSelector}
+        planTier={profile?.plan_tier}
+      />
     </header>
   )
 }

@@ -66,12 +66,12 @@ export function StatsCards({ stats }: StatsCardsProps) {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       {cards.map((card) => (
-        <Card key={card.title} className={card.highlight ? 'border-primary' : ''}>
+        <Card key={card.title} className={`transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${card.highlight ? 'border-2 border-primary shadow-md' : ''}`}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               {card.title}
             </CardTitle>
-            <div className={`p-2 rounded-full ${card.bgColor}`}>
+            <div className={`p-2 rounded-full ${card.bgColor} transition-all duration-300 group-hover:scale-110`}>
               <card.icon className={`h-4 w-4 ${card.color}`} />
             </div>
           </CardHeader>
@@ -80,7 +80,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
               {card.value}
             </div>
             {card.title === 'Dias Restantes' && stats?.plan_tier && (
-              <p className={`text-xs ${getPlanColor(stats.plan_tier)} mt-1 capitalize`}>
+              <p className={`text-xs ${getPlanColor(stats.plan_tier)} text-white mt-1 capitalize font-semibold`}>
                 Plano {stats.plan_tier}
               </p>
             )}

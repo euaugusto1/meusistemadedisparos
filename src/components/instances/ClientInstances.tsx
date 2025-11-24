@@ -376,35 +376,58 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
 
   if (instances.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center space-y-4">
-          <Smartphone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <h3 className="text-lg font-semibold mb-2">Nenhuma instância disponível</h3>
-          <p className="text-muted-foreground">
-            Entre em contato com o administrador para solicitar uma instância WhatsApp.
-          </p>
+      <Card className="border-2 border-dashed border-muted-foreground/20 bg-gradient-to-br from-background via-muted/5 to-background overflow-hidden">
+        <CardContent className="py-16 px-6 text-center space-y-6">
+          {/* Icon with glow effect */}
+          <div className="relative inline-block">
+            <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-full blur-2xl opacity-20 animate-pulse"></div>
+            <div className="relative bg-gradient-to-br from-orange-100 to-yellow-100 dark:from-orange-950 dark:to-yellow-950 p-6 rounded-full">
+              <Smartphone className="h-16 w-16 text-orange-600 dark:text-orange-400" />
+            </div>
+          </div>
 
-          {/* Test Instance Button */}
-          <div className="pt-4">
-            <div className="inline-block p-4 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg">
-              <TestTube2 className="h-8 w-8 mx-auto mb-2 text-orange-600 dark:text-orange-400" />
-              <h4 className="font-semibold text-sm mb-1">Servidor gratuito para testes</h4>
-              <p className="text-xs text-muted-foreground mb-3">
-                Crie uma instância de teste grátis válida por 15 dias!
-              </p>
-              <Button
-                onClick={handleCreateTestInstance}
-                disabled={creatingTest}
-                variant="outline"
-                className="border-orange-600 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
-              >
-                {creatingTest ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <TestTube2 className="mr-2 h-4 w-4" />
-                )}
-                {creatingTest ? 'Criando...' : 'Criar Instância de Teste'}
-              </Button>
+          {/* Title with gradient */}
+          <div className="space-y-2">
+            <h3 className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-yellow-600 dark:from-orange-400 dark:to-yellow-400 bg-clip-text text-transparent">
+              Comece sua jornada
+            </h3>
+            <p className="text-muted-foreground max-w-md mx-auto text-base">
+              Crie sua primeira instância de WhatsApp e alcance milhares de clientes com mensagens automatizadas.
+            </p>
+          </div>
+
+          {/* Test Instance Button - Premium Design */}
+          <div className="pt-4 max-w-md mx-auto">
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-orange-600 to-yellow-600 rounded-xl blur opacity-25 group-hover:opacity-40 transition duration-500"></div>
+              <div className="relative p-6 bg-gradient-to-br from-orange-50 via-yellow-50 to-orange-50 dark:from-orange-950 dark:via-yellow-950 dark:to-orange-950 border-2 border-orange-300/50 dark:border-orange-700/50 rounded-xl shadow-lg">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="bg-gradient-to-br from-orange-500 to-yellow-500 p-3 rounded-lg shadow-md">
+                    <TestTube2 className="h-7 w-7 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <h4 className="font-bold text-base mb-0.5 text-orange-900 dark:text-orange-100">
+                      Teste Grátis por 15 Dias
+                    </h4>
+                    <p className="text-xs text-orange-700 dark:text-orange-300">
+                      Servidor Evolution API • Sem cartão de crédito
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleCreateTestInstance}
+                  disabled={creatingTest}
+                  size="lg"
+                  className="w-full bg-gradient-to-r from-orange-600 to-yellow-600 hover:from-orange-700 hover:to-yellow-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                >
+                  {creatingTest ? (
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  ) : (
+                    <TestTube2 className="mr-2 h-5 w-5" />
+                  )}
+                  {creatingTest ? 'Criando sua instância...' : 'Criar Instância Grátis Agora'}
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -413,45 +436,52 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
   }
 
   return (
-    <div className="space-y-4">
-      {/* Test Instance Creation Button */}
-      <Card className="bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-950 dark:to-yellow-950 border-orange-200 dark:border-orange-800">
-        <CardContent className="py-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3 text-left">
-              <TestTube2 className="h-8 w-8 text-orange-600 dark:text-orange-400 flex-shrink-0" />
-              <div>
-                <h4 className="font-semibold text-sm">Servidor gratuito para testes</h4>
-                <p className="text-xs text-muted-foreground">
-                  Crie uma instância de teste grátis válida por 15 dias!
-                </p>
+    <div className="space-y-6">
+      {/* Test Instance Creation Button - Enhanced with shimmer effect */}
+      <div className="relative group">
+        <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-600 via-yellow-500 to-orange-600 rounded-xl blur opacity-30 group-hover:opacity-50 transition duration-500 animate-pulse"></div>
+        <Card className="relative bg-gradient-to-r from-orange-50 via-yellow-50 to-orange-50 dark:from-orange-950 dark:via-yellow-950 dark:to-orange-950 border-2 border-orange-300/50 dark:border-orange-700/50 shadow-lg">
+          <CardContent className="py-5">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4 text-left">
+                <div className="bg-gradient-to-br from-orange-500 to-yellow-500 p-3 rounded-xl shadow-md">
+                  <TestTube2 className="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-base text-orange-900 dark:text-orange-100">
+                    Servidor Grátis para Testes
+                  </h4>
+                  <p className="text-xs text-orange-700 dark:text-orange-300">
+                    15 dias grátis • Evolution API • Sem cartão de crédito
+                  </p>
+                </div>
               </div>
+              <Button
+                onClick={handleCreateTestInstance}
+                disabled={creatingTest}
+                size="lg"
+                className="bg-gradient-to-r from-orange-600 to-yellow-600 hover:from-orange-700 hover:to-yellow-700 text-white shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex-shrink-0"
+              >
+                {creatingTest ? (
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                ) : (
+                  <TestTube2 className="mr-2 h-5 w-5" />
+                )}
+                {creatingTest ? 'Criando...' : 'Criar Instância Grátis'}
+              </Button>
             </div>
-            <Button
-              onClick={handleCreateTestInstance}
-              disabled={creatingTest}
-              variant="outline"
-              className="border-orange-600 text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900 flex-shrink-0"
-            >
-              {creatingTest ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <TestTube2 className="mr-2 h-4 w-4" />
-              )}
-              {creatingTest ? 'Criando...' : 'Criar Instância de Teste'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Instances Grid */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {instances.map(instance => (
-          <Card key={instance.id} className={`relative overflow-hidden ${instance.is_test ? 'border-orange-300 dark:border-orange-700' : ''}`}>
-            {/* Test Instance Badge */}
+          <Card key={instance.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${instance.is_test ? 'border-orange-300 dark:border-orange-700 bg-gradient-to-br from-orange-50/50 to-yellow-50/50 dark:from-orange-950/20 dark:to-yellow-950/20' : 'hover:border-primary/50'}`}>
+            {/* Test Instance Badge - Enhanced with gradient */}
             {instance.is_test && (
-              <div className="absolute top-0 right-0 bg-orange-500 text-white text-xs px-2 py-1 rounded-bl-lg font-semibold flex items-center gap-1">
-                <TestTube2 className="h-3 w-3" />
+              <div className="absolute top-0 right-0 bg-gradient-to-br from-orange-500 to-yellow-500 text-white text-xs px-3 py-1.5 rounded-bl-xl font-bold flex items-center gap-1.5 shadow-md z-10">
+                <TestTube2 className="h-3.5 w-3.5" />
                 TESTE
               </div>
             )}
@@ -466,10 +496,16 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
                 <div className="flex items-center gap-2">
                   <Badge
                     variant="outline"
-                    className={`${getStatusColor(instance.status)} text-white border-none`}
+                    className={`${getStatusColor(instance.status)} text-white border-none shadow-md transition-all duration-300 ${instance.status === 'connecting' ? 'animate-pulse' : ''}`}
                   >
                     {instance.status === 'connected' ? (
-                      <Wifi className="h-3 w-3 mr-1" />
+                      <>
+                        <Wifi className="h-3 w-3 mr-1" />
+                        <span className="relative flex h-2 w-2 mr-1">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                        </span>
+                      </>
                     ) : instance.status === 'qr_code' ? (
                       <QrCode className="h-3 w-3 mr-1" />
                     ) : instance.status === 'connecting' ? (
@@ -511,13 +547,18 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Test Instance Timer */}
+              {/* Test Instance Timer - Enhanced with animation */}
               {instance.is_test && instance.expires_at && (
-                <div className="flex items-center gap-2 text-sm px-3 py-2 bg-orange-100 dark:bg-orange-900 border border-orange-300 dark:border-orange-700 rounded-lg">
-                  <Clock className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                  <span className="font-medium text-orange-700 dark:text-orange-300">
-                    {getTimeRemaining(instance.expires_at)}
-                  </span>
+                <div className="relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 via-yellow-500/10 to-orange-500/10 animate-pulse"></div>
+                  <div className="relative flex items-center gap-2.5 text-sm px-3.5 py-2.5 bg-gradient-to-r from-orange-100 to-yellow-100 dark:from-orange-900 dark:to-yellow-900 border-2 border-orange-300 dark:border-orange-600 rounded-xl shadow-sm">
+                    <div className="bg-orange-500 dark:bg-orange-600 p-1.5 rounded-lg">
+                      <Clock className="h-3.5 w-3.5 text-white animate-pulse" />
+                    </div>
+                    <span className="font-bold text-orange-800 dark:text-orange-200">
+                      {getTimeRemaining(instance.expires_at)}
+                    </span>
+                  </div>
                 </div>
               )}
 
@@ -549,14 +590,14 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
                 )}
               </div>
 
-              {/* Actions */}
+              {/* Actions - Enhanced buttons */}
               <div className="flex gap-2">
                 {instance.status === 'connected' ? (
                   <>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1"
+                      className="flex-1 transition-all duration-300 hover:scale-105 hover:shadow-md"
                       onClick={() => handleRefreshStatus(instance)}
                       disabled={checkingStatus}
                     >
@@ -569,7 +610,7 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
                     <Button
                       variant="destructive"
                       size="sm"
-                      className="flex-1"
+                      className="flex-1 transition-all duration-300 hover:scale-105 hover:shadow-lg"
                       onClick={() => handleDisconnect(instance)}
                       disabled={checkingStatus}
                     >
@@ -579,7 +620,7 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
                   </>
                 ) : (
                   <Button
-                    className="w-full"
+                    className="w-full bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 transition-all duration-300 hover:scale-105 hover:shadow-lg"
                     onClick={() => handleConnect(instance)}
                     disabled={loading}
                   >
@@ -597,64 +638,89 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
         ))}
       </div>
 
-      {/* QR Code Dialog */}
+      {/* QR Code Dialog - Enhanced with backdrop blur and animations */}
       <Dialog open={!!selectedInstance && !!qrCode} onOpenChange={handleCloseDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md backdrop-blur-sm bg-background/95 border-2 shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <QrCode className="h-5 w-5 text-primary" />
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <div className="bg-gradient-to-br from-primary to-blue-600 p-2 rounded-lg">
+                <QrCode className="h-5 w-5 text-white" />
+              </div>
               Conectar WhatsApp
             </DialogTitle>
-            <DialogDescription>
-              Escaneie o QR Code abaixo com seu WhatsApp para conectar a instância "{selectedInstance?.name}"
+            <DialogDescription className="text-base">
+              Escaneie o QR Code abaixo com seu WhatsApp para conectar a instância <span className="font-semibold text-foreground">"{selectedInstance?.name}"</span>
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             {qrCodeConnected ? (
-              /* Success Message */
-              <div className="flex flex-col items-center justify-center py-8 space-y-4">
-                <div className="flex items-center justify-center w-20 h-20 rounded-full bg-green-100 dark:bg-green-900">
-                  <CheckCircle className="w-12 h-12 text-green-600 dark:text-green-400" />
+              /* Success Message - Enhanced with animation */
+              <div className="flex flex-col items-center justify-center py-10 space-y-5 animate-in zoom-in-95 duration-500">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-green-500 rounded-full blur-2xl opacity-30 animate-pulse"></div>
+                  <div className="relative flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-900 dark:to-emerald-900 shadow-lg">
+                    <CheckCircle className="w-14 h-14 text-green-600 dark:text-green-400" />
+                  </div>
                 </div>
                 <div className="text-center space-y-2">
-                  <h3 className="text-xl font-semibold text-green-600 dark:text-green-400">
-                    WhatsApp Conectado!
+                  <h3 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 dark:from-green-400 dark:to-emerald-400 bg-clip-text text-transparent">
+                    Conectado com Sucesso!
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Sua instância foi conectada com sucesso
+                    Sua instância está pronta para enviar mensagens
                   </p>
                 </div>
               </div>
             ) : (
               <>
-                {/* QR Code Display */}
-                <div className="flex justify-center p-4 bg-white rounded-lg">
-                  {qrCode && (
-                    <img
-                      src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`}
-                      alt="QR Code"
-                      className="w-64 h-64"
-                    />
-                  )}
+                {/* QR Code Display - Enhanced with decorative border */}
+                <div className="relative p-1 rounded-2xl bg-gradient-to-br from-primary via-blue-600 to-purple-600">
+                  <div className="flex justify-center p-5 bg-white dark:bg-gray-900 rounded-xl">
+                    {qrCode && (
+                      <img
+                        src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`}
+                        alt="QR Code"
+                        className="w-64 h-64 rounded-lg"
+                      />
+                    )}
+                  </div>
                 </div>
 
-                {/* Instructions */}
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground">Como conectar:</p>
-                  <ol className="list-decimal list-inside space-y-1">
-                    <li>Abra o WhatsApp no seu celular</li>
-                    <li>Toque em Menu (⋮) ou Configurações</li>
-                    <li>Selecione "Aparelhos conectados"</li>
-                    <li>Toque em "Conectar um aparelho"</li>
-                    <li>Aponte a câmera para este QR Code</li>
+                {/* Instructions - Enhanced with icons */}
+                <div className="space-y-3 text-sm">
+                  <p className="font-bold text-foreground text-base flex items-center gap-2">
+                    <Smartphone className="h-5 w-5 text-primary" />
+                    Como conectar:
+                  </p>
+                  <ol className="space-y-2 ml-1">
+                    <li className="flex gap-3 items-start">
+                      <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-xs">1</span>
+                      <span className="text-muted-foreground pt-0.5">Abra o WhatsApp no seu celular</span>
+                    </li>
+                    <li className="flex gap-3 items-start">
+                      <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-xs">2</span>
+                      <span className="text-muted-foreground pt-0.5">Toque em Menu (⋮) ou Configurações</span>
+                    </li>
+                    <li className="flex gap-3 items-start">
+                      <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-xs">3</span>
+                      <span className="text-muted-foreground pt-0.5">Selecione "Aparelhos conectados"</span>
+                    </li>
+                    <li className="flex gap-3 items-start">
+                      <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-xs">4</span>
+                      <span className="text-muted-foreground pt-0.5">Toque em "Conectar um aparelho"</span>
+                    </li>
+                    <li className="flex gap-3 items-start">
+                      <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-xs">5</span>
+                      <span className="text-muted-foreground pt-0.5">Aponte a câmera para este QR Code</span>
+                    </li>
                   </ol>
                 </div>
 
-                {/* Refresh Button */}
+                {/* Refresh Button - Enhanced */}
                 <Button
                   variant="outline"
-                  className="w-full"
+                  className="w-full transition-all duration-300 hover:scale-105 hover:shadow-md border-2"
                   onClick={() => selectedInstance && handleConnect(selectedInstance)}
                   disabled={loading}
                 >
@@ -667,9 +733,13 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
                 </Button>
 
                 {/* Status Check Info */}
-                <p className="text-xs text-center text-muted-foreground">
-                  O status será atualizado automaticamente quando você escanear o código
-                </p>
+                <div className="flex items-center justify-center gap-2 text-xs text-center text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                  </span>
+                  Status atualizado automaticamente após escanear
+                </div>
               </>
             )}
           </div>

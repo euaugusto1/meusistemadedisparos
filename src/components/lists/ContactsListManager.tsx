@@ -485,11 +485,15 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
 
   return (
     <div className="space-y-4">
-      {/* Header with Add Button */}
+      {/* Action Buttons */}
       <div className="flex justify-end gap-2">
         {/* Import Groups Button */}
         {connectedInstances.length > 0 && (
-          <Button variant="outline" onClick={() => setShowGroupsDialog(true)}>
+          <Button
+            variant="outline"
+            onClick={() => setShowGroupsDialog(true)}
+            className="bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 transition-all duration-300 hover:scale-105 border-none"
+          >
             <UsersRound className="mr-2 h-4 w-4" />
             Importar Grupos
           </Button>
@@ -497,14 +501,20 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => openDialog()}>
+            <Button
+              onClick={() => openDialog()}
+              className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
+            >
               <Plus className="mr-2 h-4 w-4" />
               Nova Lista
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl backdrop-blur-sm bg-background/95 border-2 shadow-2xl">
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle className="flex items-center gap-2 text-2xl">
+                <div className="bg-gradient-to-br from-primary to-blue-600 p-2 rounded-xl">
+                  <Users className="h-6 w-6 text-white" />
+                </div>
                 {editingList ? 'Editar Lista' : 'Nova Lista de Contatos'}
               </DialogTitle>
               <DialogDescription>
@@ -565,10 +575,18 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsDialogOpen(false)}
+                className="transition-all duration-300 hover:scale-105"
+              >
                 Cancelar
               </Button>
-              <Button onClick={handleSave} disabled={loading || !name.trim()}>
+              <Button
+                onClick={handleSave}
+                disabled={loading || !name.trim()}
+                className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
+              >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editingList ? 'Salvar' : 'Criar'}
               </Button>
@@ -579,12 +597,27 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
 
       {/* Lists Grid */}
       {lists.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Users className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Nenhuma lista criada</p>
-            <Button className="mt-4" onClick={() => openDialog()}>
-              <Plus className="mr-2 h-4 w-4" />
+        <Card className="border-2 border-dashed border-muted-foreground/20 bg-gradient-to-br from-background via-muted/5 to-background">
+          <CardContent className="py-16 text-center space-y-6">
+            <div className="relative inline-block">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary to-blue-600 rounded-full blur-2xl opacity-20 animate-pulse"></div>
+              <div className="relative bg-gradient-to-br from-primary/10 to-blue-600/10 p-6 rounded-full">
+                <Users className="h-16 w-16 text-primary" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+                Crie sua primeira lista
+              </h3>
+              <p className="text-muted-foreground max-w-md mx-auto text-base">
+                Organize seus contatos em listas para facilitar o envio de campanhas
+              </p>
+            </div>
+            <Button
+              className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
+              onClick={() => openDialog()}
+            >
+              <Plus className="mr-2 h-5 w-5" />
               Criar Primeira Lista
             </Button>
           </CardContent>
@@ -592,7 +625,7 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {lists.map(list => (
-            <Card key={list.id}>
+            <Card key={list.id} className="transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <CardTitle className="text-lg">{list.name}</CardTitle>
@@ -640,8 +673,8 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  <Badge variant="secondary" className="text-lg">
-                    <Users className="h-4 w-4 mr-2" />
+                  <Badge className="bg-primary/10 text-primary border-primary/20 shadow-sm">
+                    <Users className="h-3 w-3 mr-1" />
                     {formatNumber(list.contact_count)} contatos
                   </Badge>
                   <span className="text-xs text-muted-foreground">

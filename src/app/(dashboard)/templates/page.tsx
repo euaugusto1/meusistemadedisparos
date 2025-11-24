@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { TemplatesList } from '@/components/templates/TemplatesList'
+import { CampaignNavigation } from '@/components/campaigns/CampaignNavigation'
 
 export default async function TemplatesPage() {
   const supabase = createClient()
@@ -25,18 +26,21 @@ export default async function TemplatesPage() {
     .order('created_at', { ascending: false })
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Templates de Mensagem</h1>
-        <p className="text-muted-foreground">
-          Crie e gerencie templates reutilizáveis para suas campanhas
-        </p>
-      </div>
+    <>
+      <CampaignNavigation />
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Templates de Mensagem</h1>
+          <p className="text-muted-foreground">
+            Crie e gerencie templates reutilizáveis para suas campanhas
+          </p>
+        </div>
 
-      <TemplatesList
-        templates={templates || []}
-        media={media || []}
-      />
-    </div>
+        <TemplatesList
+          templates={templates || []}
+          media={media || []}
+        />
+      </div>
+    </>
   )
 }

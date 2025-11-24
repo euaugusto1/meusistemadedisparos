@@ -1,6 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { RealtimeMetrics } from './RealtimeMetrics'
 import { CampaignPerformanceChart } from './CampaignPerformanceChart'
 import { CampaignComparisonChart } from './CampaignComparisonChart'
@@ -74,12 +77,21 @@ export function AnalyticsClient({ initialData, userName }: AnalyticsClientProps)
   }
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header with filters and export */}
+    <div className="space-y-8">
+      {/* Header with filters and export - Premium Style */}
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
-          <p className="text-muted-foreground">
+        <Link href="/dashboard">
+          <Button variant="ghost" size="sm" className="transition-all duration-300 hover:scale-105">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar ao Painel
+          </Button>
+        </Link>
+
+        <div className="text-center space-y-3">
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary via-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Analytics
+          </h1>
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
             Análise detalhada de performance e métricas das suas campanhas
           </p>
         </div>

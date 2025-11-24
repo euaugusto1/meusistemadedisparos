@@ -19,6 +19,7 @@ import {
   Legend,
 } from 'recharts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Send } from 'lucide-react'
 import type { Campaign, DashboardStats } from '@/types'
 
 interface DashboardChartsProps {
@@ -107,9 +108,14 @@ export function DashboardCharts({ campaigns, stats }: DashboardChartsProps) {
   return (
     <div className="grid gap-6 md:grid-cols-2">
       {/* Gráfico de Área - Timeline de Envios */}
-      <Card className="col-span-2">
+      <Card className="col-span-2 transition-all duration-300 hover:shadow-xl">
         <CardHeader>
-          <CardTitle>Timeline de Envios</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <div className="bg-gradient-to-br from-primary to-blue-600 p-2 rounded-lg">
+              <Send className="h-5 w-5 text-white" />
+            </div>
+            Timeline de Envios
+          </CardTitle>
           <CardDescription>
             Histórico de mensagens enviadas nos últimos 7 dias
           </CardDescription>
@@ -161,7 +167,7 @@ export function DashboardCharts({ campaigns, stats }: DashboardChartsProps) {
       </Card>
 
       {/* Gráfico de Rosca - Sucesso vs Falha */}
-      <Card>
+      <Card className="transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
         <CardHeader>
           <CardTitle>Taxa de Sucesso</CardTitle>
           <CardDescription>
@@ -200,7 +206,7 @@ export function DashboardCharts({ campaigns, stats }: DashboardChartsProps) {
       </Card>
 
       {/* Gráfico de Barras - Envios por Dia da Semana */}
-      <Card>
+      <Card className="transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
         <CardHeader>
           <CardTitle>Envios por Dia</CardTitle>
           <CardDescription>
@@ -234,7 +240,7 @@ export function DashboardCharts({ campaigns, stats }: DashboardChartsProps) {
       </Card>
 
       {/* Gráfico Radial - Consumo da Cota */}
-      <Card>
+      <Card className="transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
         <CardHeader>
           <CardTitle>Consumo da Cota</CardTitle>
           <CardDescription>
@@ -275,7 +281,7 @@ export function DashboardCharts({ campaigns, stats }: DashboardChartsProps) {
       </Card>
 
       {/* Gráfico Radial - Dias Restantes */}
-      <Card>
+      <Card className="transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
         <CardHeader>
           <CardTitle>Validade do Plano</CardTitle>
           <CardDescription>
@@ -285,14 +291,14 @@ export function DashboardCharts({ campaigns, stats }: DashboardChartsProps) {
         <CardContent>
           <div className="h-[250px] flex items-center justify-center">
             <div className="text-center">
-              <div className="text-6xl font-bold text-primary">
+              <div className="text-6xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
                 {stats?.days_remaining ?? '∞'}
               </div>
               <div className="text-muted-foreground mt-2">
                 {stats?.days_remaining !== null ? 'dias restantes' : 'Sem expiração'}
               </div>
               <div className="mt-4 text-sm">
-                Plano: <span className="font-semibold capitalize">{stats?.plan_tier || 'free'}</span>
+                Plano: <span className="font-semibold capitalize bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">{stats?.plan_tier || 'free'}</span>
               </div>
             </div>
           </div>

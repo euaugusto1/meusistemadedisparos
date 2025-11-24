@@ -401,7 +401,23 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
       : 0
 
     return (
-      <Card>
+      <Card className="relative transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary/50">
+        {campaign.status === 'completed' && (
+          <div className="absolute -top-3 right-4 z-10">
+            <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg px-4 py-1.5">
+              <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+              Concluída
+            </Badge>
+          </div>
+        )}
+        {campaign.status === 'processing' && (
+          <div className="absolute -top-3 right-4 z-10">
+            <Badge className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg px-4 py-1.5 animate-pulse">
+              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              Em andamento
+            </Badge>
+          </div>
+        )}
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div>
@@ -410,13 +426,15 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
                 {campaign.instance?.name || 'Instância não definida'}
               </CardDescription>
             </div>
-            <Badge
-              variant="outline"
-              className={`${getStatusColor(campaign.status)} text-white border-none`}
-            >
-              <Icon className={`h-3 w-3 mr-1 ${campaign.status === 'processing' ? 'animate-spin' : ''}`} />
-              {STATUS_LABELS[campaign.status]}
-            </Badge>
+            {!['completed', 'processing'].includes(campaign.status) && (
+              <Badge
+                variant="outline"
+                className={`${getStatusColor(campaign.status)} text-white border-none`}
+              >
+                <Icon className={`h-3 w-3 mr-1`} />
+                {STATUS_LABELS[campaign.status]}
+              </Badge>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -432,19 +450,33 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
               </div>
             )}
 
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-bold">{formatNumber(campaign.total_recipients)}</div>
-                <div className="text-xs text-muted-foreground">Total</div>
+            {/* Stats - Premium Style */}
+            <div className="grid grid-cols-3 gap-4">
+              {/* Total */}
+              <div className="relative">
+                <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-xl"></div>
+                <div className="relative bg-background border-2 border-primary/20 p-4 rounded-xl text-center">
+                  <p className="text-3xl font-bold text-primary">{formatNumber(campaign.total_recipients)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Total</p>
+                </div>
               </div>
-              <div>
-                <div className="text-2xl font-bold text-green-500">{formatNumber(campaign.sent_count)}</div>
-                <div className="text-xs text-muted-foreground">Enviados</div>
+
+              {/* Enviadas */}
+              <div className="relative">
+                <div className="absolute -inset-1 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl"></div>
+                <div className="relative bg-background border-2 border-green-500/20 p-4 rounded-xl text-center">
+                  <p className="text-3xl font-bold text-green-600">{formatNumber(campaign.sent_count)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Enviadas</p>
+                </div>
               </div>
-              <div>
-                <div className="text-2xl font-bold text-red-500">{formatNumber(campaign.failed_count)}</div>
-                <div className="text-xs text-muted-foreground">Falhas</div>
+
+              {/* Falhas */}
+              <div className="relative">
+                <div className="absolute -inset-1 bg-gradient-to-r from-red-500/20 to-orange-500/20 rounded-xl"></div>
+                <div className="relative bg-background border-2 border-red-500/20 p-4 rounded-xl text-center">
+                  <p className="text-3xl font-bold text-red-600">{formatNumber(campaign.failed_count)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Falhas</p>
+                </div>
               </div>
             </div>
 
@@ -461,11 +493,11 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
               </Button>
               {campaign.status === 'draft' && (
                 <Button
-                  variant="default"
                   size="sm"
                   onClick={() => setStartConfirm(campaign)}
                   disabled={dispatching === campaign.id}
                   title="Iniciar campanha"
+                  className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 transition-all duration-300 hover:scale-105"
                 >
                   {dispatching === campaign.id ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

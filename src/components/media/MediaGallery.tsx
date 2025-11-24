@@ -290,14 +290,17 @@ export function MediaGallery({
 
   return (
     <div className="space-y-4">
-      {/* Upload Area */}
-      <div
-        {...getRootProps()}
-        className={`
-          border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
-          ${isDragActive ? 'border-primary bg-primary/10' : 'border-muted-foreground/25 hover:border-primary/50'}
-        `}
-      >
+      {/* Upload Area - Premium Style */}
+      <div className="relative group">
+        <div className="absolute -inset-1 bg-gradient-to-r from-primary to-blue-600 rounded-xl blur opacity-25 group-hover:opacity-40 transition duration-500"></div>
+        <div
+          {...getRootProps()}
+          className={`relative border-2 border-dashed rounded-xl p-12 text-center cursor-pointer bg-gradient-to-br transition-colors ${
+            isDragActive
+              ? 'border-primary/60 from-primary/10 to-blue-600/10'
+              : 'border-primary/30 from-primary/5 to-background hover:border-primary/60'
+          }`}
+        >
         <input {...getInputProps()} />
         {uploading ? (
           <div className="flex flex-col items-center">
@@ -306,17 +309,21 @@ export function MediaGallery({
           </div>
         ) : (
           <div className="flex flex-col items-center">
-            <Upload className="h-10 w-10 text-muted-foreground" />
-            <p className="mt-2 text-sm text-muted-foreground">
+            <Upload className="h-12 w-12 text-primary mb-4" />
+            <p className="text-lg font-semibold mb-2">
               {isDragActive
                 ? 'Solte os arquivos aqui'
-                : 'Arraste arquivos ou clique para selecionar'}
+                : 'Arraste arquivos aqui'}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-sm text-muted-foreground">
+              ou clique para selecionar
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
               Imagens, vídeos, áudios e PDFs
             </p>
           </div>
         )}
+        </div>
       </div>
 
       {/* Search and View Toggle */}
@@ -372,7 +379,7 @@ export function MediaGallery({
             return (
               <Card
                 key={item.id}
-                className={`group relative overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary`}
+                className="group relative overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
                 onClick={() => selectable ? onSelect?.(item) : setPreviewMedia(item)}
               >
                 <CardContent className="p-0">
@@ -398,7 +405,7 @@ export function MediaGallery({
                   </div>
 
                   {/* Actions Overlay */}
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
                     <Button
                       size="icon"
                       variant="secondary"
@@ -462,7 +469,12 @@ export function MediaGallery({
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{item.original_name}</p>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Badge variant="outline" className="text-xs">
+                      <Badge className={
+                        item.type === 'image' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' :
+                        item.type === 'video' ? 'bg-purple-500/10 text-purple-600 border-purple-500/20' :
+                        item.type === 'audio' ? 'bg-green-500/10 text-green-600 border-green-500/20' :
+                        'bg-orange-500/10 text-orange-600 border-orange-500/20'
+                      }>
                         {item.type}
                       </Badge>
                       <span>{formatBytes(item.size_bytes)}</span>

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { ContactsListManager } from '@/components/lists/ContactsListManager'
+import { CampaignNavigation } from '@/components/campaigns/CampaignNavigation'
 
 export default async function ListsPage() {
   const supabase = createClient()
@@ -22,18 +23,21 @@ export default async function ListsPage() {
     .eq('status', 'connected')
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Listas de Contatos</h1>
-        <p className="text-muted-foreground">
-          Importe e gerencie suas listas de contatos para envios em massa
-        </p>
-      </div>
+    <>
+      <CampaignNavigation />
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Listas de Contatos</h1>
+          <p className="text-muted-foreground">
+            Importe e gerencie suas listas de contatos para envios em massa
+          </p>
+        </div>
 
-      <ContactsListManager
-        lists={lists || []}
-        instances={instances || []}
-      />
-    </div>
+        <ContactsListManager
+          lists={lists || []}
+          instances={instances || []}
+        />
+      </div>
+    </>
   )
 }
