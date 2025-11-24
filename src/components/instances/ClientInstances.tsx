@@ -68,14 +68,21 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
   const [deleting, setDeleting] = useState(false)
   const [updating, setUpdating] = useState(false)
 
+  // QR Code connection states
+  const [qrCodeConnected, setQrCodeConnected] = useState(false)
+
   const isAdmin = profile?.role === 'admin'
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const qrCodePollIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Limpar intervalo ao desmontar
+  // Limpar intervalos ao desmontar
   useEffect(() => {
     return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current)
+      }
+      if (qrCodePollIntervalRef.current) {
+        clearInterval(qrCodePollIntervalRef.current)
       }
     }
   }, [])
@@ -108,17 +115,24 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
 
   // Poll para verificar status quando aguardando QR
   useEffect(() => {
-    if (selectedInstance && qrCode) {
+    if (selectedInstance && qrCode && !qrCodeConnected) {
       pollIntervalRef.current = setInterval(async () => {
         const status = await checkInstanceStatus(selectedInstance)
         if (status === 'connected') {
-          setQrCode(null)
-          setSelectedInstance(null)
+          // Mostrar feedback de sucesso
+          setQrCodeConnected(true)
           if (pollIntervalRef.current) {
             clearInterval(pollIntervalRef.current)
           }
+
+          // Fechar modal após 2 segundos
+          setTimeout(() => {
+            setQrCode(null)
+            setSelectedInstance(null)
+            setQrCodeConnected(false)
+          }, 2000)
         }
-      }, 5000) // Verificar a cada 5 segundos
+      }, 3000) // Verificar a cada 3 segundos
     }
 
     return () => {
@@ -126,7 +140,7 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
         clearInterval(pollIntervalRef.current)
       }
     }
-  }, [selectedInstance, qrCode])
+  }, [selectedInstance, qrCode, qrCodeConnected])
 
   const checkInstanceStatus = async (instance: WhatsAppInstance): Promise<InstanceStatus> => {
     try {
@@ -597,48 +611,67 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* QR Code Display */}
-            <div className="flex justify-center p-4 bg-white rounded-lg">
-              {qrCode && (
-                <img
-                  src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`}
-                  alt="QR Code"
-                  className="w-64 h-64"
-                />
-              )}
-            </div>
+            {qrCodeConnected ? (
+              /* Success Message */
+              <div className="flex flex-col items-center justify-center py-8 space-y-4">
+                <div className="flex items-center justify-center w-20 h-20 rounded-full bg-green-100 dark:bg-green-900">
+                  <CheckCircle className="w-12 h-12 text-green-600 dark:text-green-400" />
+                </div>
+                <div className="text-center space-y-2">
+                  <h3 className="text-xl font-semibold text-green-600 dark:text-green-400">
+                    WhatsApp Conectado!
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Sua instância foi conectada com sucesso
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* QR Code Display */}
+                <div className="flex justify-center p-4 bg-white rounded-lg">
+                  {qrCode && (
+                    <img
+                      src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`}
+                      alt="QR Code"
+                      className="w-64 h-64"
+                    />
+                  )}
+                </div>
 
-            {/* Instructions */}
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">Como conectar:</p>
-              <ol className="list-decimal list-inside space-y-1">
-                <li>Abra o WhatsApp no seu celular</li>
-                <li>Toque em Menu (⋮) ou Configurações</li>
-                <li>Selecione "Aparelhos conectados"</li>
-                <li>Toque em "Conectar um aparelho"</li>
-                <li>Aponte a câmera para este QR Code</li>
-              </ol>
-            </div>
+                {/* Instructions */}
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground">Como conectar:</p>
+                  <ol className="list-decimal list-inside space-y-1">
+                    <li>Abra o WhatsApp no seu celular</li>
+                    <li>Toque em Menu (⋮) ou Configurações</li>
+                    <li>Selecione "Aparelhos conectados"</li>
+                    <li>Toque em "Conectar um aparelho"</li>
+                    <li>Aponte a câmera para este QR Code</li>
+                  </ol>
+                </div>
 
-            {/* Refresh Button */}
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => selectedInstance && handleConnect(selectedInstance)}
-              disabled={loading}
-            >
-              {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
-              )}
-              Atualizar QR Code
-            </Button>
+                {/* Refresh Button */}
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => selectedInstance && handleConnect(selectedInstance)}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                  )}
+                  Atualizar QR Code
+                </Button>
 
-            {/* Status Check Info */}
-            <p className="text-xs text-center text-muted-foreground">
-              O status será atualizado automaticamente quando você escanear o código
-            </p>
+                {/* Status Check Info */}
+                <p className="text-xs text-center text-muted-foreground">
+                  O status será atualizado automaticamente quando você escanear o código
+                </p>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>
