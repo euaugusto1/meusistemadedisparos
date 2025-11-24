@@ -58,7 +58,8 @@ export async function GET(
       }
 
       // Construir URL da Evolution API
-      const apiUrl = `${EVOLUTION_API_URL}/group/fetchAllGroups/${instance.instance_key}`
+      // Evolution API requer o parâmetro getParticipants
+      const apiUrl = `${EVOLUTION_API_URL}/group/fetchAllGroups/${instance.instance_key}?getParticipants=false`
 
       console.log('Fetching groups from Evolution API:', apiUrl)
 
