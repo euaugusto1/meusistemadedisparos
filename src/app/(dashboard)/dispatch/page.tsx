@@ -29,10 +29,13 @@ export default async function DispatchPage() {
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
-  // Obter templates do usuário
+  // Obter templates do usuário com informações de mídia
   const { data: templates } = await supabase
     .from('message_templates')
-    .select('*')
+    .select(`
+      *,
+      media:media_files(id, public_url, original_name, type, mime_type)
+    `)
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 

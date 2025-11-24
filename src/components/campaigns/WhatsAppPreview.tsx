@@ -4,7 +4,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { Check, ChevronLeft, ChevronRight, MoreVertical, Phone, Search, Video, ExternalLink } from 'lucide-react'
+import {
+  Check, ChevronLeft, ChevronRight, MoreVertical, Phone, Search, Video,
+  ExternalLink, FileText, Download, Play, Pause, Volume2, Loader2
+} from 'lucide-react'
 import { useState } from 'react'
 import type { ButtonConfig } from '@/types'
 
@@ -29,6 +32,8 @@ export function WhatsAppPreview({
   onIndexChange
 }: WhatsAppPreviewProps) {
   const [localIndex, setLocalIndex] = useState(currentIndex)
+  const [imageLoading, setImageLoading] = useState(true)
+  const [imageError, setImageError] = useState(false)
 
   const activeIndex = onIndexChange ? currentIndex : localIndex
   const setActiveIndex = onIndexChange || setLocalIndex
@@ -43,11 +48,18 @@ export function WhatsAppPreview({
   const now = new Date()
   const timeString = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 
+  // Reset loading states when message changes
+  const handleIndexChange = (newIndex: number) => {
+    setImageLoading(true)
+    setImageError(false)
+    setActiveIndex(newIndex)
+  }
+
   return (
     <div className="space-y-4">
       {/* Preview Card */}
       <Card className="bg-gradient-to-b from-slate-900 to-slate-950 border-slate-800 overflow-hidden sticky top-4 z-10">
-        <div className="p-4">
+        <div className="p-3 sm:p-4">
           {/* WhatsApp Header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -72,7 +84,7 @@ export function WhatsAppPreview({
 
           {/* WhatsApp Messages Area */}
           <div
-            className="rounded-lg p-4 min-h-[500px] relative overflow-hidden"
+            className="rounded-lg p-3 sm:p-4 min-h-[350px] sm:min-h-[450px] lg:min-h-[500px] relative overflow-hidden"
             style={{
               backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23111b21' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
               backgroundColor: '#0b141a'
@@ -91,28 +103,82 @@ export function WhatsAppPreview({
 
                 {/* Media Preview */}
                 {currentMessage.mediaUrl && (
-                  <div className="bg-[#005c4b] rounded-t-lg overflow-hidden mb-1">
+                  <div className="bg-[#005c4b] rounded-t-lg overflow-hidden mb-1 relative">
                     {currentMessage.mediaType === 'image' ? (
-                      <img
-                        src={currentMessage.mediaUrl}
-                        alt="Preview"
-                        className="w-full max-h-64 object-cover"
-                      />
+                      <>
+                        {/* Loading Skeleton */}
+                        {imageLoading && !imageError && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-[#005c4b]">
+                            <Loader2 className="h-8 w-8 text-white/50 animate-spin" />
+                          </div>
+                        )}
+
+                        {/* Error State */}
+                        {imageError && (
+                          <div className="p-8 flex flex-col items-center justify-center gap-3 text-white/70">
+                            <FileText className="h-12 w-12" />
+                            <p className="text-xs text-center">Falha ao carregar imagem</p>
+                          </div>
+                        )}
+
+                        {/* Image */}
+                        {!imageError && (
+                          <img
+                            src={currentMessage.mediaUrl}
+                            alt="Preview"
+                            className={`w-full max-h-64 object-cover transition-opacity duration-300 ${
+                              imageLoading ? 'opacity-0' : 'opacity-100'
+                            }`}
+                            onLoad={() => setImageLoading(false)}
+                            onError={() => {
+                              setImageLoading(false)
+                              setImageError(true)
+                            }}
+                          />
+                        )}
+                      </>
                     ) : currentMessage.mediaType === 'video' ? (
-                      <video
-                        src={currentMessage.mediaUrl}
-                        className="w-full max-h-64 object-cover"
-                        controls={false}
-                      />
-                    ) : (
+                      <div className="relative group">
+                        <video
+                          src={currentMessage.mediaUrl}
+                          className="w-full max-h-64 object-cover"
+                          controls={false}
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
+                          <div className="bg-white/90 rounded-full p-4">
+                            <Play className="h-8 w-8 text-[#005c4b]" />
+                          </div>
+                        </div>
+                        <div className="absolute bottom-2 right-2 bg-black/60 px-2 py-1 rounded text-white text-xs flex items-center gap-1">
+                          <Video className="h-3 w-3" />
+                          Vídeo
+                        </div>
+                      </div>
+                    ) : currentMessage.mediaType === 'audio' ? (
                       <div className="p-4 flex items-center gap-3 text-white">
-                        <div className="bg-[#0b141a]/50 p-3 rounded-lg">
-                          📄
+                        <div className="bg-white/10 p-3 rounded-full">
+                          <Volume2 className="h-5 w-5" />
                         </div>
-                        <div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">Mensagem de voz</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="h-1 bg-white/20 rounded-full flex-1">
+                              <div className="h-1 bg-white/60 rounded-full w-0" />
+                            </div>
+                            <span className="text-xs text-white/60">0:00</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 flex items-center gap-3 text-white hover:bg-[#004a3d] transition-colors cursor-pointer">
+                        <div className="bg-white/10 p-3 rounded-lg">
+                          <FileText className="h-6 w-6" />
+                        </div>
+                        <div className="flex-1">
                           <p className="text-sm font-medium">Documento</p>
-                          <p className="text-xs text-slate-300">Anexado</p>
+                          <p className="text-xs text-white/70">Clique para visualizar</p>
                         </div>
+                        <Download className="h-4 w-4 text-white/50" />
                       </div>
                     )}
                   </div>
@@ -201,18 +267,20 @@ export function WhatsAppPreview({
             </p>
             <div className="flex gap-2">
               <button
-                onClick={() => setActiveIndex(Math.max(0, activeIndex - 1))}
+                onClick={() => handleIndexChange(Math.max(0, activeIndex - 1))}
                 disabled={activeIndex === 0}
-                className="p-1 rounded hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 rounded-lg hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 hover:scale-110"
+                aria-label="Template anterior"
               >
-                <ChevronLeft className="h-4 w-4 text-slate-400" />
+                <ChevronLeft className="h-5 w-5 text-slate-400" />
               </button>
               <button
-                onClick={() => setActiveIndex(Math.min(messages.length - 1, activeIndex + 1))}
+                onClick={() => handleIndexChange(Math.min(messages.length - 1, activeIndex + 1))}
                 disabled={activeIndex === messages.length - 1}
-                className="p-1 rounded hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 rounded-lg hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 hover:scale-110"
+                aria-label="Próximo template"
               >
-                <ChevronRight className="h-4 w-4 text-slate-400" />
+                <ChevronRight className="h-5 w-5 text-slate-400" />
               </button>
             </div>
           </div>
@@ -220,10 +288,11 @@ export function WhatsAppPreview({
             {messages.map((_, idx) => (
               <button
                 key={idx}
-                onClick={() => setActiveIndex(idx)}
-                className={`w-2 h-2 rounded-full transition-all ${
-                  idx === activeIndex ? 'bg-blue-500 w-6' : 'bg-slate-600 hover:bg-slate-500'
+                onClick={() => handleIndexChange(idx)}
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  idx === activeIndex ? 'bg-primary w-8 shadow-lg shadow-primary/50' : 'bg-slate-600 hover:bg-slate-500 w-2'
                 }`}
+                aria-label={`Template ${idx + 1}`}
               />
             ))}
           </div>

@@ -42,14 +42,14 @@ import {
   X,
 } from 'lucide-react'
 import { isPlanExpired, formatNumber } from '@/lib/utils'
-import type { WhatsAppInstance, Profile, DispatchResult, ContactsList, MessageTemplate, CampaignSettings } from '@/types'
+import type { WhatsAppInstance, Profile, DispatchResult, ContactsList, MessageTemplate, MediaFile, CampaignSettings } from '@/types'
 import { WhatsAppPreview } from './WhatsAppPreview'
 import { createClient } from '@/lib/supabase/client'
 
 interface CampaignDispatcherProps {
   instances: WhatsAppInstance[]
   lists: ContactsList[]
-  templates: MessageTemplate[]
+  templates: (MessageTemplate & { media?: MediaFile | null })[]
   profile: Profile | null
 }
 
@@ -609,7 +609,8 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
           <WhatsAppPreview
             messages={selectedTemplates.map((template, idx) => ({
               message: template.message,
-              mediaUrl: template.media_id ? undefined : undefined, // TODO: Get media URL
+              mediaUrl: template.media?.public_url || undefined,
+              mediaType: template.media?.type as 'image' | 'video' | 'document' | 'audio' | undefined,
               linkUrl: template.link_url || undefined,
               buttons: template.button_type === 'button' ? template.buttons : [],
               templateName: template.name
@@ -617,100 +618,176 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
             recipientName="Cliente"
           />
 
-          {/* Stats Card */}
+          {/* Stats Card - Redesigned */}
           {(recipientsList.length > 0 || selectedTemplates.length > 0) && (
-            <Card className="bg-gradient-to-br from-slate-900/90 to-slate-950/90 border-slate-800 relative z-0">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-primary" />
-                  Resumo da Campanha
+            <Card className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border-slate-800/50 shadow-xl relative z-0 overflow-hidden">
+              {/* Decorative gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-blue-600/5 pointer-events-none" />
+
+              <CardHeader className="pb-4 relative">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <div className="p-2 bg-gradient-to-br from-primary to-blue-600 rounded-lg">
+                    <MessageSquare className="h-5 w-5 text-white" />
+                  </div>
+                  <span className="bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent font-bold">
+                    Resumo da Campanha
+                  </span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Campanha Info */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between text-sm p-2 rounded-lg bg-slate-800/50">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-blue-400" />
-                      <span className="text-slate-300">Destinatários</span>
-                    </div>
-                    <span className="text-white font-semibold">{formatNumber(recipientsList.length)}</span>
-                  </div>
 
-                  <div className="flex items-center justify-between text-sm p-2 rounded-lg bg-slate-800/50">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-purple-400" />
-                      <span className="text-slate-300">Templates</span>
-                    </div>
-                    <span className="text-white font-semibold">{selectedTemplates.length}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm p-2 rounded-lg bg-slate-800/50">
-                    <div className="flex items-center gap-2">
-                      <Send className="h-4 w-4 text-green-400" />
-                      <span className="text-slate-300">Total de mensagens</span>
-                    </div>
-                    <span className="text-white font-semibold">
-                      {formatNumber(recipientsList.length * (selectedTemplates.length || 1))}
-                    </span>
-                  </div>
-                </div>
-
-                <Separator className="bg-slate-700/50" />
-
-                {/* Créditos */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between text-sm p-2.5 rounded-lg bg-orange-500/10 border border-orange-500/20">
-                    <div className="flex items-center gap-2">
-                      <Coins className="h-4 w-4 text-orange-400" />
-                      <span className="text-slate-300">Créditos necessários</span>
-                    </div>
-                    <span className="text-orange-400 font-bold text-base">{formatNumber(creditsNeeded)}</span>
-                  </div>
-
-                  <div className={`flex items-center justify-between text-sm p-2.5 rounded-lg border ${
-                    (userCredits - creditsNeeded) < 0
-                      ? 'bg-red-500/10 border-red-500/20'
-                      : 'bg-green-500/10 border-green-500/20'
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      <Coins className={`h-4 w-4 ${
-                        (userCredits - creditsNeeded) < 0 ? 'text-red-400' : 'text-green-400'
-                      }`} />
-                      <span className="text-slate-300">Saldo após envio</span>
-                    </div>
-                    <span className={`font-bold text-base ${
-                      (userCredits - creditsNeeded) < 0 ? 'text-red-400' : 'text-green-400'
-                    }`}>
-                      {formatNumber(userCredits - creditsNeeded)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Tempo estimado */}
-                {recipientsList.length > 0 && (
-                  <>
-                    <Separator className="bg-slate-700/50" />
-                    <div className="flex items-center justify-between text-sm p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-blue-400" />
-                        <span className="text-slate-300">Tempo estimado</span>
+              <CardContent className="space-y-5 relative">
+                {/* Campanha Info - Grid Responsivo */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Destinatários */}
+                  <div className="group relative p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 hover:border-blue-500/40 transition-all duration-300 hover:scale-105">
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-600/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+                    <div className="relative">
+                      <div className="flex items-center justify-between mb-2">
+                        <Users className="h-5 w-5 text-blue-400" />
+                        <span className="text-2xl font-bold text-white">{formatNumber(recipientsList.length)}</span>
                       </div>
-                      <span className="text-blue-400 font-semibold text-base">
-                        {(() => {
-                          const avgDelay = (campaignSettings.min_delay_seconds + campaignSettings.max_delay_seconds) / 2
-                          const totalSeconds = recipientsList.length * selectedTemplates.length * avgDelay
-                          const hours = Math.floor(totalSeconds / 3600)
-                          const minutes = Math.floor((totalSeconds % 3600) / 60)
-                          if (hours > 0) {
-                            return `~${hours}h ${minutes}m`
-                          }
-                          return `~${minutes}m`
-                        })()}
+                      <p className="text-xs text-slate-400 font-medium">Destinatários</p>
+                    </div>
+                  </div>
+
+                  {/* Templates */}
+                  <div className="group relative p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 hover:border-purple-500/40 transition-all duration-300 hover:scale-105">
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-purple-600/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+                    <div className="relative">
+                      <div className="flex items-center justify-between mb-2">
+                        <FileText className="h-5 w-5 text-purple-400" />
+                        <span className="text-2xl font-bold text-white">{selectedTemplates.length}</span>
+                      </div>
+                      <p className="text-xs text-slate-400 font-medium">Templates</p>
+                    </div>
+                  </div>
+
+                  {/* Total de Mensagens */}
+                  <div className="group relative p-4 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-600/5 border border-green-500/20 hover:border-green-500/40 transition-all duration-300 hover:scale-105">
+                    <div className="absolute inset-0 bg-gradient-to-br from-green-500/0 to-emerald-600/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+                    <div className="relative">
+                      <div className="flex items-center justify-between mb-2">
+                        <Send className="h-5 w-5 text-green-400" />
+                        <span className="text-2xl font-bold text-white">
+                          {formatNumber(recipientsList.length * (selectedTemplates.length || 1))}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 font-medium">Total de mensagens</p>
+                    </div>
+                  </div>
+
+                  {/* Tempo Estimado */}
+                  {recipientsList.length > 0 && (
+                    <div className="group relative p-4 rounded-xl bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 border border-cyan-500/20 hover:border-cyan-500/40 transition-all duration-300 hover:scale-105">
+                      <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/0 to-cyan-600/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+                      <div className="relative">
+                        <div className="flex items-center justify-between mb-2">
+                          <Clock className="h-5 w-5 text-cyan-400" />
+                          <span className="text-2xl font-bold text-white">
+                            {(() => {
+                              const avgDelay = (campaignSettings.min_delay_seconds + campaignSettings.max_delay_seconds) / 2
+                              const totalSeconds = recipientsList.length * selectedTemplates.length * avgDelay
+                              const hours = Math.floor(totalSeconds / 3600)
+                              const minutes = Math.floor((totalSeconds % 3600) / 60)
+                              if (hours > 0) {
+                                return `${hours}h ${minutes}m`
+                              }
+                              return `${minutes}m`
+                            })()}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 font-medium">Tempo estimado</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <Separator className="bg-gradient-to-r from-transparent via-slate-700/50 to-transparent" />
+
+                {/* Créditos - Melhorado */}
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Créditos</div>
+
+                  {/* Créditos Necessários */}
+                  <div className="group relative p-4 rounded-xl bg-gradient-to-br from-orange-500/10 to-amber-600/5 border border-orange-500/30 hover:border-orange-500/50 transition-all duration-300">
+                    <div className="absolute inset-0 bg-gradient-to-br from-orange-500/0 to-amber-600/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+                    <div className="relative flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-orange-500/20 rounded-lg">
+                          <Coins className="h-5 w-5 text-orange-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-200">Créditos necessários</p>
+                          <p className="text-xs text-slate-400">Para esta campanha</p>
+                        </div>
+                      </div>
+                      <span className="text-3xl font-bold text-orange-400">{formatNumber(creditsNeeded)}</span>
+                    </div>
+                  </div>
+
+                  {/* Saldo Após Envio */}
+                  <div className={`group relative p-4 rounded-xl border transition-all duration-300 ${
+                    (userCredits - creditsNeeded) < 0
+                      ? 'bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/30 hover:border-red-500/50'
+                      : 'bg-gradient-to-br from-green-500/10 to-emerald-600/5 border-green-500/30 hover:border-green-500/50'
+                  }`}>
+                    <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl ${
+                      (userCredits - creditsNeeded) < 0
+                        ? 'bg-gradient-to-br from-red-500/0 to-red-600/10'
+                        : 'bg-gradient-to-br from-green-500/0 to-emerald-600/10'
+                    }`} />
+                    <div className="relative flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${
+                          (userCredits - creditsNeeded) < 0 ? 'bg-red-500/20' : 'bg-green-500/20'
+                        }`}>
+                          <Coins className={`h-5 w-5 ${
+                            (userCredits - creditsNeeded) < 0 ? 'text-red-400' : 'text-green-400'
+                          }`} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-200">Saldo após envio</p>
+                          <p className="text-xs text-slate-400">
+                            {(userCredits - creditsNeeded) < 0 ? 'Créditos insuficientes!' : 'Saldo restante'}
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`text-3xl font-bold ${
+                        (userCredits - creditsNeeded) < 0 ? 'text-red-400' : 'text-green-400'
+                      }`}>
+                        {formatNumber(userCredits - creditsNeeded)}
                       </span>
                     </div>
-                  </>
-                )}
+                  </div>
+
+                  {/* Preview das Mídias (se houver) */}
+                  {selectedTemplates.some(t => t.media) && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                      <div className="flex items-center gap-2 flex-1">
+                        <div className="p-1.5 bg-purple-500/20 rounded-lg">
+                          <FileText className="h-4 w-4 text-purple-400" />
+                        </div>
+                        <span className="text-xs text-slate-400">
+                          {selectedTemplates.filter(t => t.media).length} template(s) com mídia
+                        </span>
+                      </div>
+                      <div className="flex -space-x-2">
+                        {selectedTemplates
+                          .filter(t => t.media?.type === 'image')
+                          .slice(0, 3)
+                          .map((t, idx) => (
+                            <div key={idx} className="h-8 w-8 rounded-lg border-2 border-slate-900 overflow-hidden bg-slate-800">
+                              <img
+                                src={t.media!.public_url}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}
