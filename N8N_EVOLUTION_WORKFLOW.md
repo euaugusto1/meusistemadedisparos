@@ -19,16 +19,22 @@ Este workflow elimina a necessidade do usuário manter o navegador aberto durant
 
 ## 🔧 Instalação
 
-### 1. Variáveis de Ambiente
+### ⚠️ IMPORTANTE: Limitação de Variáveis de Ambiente
 
-Adicione ao seu `.env.local`:
+O plano atual do n8n **NÃO tem acesso a variáveis de ambiente**. Por isso, você precisa configurar os valores **diretamente no workflow**.
+
+📖 **[SIGA O GUIA COMPLETO DE CONFIGURAÇÃO](N8N_SETUP_GUIDE.md)**
+
+### 1. Variáveis de Ambiente (Next.js)
+
+Adicione ao seu `.env.local` **apenas para o Next.js**:
 
 ```bash
 # N8N Configuration
 N8N_API_KEY=sua-chave-secreta-aqui
 
 # Evolution API (já configurado)
-EVOLUTION_API_URL=https://dev.n8n.sistemabrasil.online/api/v1
+EVOLUTION_API_URL=https://dev.n8n.sistemabrasil.online
 EVOLUTION_API_KEY=sua-api-key-evolution
 
 # App URL
@@ -40,26 +46,50 @@ NEXT_PUBLIC_APP_URL=https://seu-dominio.com
 1. Acesse seu painel n8n
 2. Clique em **"Import from File"**
 3. Selecione o arquivo: `workflows/evolution-api-campaign-dispatcher.json`
-4. Configure as credenciais (próximo passo)
 
-### 3. Configurar Credenciais no N8N
+### 3. Configurar Valores Manualmente no N8N
 
-O workflow precisa de acesso às seguintes variáveis de ambiente no n8n:
+Como o n8n não tem variáveis de ambiente, você precisa editar **CADA NODE HTTP Request**:
 
-**Variáveis necessárias:**
-- `N8N_API_KEY` - Para autenticar com sua API Next.js
-- `NEXT_PUBLIC_APP_URL` - URL base da sua aplicação
-- `EVOLUTION_API_URL` - URL da Evolution API
+**📝 Valores que você precisa substituir:**
 
-**Como configurar:**
-1. No n8n, vá em **Settings → Environment Variables**
-2. Adicione cada variável com seu respectivo valor
-3. Salve as alterações
+```bash
+# 1. URL da sua aplicação (em 6 nodes)
+De: ={{$env.NEXT_PUBLIC_APP_URL}}/api/...
+Para: https://seu-dominio.com/api/...
 
-### 4. Ativar o Workflow
+# 2. N8N API Key (em 6 nodes - header Authorization)
+De: =Bearer {{$env.N8N_API_KEY}}
+Para: Bearer sua-chave-secreta-aqui
 
-1. No editor do workflow, clique em **"Active"** no canto superior direito
-2. O workflow começará a executar a cada 30 segundos
+# 3. Evolution API URL (em 1 node - "Send Message via Evolution API")
+De: ={{$env.EVOLUTION_API_URL}}/message/...
+Para: https://dev.n8n.sistemabrasil.online/message/...
+```
+
+**🎯 Lista de Nodes para Editar:**
+
+1. ✏️ **Fetch Test Campaigns** - URL + Authorization header
+2. ✏️ **Fetch Recipients** - URL + Authorization header
+3. ✏️ **Update Status to Processing** - URL + Authorization header
+4. ✏️ **Send Message via Evolution API** - URL (Evolution API)
+5. ✏️ **Update Item Status** - URL + Authorization header
+6. ✏️ **Update Campaign Counters** - URL + Authorization header
+7. ✏️ **Complete Campaign** - URL + Authorization header
+
+**⚠️ ATENÇÃO**: O node "Send Message via Evolution API" usa o **apikey** da instância dinamicamente, não mexa nesse header!
+
+### 4. Salvar e Ativar o Workflow
+
+1. Após editar todos os nodes, clique em **"Save"**
+2. Clique no botão **"Active"** para ativar
+3. O workflow começará a executar a cada 30 segundos
+
+### 📚 Guia Detalhado
+
+Para um guia passo a passo com screenshots e troubleshooting completo, consulte:
+
+👉 **[N8N_SETUP_GUIDE.md](N8N_SETUP_GUIDE.md)**
 
 ---
 
