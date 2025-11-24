@@ -461,3 +461,60 @@ export interface PerformanceMetrics {
   best_hour: number
   best_day_of_week: number
 }
+
+// =====================================================
+// EVOLUTION API TYPES
+// =====================================================
+
+export type EvolutionInstanceState = 'open' | 'connecting' | 'close'
+export type EvolutionConnectionState = 'open' | 'close'
+
+export interface EvolutionInstance {
+  instance: {
+    instanceName: string
+    owner: string
+    profileName?: string
+    profilePictureUrl?: string
+    profileStatus?: string
+    status?: EvolutionInstanceState
+  }
+}
+
+export interface EvolutionCreateInstancePayload {
+  instanceName: string
+  token?: string
+  number?: string
+  qrcode?: boolean
+  integration?: string
+}
+
+export interface EvolutionCreateInstanceResponse {
+  instance: {
+    instanceName: string
+    status: string
+  }
+  hash: string
+  qrcode?: {
+    code: string
+    base64: string
+  }
+}
+
+export interface EvolutionConnectionStatus {
+  instance: string
+  state: EvolutionConnectionState
+}
+
+export interface EvolutionQRCodeResponse {
+  pairingCode?: string
+  code?: string
+  base64?: string
+}
+
+export interface EvolutionDeleteInstanceResponse {
+  status: string
+  error?: boolean
+  response?: {
+    message: string
+  }
+}

@@ -236,16 +236,22 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Erro ao criar instância de teste')
+        throw new Error(data.details || data.error || 'Erro ao criar instância de teste')
       }
 
       // Add new instance to the list
       setInstances(prev => [data.instance, ...prev])
 
-      // Show success message
-      alert(data.message)
+      // Se retornou QR Code, abrir modal com o QR
+      if (data.qrcode) {
+        setSelectedInstance(data.instance)
+        setQrCode(data.qrcode)
+      }
+
+      // Não mostrar alert, pois a modal de QR Code já será exibida
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao criar instância de teste')
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao criar instância de teste'
+      setError(errorMessage)
     } finally {
       setCreatingTest(false)
     }
@@ -286,16 +292,20 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
               <TestTube2 className="h-8 w-8 mx-auto mb-2 text-orange-600 dark:text-orange-400" />
               <h4 className="font-semibold text-sm mb-1">Servidor gratuito para testes</h4>
               <p className="text-xs text-muted-foreground mb-3">
-                Em desenvolvimento - Funcionalidade temporariamente indisponível
+                Crie uma instância de teste grátis válida por 15 dias!
               </p>
               <Button
-                onClick={() => alert('Funcionalidade em desenvolvimento. Em breve você poderá criar instâncias de teste gratuitamente!')}
-                disabled={false}
+                onClick={handleCreateTestInstance}
+                disabled={creatingTest}
                 variant="outline"
-                className="border-orange-600 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950 opacity-60"
+                className="border-orange-600 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
               >
-                <TestTube2 className="mr-2 h-4 w-4" />
-                Em Desenvolvimento
+                {creatingTest ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <TestTube2 className="mr-2 h-4 w-4" />
+                )}
+                {creatingTest ? 'Criando...' : 'Criar Instância de Teste'}
               </Button>
             </div>
           </div>
@@ -315,18 +325,22 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
               <div>
                 <h4 className="font-semibold text-sm">Servidor gratuito para testes</h4>
                 <p className="text-xs text-muted-foreground">
-                  Em desenvolvimento - Funcionalidade temporariamente indisponível
+                  Crie uma instância de teste grátis válida por 15 dias!
                 </p>
               </div>
             </div>
             <Button
-              onClick={() => alert('Funcionalidade em desenvolvimento. Em breve você poderá criar instâncias de teste gratuitamente!')}
-              disabled={false}
+              onClick={handleCreateTestInstance}
+              disabled={creatingTest}
               variant="outline"
-              className="border-orange-600 text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900 flex-shrink-0 opacity-60"
+              className="border-orange-600 text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900 flex-shrink-0"
             >
-              <TestTube2 className="mr-2 h-4 w-4" />
-              Em Desenvolvimento
+              {creatingTest ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <TestTube2 className="mr-2 h-4 w-4" />
+              )}
+              {creatingTest ? 'Criando...' : 'Criar Instância de Teste'}
             </Button>
           </div>
         </CardContent>
