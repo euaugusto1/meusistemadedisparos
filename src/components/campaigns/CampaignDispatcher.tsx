@@ -73,6 +73,7 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
   const [results, setResults] = useState<DispatchResult[]>([])
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [showResultsModal, setShowResultsModal] = useState(false)
 
   // Refs
   const stopRequestedRef = useRef(false)
@@ -270,6 +271,9 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
       } else {
         setSuccess(`Campanhas concluídas! ${totalSent} enviados, ${totalFailed} falhas.`)
       }
+
+      // Mostrar modal de resultados após conclusão
+      setShowResultsModal(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao processar campanha')
     } finally {
@@ -1057,6 +1061,183 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Results Modal - Modal de Resultados */}
+      <Dialog open={showResultsModal} onOpenChange={setShowResultsModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-2xl">
+              {results.filter(r => !r.success).length === 0 ? (
+                <>
+                  <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl">
+                    <CheckCircle className="h-7 w-7 text-white" />
+                  </div>
+                  <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                    Campanha Concluída com Sucesso!
+                  </span>
+                </>
+              ) : results.filter(r => r.success).length === 0 ? (
+                <>
+                  <div className="p-3 bg-gradient-to-br from-red-500 to-red-600 rounded-xl">
+                    <XCircle className="h-7 w-7 text-white" />
+                  </div>
+                  <span className="bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
+                    Campanha Falhou
+                  </span>
+                </>
+              ) : (
+                <>
+                  <div className="p-3 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl">
+                    <AlertTriangle className="h-7 w-7 text-white" />
+                  </div>
+                  <span className="bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
+                    Campanha Concluída com Avisos
+                  </span>
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              Veja os detalhes do envio da sua campanha
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Summary Cards - Grid 2x1 */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Sucessos */}
+              <Card className="bg-gradient-to-br from-green-500/10 to-emerald-600/5 border-green-500/30 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent pointer-events-none" />
+                <CardContent className="p-6 relative">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-green-500/20 rounded-xl">
+                      <CheckCircle className="h-8 w-8 text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-4xl font-bold text-green-400">
+                        {results.filter(r => r.success).length}
+                      </p>
+                      <p className="text-sm text-slate-400 font-medium mt-1">
+                        Mensagens Enviadas
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Falhas */}
+              <Card className="bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/30 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent pointer-events-none" />
+                <CardContent className="p-6 relative">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-red-500/20 rounded-xl">
+                      <XCircle className="h-8 w-8 text-red-400" />
+                    </div>
+                    <div>
+                      <p className="text-4xl font-bold text-red-400">
+                        {results.filter(r => !r.success).length}
+                      </p>
+                      <p className="text-sm text-slate-400 font-medium mt-1">
+                        Mensagens Falhadas
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Taxa de Sucesso */}
+            <Card className="bg-slate-900/50 border-slate-800">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-slate-400">Taxa de Sucesso</span>
+                  <span className="text-lg font-bold text-white">
+                    {results.length > 0
+                      ? `${((results.filter(r => r.success).length / results.length) * 100).toFixed(1)}%`
+                      : '0%'
+                    }
+                  </span>
+                </div>
+                <Progress
+                  value={results.length > 0 ? (results.filter(r => r.success).length / results.length) * 100 : 0}
+                  className="h-3"
+                />
+              </CardContent>
+            </Card>
+
+            {/* Lista de Falhas (se houver) */}
+            {results.filter(r => !r.success).length > 0 && (
+              <Card className="bg-slate-900/50 border-slate-800 max-h-64 overflow-hidden">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-red-400" />
+                    Destinatários com Falha
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="max-h-48 overflow-y-auto space-y-2">
+                  {results
+                    .filter(r => !r.success)
+                    .slice(0, 10)
+                    .map((result, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-2 rounded-lg bg-red-500/5 border border-red-500/20 text-sm"
+                      >
+                        <span className="text-slate-300 font-mono">{result.recipient}</span>
+                        <span className="text-xs text-red-400">{result.error || 'Erro desconhecido'}</span>
+                      </div>
+                    ))}
+                  {results.filter(r => !r.success).length > 10 && (
+                    <p className="text-xs text-slate-500 text-center pt-2">
+                      E mais {results.filter(r => !r.success).length - 10} falhas...
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Mensagem de Conclusão */}
+            <div className="text-center">
+              {results.filter(r => !r.success).length === 0 ? (
+                <p className="text-green-400 font-medium">
+                  ✨ Todas as mensagens foram enviadas com sucesso!
+                </p>
+              ) : results.filter(r => r.success).length === 0 ? (
+                <p className="text-red-400 font-medium">
+                  ❌ Nenhuma mensagem foi enviada. Verifique os erros acima.
+                </p>
+              ) : (
+                <p className="text-orange-400 font-medium">
+                  ⚠️ Algumas mensagens falharam. Revise os destinatários com erro.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowResultsModal(false)}
+            >
+              Fechar
+            </Button>
+            <Button
+              className="flex-1 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90"
+              onClick={() => {
+                setShowResultsModal(false)
+                // Reset form para nova campanha
+                setResults([])
+                setProgress(0)
+                setProgressText('')
+                setError(null)
+                setSuccess(null)
+              }}
+            >
+              Nova Campanha
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
