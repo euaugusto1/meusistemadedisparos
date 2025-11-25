@@ -164,7 +164,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepara destinatários com dados da campanha\nconst campaign = $('Loop Campaigns').item.json;\nconst recipients = campaign.recipients || [];\n\n// Calcula delay baseado no throttling\nconst throttling = campaign.throttling || {};\nlet baseDelay = 1000;\n\nif (throttling.enabled && throttling.messagesPerMinute) {\n  baseDelay = Math.ceil(60000 / throttling.messagesPerMinute);\n} else if (throttling.delayBetweenMessages) {\n  baseDelay = throttling.delayBetweenMessages * 1000;\n}\n\nconst minDelay = throttling.minDelay || Math.floor(baseDelay * 0.8);\nconst maxDelay = throttling.maxDelay || Math.ceil(baseDelay * 1.2);\n\nconsole.log(`\\n⏱️ Delay configurado: ${minDelay}-${maxDelay}ms`);\n\nreturn recipients.map((r, i) => ({\n  json: {\n    ...r,\n    campaign: {\n      id: campaign.campaignId,\n      title: campaign.title,\n      message: campaign.message,\n      media: campaign.media,\n      scheduleType: campaign.scheduleType,\n      recurrencePattern: campaign.recurrencePattern\n    },\n    instance: campaign.instance,\n    delay: { min: minDelay, max: maxDelay },\n    progress: { current: i + 1, total: recipients.length }\n  }\n}));"
+        "jsCode": "// Prepara destinatários com dados da campanha\nconst campaign = $('Loop Campaigns').item.json;\nconst recipients = campaign.recipients || [];\n\n// Calcula delay baseado no throttling\nconst throttling = campaign.throttling || {};\nlet baseDelay = 1000;\n\nif (throttling.enabled && throttling.messagesPerMinute) {\n  baseDelay = Math.ceil(60000 / throttling.messagesPerMinute);\n} else if (throttling.delayBetweenMessages) {\n  baseDelay = throttling.delayBetweenMessages * 1000;\n}\n\nconst minDelay = throttling.minDelay || Math.floor(baseDelay * 0.8);\nconst maxDelay = throttling.maxDelay || Math.ceil(baseDelay * 1.2);\n\nconsole.log(`\\n⏱️ Delay configurado: ${minDelay}-${maxDelay}ms`);\n\nreturn recipients.map((r, i) => ({\n  json: {\n    ...r,\n    campaignId: campaign.campaignId,\n    campaign: {\n      title: campaign.title,\n      message: campaign.message,\n      media: campaign.media,\n      scheduleType: campaign.scheduleType,\n      recurrencePattern: campaign.recurrencePattern\n    },\n    instance: campaign.instance,\n    delay: { min: minDelay, max: maxDelay },\n    progress: { current: i + 1, total: recipients.length }\n  }\n}));"
       },
       "id": "prepare-recipients",
       "name": "Prepare Recipients",
@@ -286,7 +286,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Analisa resultado\nconst result = $input.first().json;\nconst recipient = $('Loop Recipients').item.json;\nconst campaign = $('Loop Campaigns').item.json;\n\nconst hasError = result.error || result.statusCode >= 400;\nconst status = hasError ? 'failed' : 'sent';\nconst errorMsg = hasError ? (result.error?.message || result.body?.message || 'Erro') : null;\n\nconst emoji = hasError ? '❌' : '✅';\nconsole.log(`${emoji} [${recipient.progress.current}/${recipient.progress.total}] ${recipient.phoneNumber}`);\n\nreturn [{\n  json: {\n    recipientId: recipient.id,\n    campaignId: campaign.campaignId,\n    phoneNumber: recipient.phoneNumber,\n    status,\n    errorMessage: errorMsg,\n    sentAt: new Date().toISOString(),\n    delay: recipient.delay\n  }\n}];"
+        "jsCode": "// Analisa resultado\nconst result = $input.first().json;\nconst recipient = $('Loop Recipients').item.json;\n\nconst hasError = result.error || result.statusCode >= 400;\nconst status = hasError ? 'failed' : 'sent';\nconst errorMsg = hasError ? (result.error?.message || result.body?.message || 'Erro') : null;\n\nconst emoji = hasError ? '❌' : '✅';\nconsole.log(`${emoji} [${recipient.progress.current}/${recipient.progress.total}] ${recipient.phoneNumber}`);\n\nreturn [{\n  json: {\n    recipientId: recipient.id,\n    campaignId: recipient.campaignId,\n    phoneNumber: recipient.phoneNumber,\n    status,\n    errorMessage: errorMsg,\n    sentAt: new Date().toISOString(),\n    delay: recipient.delay\n  }\n}];"
       },
       "id": "analyze-result",
       "name": "Analyze Result",
@@ -715,6 +715,6 @@
     }
   ],
   "triggerCount": 1,
-  "updatedAt": "2025-11-25T16:00:00.000Z",
-  "versionId": "2.2"
+  "updatedAt": "2025-11-25T17:00:00.000Z",
+  "versionId": "2.3"
 }
