@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { CampaignsList } from '@/components/campaigns/CampaignsList'
 import { ScheduledCampaignsDashboard } from '@/components/campaigns/ScheduledCampaignsDashboard'
@@ -12,7 +12,7 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<(Campaign & { instance?: WhatsAppInstance | null; media?: MediaFile | null })[]>([])
   const [loading, setLoading] = useState(true)
 
-  const fetchCampaigns = async () => {
+  const fetchCampaigns = useCallback(async () => {
     const supabase = createClient()
     const { data } = await supabase
       .from('campaigns')
@@ -27,11 +27,34 @@ export default function CampaignsPage() {
       setCampaigns(data)
     }
     setLoading(false)
-  }
+  }, [])
 
   useEffect(() => {
     fetchCampaigns()
-  }, [])
+
+    // Subscribe to realtime updates on campaigns table
+    const supabase = createClient()
+    const channel = supabase
+      .channel('campaigns-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'campaigns'
+        },
+        (payload) => {
+          console.log('[Realtime] Campaign change:', payload.eventType, payload)
+          // Refetch all campaigns to get updated data with relations
+          fetchCampaigns()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [fetchCampaigns])
 
   if (loading) {
     return (
