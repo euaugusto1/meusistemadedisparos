@@ -44,7 +44,10 @@ import {
 import { isPlanExpired, formatNumber } from '@/lib/utils'
 import type { WhatsAppInstance, Profile, DispatchResult, ContactsList, MessageTemplate, MediaFile, CampaignSettings } from '@/types'
 import { WhatsAppPreview } from './WhatsAppPreview'
+import { SmartScheduler, ScheduleData } from './SmartScheduler'
 import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
+import { CalendarClock } from 'lucide-react'
 
 interface CampaignDispatcherProps {
   instances: WhatsAppInstance[]
@@ -64,6 +67,7 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
   const [showInstanceModal, setShowInstanceModal] = useState(false)
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [showListModal, setShowListModal] = useState(false)
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
 
   // UI State
   const [isProcessing, setIsProcessing] = useState(false)
@@ -75,8 +79,23 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
   const [success, setSuccess] = useState<string | null>(null)
   const [showResultsModal, setShowResultsModal] = useState(false)
 
+  // Schedule State
+  const [scheduleData, setScheduleData] = useState<ScheduleData>({
+    schedule_type: 'immediate',
+    scheduled_at: null,
+    timezone: 'America/Sao_Paulo',
+    recurrence_pattern: null,
+    throttle_enabled: false,
+    throttle_rate: null,
+    throttle_delay: null,
+    smart_timing: false,
+  })
+
   // Refs
   const stopRequestedRef = useRef(false)
+
+  // Router
+  const router = useRouter()
 
   // Campaign Settings State
   const [campaignSettings, setCampaignSettings] = useState<CampaignSettings>({
@@ -285,6 +304,104 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
   const handleStop = () => {
     stopRequestedRef.current = true
     setProgressText('Parando envios...')
+  }
+
+  // Schedule campaign
+  const handleScheduleCampaign = async () => {
+    setError(null)
+    setSuccess(null)
+    setShowScheduleModal(false)
+
+    try {
+      if (selectedTemplates.length === 0) {
+        throw new Error('Nenhum template selecionado')
+      }
+
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        throw new Error('Usuário não autenticado')
+      }
+
+      // Para cada template, criar uma campanha agendada
+      for (let templateIndex = 0; templateIndex < selectedTemplates.length; templateIndex++) {
+        const template = selectedTemplates[templateIndex]
+
+        // Use template data
+        const validButtons = template.button_type === 'button'
+          ? template.buttons.filter(b => b.name && b.url)
+          : []
+
+        // Create campaign title
+        const campaignTitle = selectedTemplates.length > 1
+          ? `${title} (${templateIndex + 1}/${selectedTemplates.length})`
+          : title
+
+        // Prepare campaign data with scheduling
+        const campaignData = {
+          user_id: user.id,
+          instance_id: instanceId,
+          title: campaignTitle,
+          message: template.message.trim(),
+          link_url: template.link_url || null,
+          media_id: template.media_id || null,
+          button_type: template.button_type || null,
+          buttons: validButtons,
+          min_delay: campaignSettings.min_delay_seconds,
+          max_delay: campaignSettings.max_delay_seconds,
+          total_recipients: recipientsList.length,
+          status: 'scheduled',
+          // Scheduling fields
+          schedule_type: scheduleData.schedule_type,
+          scheduled_at: scheduleData.scheduled_at,
+          timezone: scheduleData.timezone,
+          recurrence_pattern: scheduleData.recurrence_pattern,
+          throttle_enabled: scheduleData.throttle_enabled,
+          throttle_rate: scheduleData.throttle_rate,
+          throttle_delay: scheduleData.throttle_delay,
+          smart_timing: scheduleData.smart_timing,
+        }
+
+        // Insert campaign
+        const { data: campaign, error: campaignError } = await supabase
+          .from('campaigns')
+          .insert(campaignData)
+          .select()
+          .single()
+
+        if (campaignError || !campaign) {
+          throw new Error(`Erro ao criar campanha para template "${template.name}": ${campaignError?.message}`)
+        }
+
+        // Create campaign items
+        const items = recipientsList.map(recipient => ({
+          campaign_id: campaign.id,
+          recipient,
+          status: 'pending' as const,
+        }))
+
+        const { error: itemsError } = await supabase
+          .from('campaign_items')
+          .insert(items)
+
+        if (itemsError) {
+          // Rollback: delete campaign
+          await supabase.from('campaigns').delete().eq('id', campaign.id)
+          throw new Error(`Erro ao criar destinatários: ${itemsError.message}`)
+        }
+      }
+
+      setSuccess(`${selectedTemplates.length} campanha(s) agendada(s) com sucesso!`)
+
+      // Redirecionar para a página de campanhas agendadas
+      setTimeout(() => {
+        router.push('/campaigns')
+      }, 2000)
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao agendar campanha')
+    }
   }
 
   // Selection handlers
@@ -567,29 +684,44 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
             )}
 
             {/* Actions */}
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               {!isProcessing ? (
-                <Button
-                  type="submit"
-                  className="flex-1 relative overflow-hidden bg-gradient-to-r from-primary via-primary/90 to-primary hover:from-primary/90 hover:via-primary hover:to-primary/90 text-white font-semibold text-base py-6 shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none group"
-                  disabled={!isValid || planExpired}
-                >
-                  {/* Shine effect */}
-                  <div className="absolute inset-0 -top-full group-hover:top-full transition-all duration-700 ease-out bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+                <>
+                  {/* Botão Agendar Campanha */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 relative overflow-hidden border-2 border-blue-500/50 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 font-semibold text-base py-6 shadow-lg shadow-blue-500/10 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none group"
+                    disabled={!isValid || planExpired}
+                    onClick={() => setShowScheduleModal(true)}
+                  >
+                    <CalendarClock className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform duration-300" />
+                    <span className="relative">Agendar Campanha</span>
+                  </Button>
 
-                  {/* Icon with animation */}
-                  <div className="relative mr-2">
-                    <Rocket className="h-5 w-5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-300" />
-                    {isValid && !planExpired && (
-                      <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                      </span>
-                    )}
-                  </div>
+                  {/* Botão Iniciar Envios */}
+                  <Button
+                    type="submit"
+                    className="flex-1 relative overflow-hidden bg-gradient-to-r from-primary via-primary/90 to-primary hover:from-primary/90 hover:via-primary hover:to-primary/90 text-white font-semibold text-base py-6 shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none group"
+                    disabled={!isValid || planExpired}
+                  >
+                    {/* Shine effect */}
+                    <div className="absolute inset-0 -top-full group-hover:top-full transition-all duration-700 ease-out bg-gradient-to-b from-transparent via-white/20 to-transparent" />
 
-                  <span className="relative">Iniciar Envios</span>
-                </Button>
+                    {/* Icon with animation */}
+                    <div className="relative mr-2">
+                      <Rocket className="h-5 w-5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-300" />
+                      {isValid && !planExpired && (
+                        <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                        </span>
+                      )}
+                    </div>
+
+                    <span className="relative">Iniciar Envios</span>
+                  </Button>
+                </>
               ) : (
                 <Button
                   type="button"
@@ -982,6 +1114,83 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule Modal - Modal de Agendamento */}
+      <Dialog open={showScheduleModal} onOpenChange={setShowScheduleModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-2xl">
+              <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl">
+                <CalendarClock className="h-7 w-7 text-white" />
+              </div>
+              <span className="bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
+                Agendar Campanha
+              </span>
+            </DialogTitle>
+            <DialogDescription>
+              Configure quando e como sua campanha será enviada
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Resumo da Campanha */}
+            <Card className="bg-slate-900/50 border-slate-800">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Resumo da Campanha</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-blue-400" />
+                    <span className="text-sm text-slate-300">{recipientsList.length} destinatários</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-purple-400" />
+                    <span className="text-sm text-slate-300">{selectedTemplates.length} templates</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Send className="h-4 w-4 text-green-400" />
+                    <span className="text-sm text-slate-300">{formatNumber(creditsNeeded)} mensagens</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* SmartScheduler Component */}
+            <SmartScheduler
+              scheduleType={scheduleData.schedule_type}
+              scheduledAt={scheduleData.scheduled_at}
+              timezone={scheduleData.timezone}
+              recurrencePattern={scheduleData.recurrence_pattern}
+              throttleEnabled={scheduleData.throttle_enabled}
+              throttleRate={scheduleData.throttle_rate}
+              throttleDelay={scheduleData.throttle_delay}
+              smartTiming={scheduleData.smart_timing}
+              suggestedSendTime={null}
+              onChange={(data) => {
+                setScheduleData(prev => ({ ...prev, ...data }))
+              }}
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowScheduleModal(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+              onClick={handleScheduleCampaign}
+            >
+              <CalendarClock className="mr-2 h-5 w-5" />
+              Confirmar Agendamento
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
