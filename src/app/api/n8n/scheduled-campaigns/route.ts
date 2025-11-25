@@ -24,13 +24,14 @@ export async function GET(request: NextRequest) {
     // First, let's check ALL campaigns to debug
     const { data: allCampaigns, error: allError } = await supabase
       .from('campaigns')
-      .select('id, title, status, is_paused, instance_id, schedule_type, scheduled_at')
+      .select('id, title, status, is_paused, instance_id, schedule_type, scheduled_at, created_at')
       .order('created_at', { ascending: false })
       .limit(10)
 
     console.log('[N8N] DEBUG - Last 10 campaigns in database:')
+    console.log('[N8N] Current server time:', new Date().toISOString())
     allCampaigns?.forEach((c, i) => {
-      console.log(`  ${i + 1}. "${c.title}" - status: ${c.status}, is_paused: ${c.is_paused}, instance_id: ${c.instance_id ? 'SET' : 'NULL'}, schedule_type: ${c.schedule_type}, scheduled_at: ${c.scheduled_at}`)
+      console.log(`  ${i + 1}. "${c.title}" - status: ${c.status}, instance_id: ${c.instance_id ? 'SET' : 'NULL'}, scheduled_at: ${c.scheduled_at}, created_at: ${c.created_at}`)
     })
 
     // Get scheduled campaigns that are ready to be sent (production instances only)
@@ -59,13 +60,14 @@ export async function GET(request: NextRequest) {
         suggested_send_time,
         recurrence_pattern,
         is_paused,
-        instance:whatsapp_instances(
+        instance:whatsapp_instances!campaigns_instance_id_fkey(
           id,
           name,
           phone_number,
           api_token,
           status,
-          is_test
+          is_test,
+          api_url
         ),
         media:media_files(
           id,
@@ -88,12 +90,13 @@ export async function GET(request: NextRequest) {
     // Debug: Log all campaigns found with status='scheduled'
     console.log(`[N8N] Found ${campaigns?.length || 0} campaigns with status='scheduled'`)
     campaigns?.forEach((c, i) => {
-      const inst = (c.instance as any)?.[0]
+      const inst = c.instance as any
       console.log(`[N8N] Campaign ${i + 1}: ${c.title}`)
       console.log(`  - ID: ${c.id}`)
+      console.log(`  - instance_id: ${c.instance_id}`)
       console.log(`  - schedule_type: ${c.schedule_type}`)
       console.log(`  - scheduled_at: ${c.scheduled_at}`)
-      console.log(`  - instance: ${inst?.name || 'NULL'} (status: ${inst?.status}, has_token: ${!!inst?.api_token})`)
+      console.log(`  - instance data: ${JSON.stringify(inst)}`)
     })
 
     // Filtrar campanhas prontas para envio (produção ou teste)
@@ -228,9 +231,9 @@ export async function GET(request: NextRequest) {
             phoneNumber: campaign.instance[0].phone_number,
             apiToken: campaign.instance[0].api_token,
             // URL baseada no tipo de instância (teste usa Evolution API, produção usa UAZAPI)
-            apiUrl: campaign.instance[0].is_test
+            apiUrl: campaign.instance[0].api_url || (campaign.instance[0].is_test
               ? (process.env.EVOLUTION_API_URL || 'https://dev.evo.sistemabrasil.online')
-              : (process.env.UAZAPI_BASE_URL || 'https://monitor-grupo.uazapi.com'),
+              : (process.env.UAZAPI_BASE_URL || 'https://monitor-grupo.uazapi.com')),
             status: campaign.instance[0].status,
             isTest: campaign.instance[0].is_test
           } : null,
