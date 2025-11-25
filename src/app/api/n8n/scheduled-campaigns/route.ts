@@ -117,24 +117,31 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Filtrar campanhas prontas para envio (produção ou teste)
-    const readyCampaigns = campaigns?.filter(campaign => {
+    // Tempo limite para considerar uma campanha como expirada (1 hora após o horário agendado)
+    const EXPIRATION_THRESHOLD_MS = 60 * 60 * 1000 // 1 hora em milissegundos
+    const currentTime = new Date()
+
+    // Separar campanhas em: prontas para envio, expiradas (para marcar como failed)
+    const readyCampaigns: typeof campaigns = []
+    const expiredCampaigns: typeof campaigns = []
+
+    for (const campaign of campaigns || []) {
       // Skip paused campaigns
       if ((campaign as any).is_paused === true) {
         console.log(`[N8N] SKIP ${campaign.title}: Campaign is paused`)
-        return false
+        continue
       }
 
       // Skip campaigns without instance_id
       if (!campaign.instance_id) {
         console.log(`[N8N] SKIP ${campaign.title}: No instance_id`)
-        return false
+        continue
       }
 
       const instance = campaign.instance as any
       if (!instance || !instance.length) {
         console.log(`[N8N] SKIP ${campaign.title}: No instance data (foreign key issue?)`)
-        return false
+        continue
       }
 
       const inst = instance[0]
@@ -143,17 +150,31 @@ export async function GET(request: NextRequest) {
       const isConnected = inst.status === 'connected'
       const hasApiToken = !!inst.api_token
 
+      // Verifica se a campanha está expirada (passou muito tempo do horário agendado)
+      if (campaign.schedule_type === 'scheduled' && campaign.scheduled_at) {
+        const scheduledTime = new Date(campaign.scheduled_at)
+        const timeSinceScheduled = currentTime.getTime() - scheduledTime.getTime()
+
+        // Se passou mais de 1 hora do horário agendado e a instância não está pronta, marcar como expirada
+        if (timeSinceScheduled > EXPIRATION_THRESHOLD_MS) {
+          if (!isConnected || !hasApiToken) {
+            console.log(`[N8N] EXPIRED ${campaign.title}: Scheduled for ${campaign.scheduled_at}, now is ${currentTime.toISOString()}, instance not ready`)
+            expiredCampaigns.push(campaign)
+            continue
+          }
+        }
+      }
+
       if (!isConnected) {
         console.log(`[N8N] SKIP ${campaign.title}: Instance not connected (status: ${inst.status})`)
-        return false
+        continue
       }
       if (!hasApiToken) {
         console.log(`[N8N] SKIP ${campaign.title}: No api_token`)
-        return false
+        continue
       }
 
       // Verifica se está pronta para envio baseado no schedule_type
-      const currentTime = new Date()
       let isReadyToSend = false
 
       if (!campaign.schedule_type || campaign.schedule_type === 'immediate') {
@@ -171,12 +192,32 @@ export async function GET(request: NextRequest) {
 
       if (!isReadyToSend) {
         console.log(`[N8N] SKIP ${campaign.title}: Not ready to send yet`)
-        return false
+        continue
       }
 
       console.log(`[N8N] READY ${campaign.title}: All conditions met!`)
-      return true
-    }) || []
+      readyCampaigns.push(campaign)
+    }
+
+    // Marcar campanhas expiradas como failed
+    if (expiredCampaigns.length > 0) {
+      console.log(`[N8N] Marking ${expiredCampaigns.length} expired campaigns as failed...`)
+      for (const campaign of expiredCampaigns) {
+        const { error: updateError } = await supabase
+          .from('campaigns')
+          .update({
+            status: 'failed',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', campaign.id)
+
+        if (updateError) {
+          console.error(`[N8N] Error marking campaign ${campaign.id} as failed:`, updateError)
+        } else {
+          console.log(`[N8N] Campaign "${campaign.title}" marked as failed (expired)`)
+        }
+      }
+    }
 
     if (readyCampaigns.length === 0) {
       return NextResponse.json({
