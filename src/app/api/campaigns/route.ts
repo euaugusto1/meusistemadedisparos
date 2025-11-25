@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { validateApiToken } from '@/lib/api-token-auth'
+import { requireApiToken } from '@/lib/api-token-auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
     // Try API token auth first, then fall back to Supabase auth
-    const tokenAuth = await validateApiToken(request, ['campaigns:read'])
+    const tokenAuth = await requireApiToken(request)
 
     let userId: string
 
-    if (tokenAuth.valid && tokenAuth.userId) {
+    if (tokenAuth.isValid && tokenAuth.userId) {
       userId = tokenAuth.userId
     } else {
       // Fall back to Supabase session auth

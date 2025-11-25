@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { validateApiToken } from '@/lib/api-token-auth'
+import { requireApiToken } from '@/lib/api-token-auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
     // Try API token auth first, then fall back to Supabase auth
-    const tokenAuth = await validateApiToken(request, ['campaigns:read'])
+    const tokenAuth = await requireApiToken(request)
 
     let userId: string
     let isAdmin = false
 
-    if (tokenAuth.valid && tokenAuth.userId) {
+    if (tokenAuth.isValid && tokenAuth.userId) {
       userId = tokenAuth.userId
       // Check if user is admin
       const supabase = createAdminClient()
