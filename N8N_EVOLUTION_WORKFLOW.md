@@ -1,19 +1,35 @@
-# 🤖 Workflow N8N - Evolution API Campaign Dispatcher
+# 🤖 Workflows N8N - Evolution API Campaign System
 
-Workflow automático para processar campanhas de instâncias de teste (15 dias) via Evolution API em background.
+Sistema completo de automação para processar campanhas via Evolution API em background, com suporte a **agendamento**, **recorrência** e **dual workflow** (teste + produção).
 
 ## 📋 Visão Geral
 
-Este workflow elimina a necessidade do usuário manter o navegador aberto durante o envio de campanhas. Ele roda automaticamente no n8n, processando campanhas de instâncias de teste Evolution API a cada 30 segundos.
+O sistema N8N elimina a necessidade do usuário manter o navegador aberto durante o envio de campanhas. Possui **DOIS workflows distintos**:
+
+### 🔵 Workflow 1: Test Instances (Instâncias de Teste)
+- **Endpoint**: `/api/n8n/test-campaigns`
+- **Alvo**: Instâncias de teste de 15 dias (`is_test=true`)
+- **Intervalo**: 30 segundos
+- **Recursos**: Envio de texto simples
+- **Workflow**: `evolution-api-campaign-dispatcher.json`
+
+### 🟢 Workflow 2: Production Instances (Instâncias de Produção)
+- **Endpoint**: `/api/n8n/scheduled-campaigns`
+- **Alvo**: Instâncias de produção (`is_test=false`)
+- **Intervalo**: 2 minutos (recomendado)
+- **Recursos**: Mídia (base64), throttling, recorrência
+- **Workflow**: `evolution-api-production-dispatcher.json` *(a criar)*
 
 ### ✨ Benefícios
 
 - ✅ **Processamento em Background**: N8N processa sem intervenção do usuário
+- ✅ **Agendamento Inteligente**: Suporte a immediate, scheduled, recurring, smart
+- ✅ **Recorrência Automática**: Campanhas recorrentes são reagendadas automaticamente
+- ✅ **Dual Workflow**: Separação entre teste e produção para maior estabilidade
 - ✅ **Confiável**: Retry automático em caso de falhas
 - ✅ **Escalável**: Processa múltiplas campanhas simultaneamente
 - ✅ **Rastreável**: Logs completos de execução
-- ✅ **Específico**: Apenas instâncias de teste (is_test=true)
-- ✅ **Delay Inteligente**: 35-250 segundos randômicos entre envios
+- ✅ **Delay Inteligente**: 35-250 segundos randômicos ou configurável por campanha
 
 ---
 
@@ -41,11 +57,29 @@ EVOLUTION_API_KEY=sua-api-key-evolution
 NEXT_PUBLIC_APP_URL=https://seu-dominio.com
 ```
 
-### 2. Importar Workflow no N8N
+### 2. Importar Workflows no N8N
 
+**IMPORTANTE**: Agora existem **2 workflows separados** que devem ser importados:
+
+#### 🔵 Workflow 1: Test Instances
 1. Acesse seu painel n8n
 2. Clique em **"Import from File"**
-3. Selecione o arquivo: `workflows/evolution-api-campaign-dispatcher.json`
+3. Selecione: `workflows/evolution-api-campaign-dispatcher.json`
+4. Este workflow processa campanhas de **instâncias de teste** (trial 15 dias)
+5. Executa a cada **30 segundos**
+
+#### 🟢 Workflow 2: Production Instances
+1. No painel n8n, clique em **"Import from File"** novamente
+2. Selecione: `workflows/evolution-api-production-dispatcher.json`
+3. Este workflow processa campanhas de **instâncias de produção**
+4. Executa a cada **2 minutos** (recomendado para evitar sobrecarga)
+5. Suporta **mídia (base64)**, **throttling** e **botões interativos**
+
+**Por que 2 workflows?**
+- ✅ **Isolamento**: Falhas em testes não afetam produção
+- ✅ **Performance**: Produção tem intervalo maior (mais estável)
+- ✅ **Recursos**: Teste usa apenas texto, produção tem mídia/botões
+- ✅ **Monitoramento**: Facilita visualizar execuções separadamente
 
 ### 3. Configurar Valores Manualmente no N8N
 
@@ -67,7 +101,7 @@ De: ={{$env.EVOLUTION_API_URL}}/message/...
 Para: https://dev.n8n.sistemabrasil.online/message/...
 ```
 
-**🎯 Lista de Nodes para Editar:**
+**🎯 Lista de Nodes para Editar (WORKFLOW 1 - TEST):**
 
 1. ✏️ **Fetch Test Campaigns** - URL + Authorization header
 2. ✏️ **Fetch Recipients** - URL + Authorization header
@@ -77,13 +111,31 @@ Para: https://dev.n8n.sistemabrasil.online/message/...
 6. ✏️ **Update Campaign Counters** - URL + Authorization header
 7. ✏️ **Complete Campaign** - URL + Authorization header
 
-**⚠️ ATENÇÃO**: O node "Send Message via Evolution API" usa o **apikey** da instância dinamicamente, não mexa nesse header!
+**🎯 Lista de Nodes para Editar (WORKFLOW 2 - PRODUCTION):**
 
-### 4. Salvar e Ativar o Workflow
+1. ✏️ **Fetch Production Campaigns** - URL + Authorization header
+2. ✏️ **Update Status to Processing** - URL + Authorization header
+3. ✏️ **Send Media Message** - Já usa `instance.apiUrl` e `instance.apiToken` dinamicamente ✅
+4. ✏️ **Send Text Message** - Já usa `instance.apiUrl` e `instance.apiToken` dinamicamente ✅
+5. ✏️ **Update Item Status** - URL + Authorization header
+6. ✏️ **Update Campaign Counters** - URL + Authorization header
+7. ✏️ **Complete Campaign** - URL + Authorization header
+
+**⚠️ ATENÇÃO**:
+- No workflow TEST: "Send Message via Evolution API" usa `$env.EVOLUTION_API_URL` - você precisa substituir manualmente
+- No workflow PRODUCTION: Nodes de envio usam `instance.apiUrl` e `instance.apiToken` **dinamicamente** da campanha (não precisa editar!)
+
+### 4. Salvar e Ativar os Workflows
+
+**Para cada workflow (Test e Production):**
 
 1. Após editar todos os nodes, clique em **"Save"**
 2. Clique no botão **"Active"** para ativar
-3. O workflow começará a executar a cada 30 segundos
+3. Os workflows começarão a executar automaticamente:
+   - 🔵 **Test Workflow**: A cada **30 segundos**
+   - 🟢 **Production Workflow**: A cada **2 minutos**
+
+**Recomendação**: Ative primeiro o Test Workflow para validar a configuração, depois ative o Production
 
 ### 📚 Guia Detalhado
 
@@ -179,13 +231,105 @@ Para um guia passo a passo com screenshots e troubleshooting completo, consulte:
 
 ---
 
+## 📅 Tipos de Agendamento (Schedule Types)
+
+O sistema suporta 4 tipos de agendamento de campanhas:
+
+### 1. **Immediate** (Envio Imediato)
+- ✅ **Quando usar**: Campanhas que devem ser enviadas imediatamente
+- 🔄 **Processamento**: N8N processa na próxima execução (30s teste / 2min produção)
+- 📝 **Configuração**: `schedule_type: 'immediate'`, `scheduled_at: null`
+- **Exemplo de uso**: Promoções urgentes, comunicados importantes
+
+### 2. **Scheduled** (Agendado para Data/Hora)
+- ✅ **Quando usar**: Campanhas com data e hora específica
+- 🔄 **Processamento**: N8N verifica se `scheduled_at <= now` antes de processar
+- 📝 **Configuração**: `schedule_type: 'scheduled'`, `scheduled_at: '2025-12-25T09:00:00-03:00'`
+- **Exemplo de uso**: Feliz Natal às 9h do dia 25/12
+
+### 3. **Recurring** (Recorrente)
+- ✅ **Quando usar**: Campanhas que se repetem periodicamente
+- 🔄 **Processamento**:
+  - N8N processa quando `scheduled_at <= now`
+  - Ao completar, endpoint `/complete` cria automaticamente próxima ocorrência
+  - Nova campanha criada com mesmos destinatários e configurações
+- 📝 **Configuração**:
+  ```json
+  {
+    "schedule_type": "recurring",
+    "scheduled_at": "2025-01-27T10:00:00-03:00",
+    "recurrence_pattern": {
+      "type": "daily|weekly|monthly",
+      "interval": 1
+    }
+  }
+  ```
+- **Padrões suportados**:
+  - `daily`: Diário (a cada X dias)
+  - `weekly`: Semanal (a cada X semanas)
+  - `monthly`: Mensal (a cada X meses)
+- **Exemplo de uso**:
+  - Relatório semanal toda segunda-feira às 10h
+  - Newsletter mensal todo dia 1º às 9h
+  - Lembrete diário de backup às 18h
+
+### 4. **Smart** (Inteligência Artificial)
+- ✅ **Quando usar**: Deixar a IA sugerir o melhor momento de envio
+- 🔄 **Processamento**: N8N verifica `suggested_send_time` (se disponível) ou `scheduled_at`
+- 📝 **Configuração**: `schedule_type: 'smart'`, `suggested_send_time: '2025-01-27T14:30:00-03:00'`
+- **Exemplo de uso**: Campanhas de marketing onde a IA analisa histórico de engajamento
+
+### ♻️ Fluxo de Recorrência Automática
+
+Quando uma campanha recorrente é completada:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 1. Campanha Recorrente Completa                                │
+│    - Status: processing → completed                             │
+│    - Endpoint: PATCH /api/n8n/campaigns/[id]/complete          │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 2. Sistema Calcula Próxima Ocorrência                          │
+│    - daily: +1 dia (ou +interval dias)                         │
+│    - weekly: +7 dias (ou +interval semanas)                    │
+│    - monthly: +1 mês (ou +interval meses)                      │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 3. Nova Campanha Criada Automaticamente                        │
+│    - Mesmo título, mensagem, mídia, botões                     │
+│    - Mesmos destinatários (copiados de campaign_items)         │
+│    - Nova scheduled_at calculada                               │
+│    - Status: scheduled                                         │
+│    - Retorna: nextOccurrenceId na resposta                     │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 4. N8N Processará Automaticamente na Próxima Execução          │
+│    - Sem intervenção manual necessária                         │
+│    - Ciclo se repete infinitamente                             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## 🔌 Endpoints API Criados
 
 ### 1. GET /api/n8n/test-campaigns
 
-Busca campanhas pendentes de instâncias de teste.
+Busca campanhas pendentes de **instâncias de teste** (Evolution API trial de 15 dias).
 
 **Autenticação**: Bearer Token (N8N_API_KEY)
+
+**Headers**:
+```
+Authorization: Bearer {N8N_API_KEY}
+```
 
 **Retorna**:
 ```json
@@ -197,6 +341,12 @@ Busca campanhas pendentes de instâncias de teste.
       "title": "Título da Campanha",
       "message": "Mensagem",
       "status": "scheduled",
+      "schedule_type": "recurring",
+      "scheduled_at": "2025-01-27T10:00:00-03:00",
+      "recurrence_pattern": {
+        "type": "weekly",
+        "interval": 1
+      },
       "instance": {
         "instance_key": "test_...",
         "api_token": "hash-evolution",
@@ -206,20 +356,121 @@ Busca campanhas pendentes de instâncias de teste.
       "media": { /* dados da mídia se houver */ }
     }
   ],
-  "count": 1
+  "count": 1,
+  "timestamp": "2025-01-27T12:00:00.000Z"
 }
 ```
 
 **Filtros aplicados**:
 - `status` IN ('scheduled', 'draft')
 - `instance.is_test` = true
-- `instance.api_token` IS NOT NULL
-- `instance.expires_at` > NOW() OU NULL
-- `scheduled_for` <= NOW() OU NULL
+- `instance.api_token` IS NOT NULL (tem Evolution API)
+- `instance.expires_at` > NOW() OU NULL (não expirado)
+- **Schedule Type Filtering**:
+  - `immediate`: Sempre pronto para envio
+  - `scheduled`: Verifica se `scheduled_at <= now`
+  - `recurring`: Verifica se `scheduled_at <= now`
+  - `smart`: Verifica se `suggested_send_time <= now` ou `scheduled_at <= now`
 
 ---
 
-### 2. GET /api/n8n/campaigns/[id]/items
+### 2. GET /api/n8n/scheduled-campaigns
+
+Busca campanhas pendentes de **instâncias de produção** (não-teste) prontas para envio.
+
+**Autenticação**: Bearer Token (N8N_API_KEY)
+
+**Headers**:
+```
+Authorization: Bearer {N8N_API_KEY}
+```
+
+**Retorna**:
+```json
+{
+  "success": true,
+  "count": 2,
+  "campaigns": [
+    {
+      "campaignId": "uuid",
+      "title": "Newsletter Mensal",
+      "message": "Olá {{name}}, confira as novidades...",
+      "status": "scheduled",
+      "scheduledAt": "2025-01-27T09:00:00-03:00",
+      "scheduleType": "recurring",
+      "timezone": "America/Sao_Paulo",
+      "suggestedSendTime": null,
+      "recurrencePattern": {
+        "type": "monthly",
+        "interval": 1
+      },
+      "instance": {
+        "id": "uuid",
+        "name": "WhatsApp Principal",
+        "phoneNumber": "5511999999999",
+        "apiToken": "hash-evolution-api",
+        "apiUrl": "https://evo.example.com",
+        "status": "connected",
+        "isTest": false
+      },
+      "recipients": [
+        {
+          "id": "uuid",
+          "phoneNumber": "5511888888888",
+          "status": "pending"
+        }
+      ],
+      "totalRecipients": 150,
+      "media": {
+        "fileName": "promo.jpg",
+        "mimeType": "image/jpeg",
+        "fileSize": 245678,
+        "base64": "iVBORw0KGgoAAAANS..."
+      },
+      "linkUrl": "https://example.com/promo",
+      "buttonType": "cta",
+      "buttons": [
+        {
+          "type": "url",
+          "text": "Ver Promoção",
+          "url": "https://example.com/promo"
+        }
+      ],
+      "throttling": {
+        "enabled": true,
+        "messagesPerMinute": 20,
+        "delayBetweenMessages": 3000,
+        "minDelay": 35,
+        "maxDelay": 250
+      }
+    }
+  ],
+  "timestamp": "2025-01-27T12:00:00.000Z"
+}
+```
+
+**Filtros aplicados**:
+- `status` = 'scheduled'
+- `is_paused` != true
+- `instance_id` IS NOT NULL
+- `instance.is_test` = false (apenas produção)
+- `instance.status` = 'connected'
+- `instance.api_token` IS NOT NULL
+- **Schedule Type Filtering**:
+  - `immediate`: Sempre pronto para envio
+  - `scheduled`: Verifica se `scheduled_at <= now`
+  - `recurring`: Verifica se `scheduled_at <= now`
+  - `smart`: Verifica se `suggested_send_time <= now` ou `scheduled_at <= now`
+
+**Recursos Adicionais**:
+- ✅ Retorna mídia como base64 (pronta para envio Evolution API)
+- ✅ Retorna todos recipients pendentes de cada campanha
+- ✅ Inclui configurações de throttling
+- ✅ Suporta botões interativos (CTA, Quick Reply)
+
+---
+
+### 3. GET /api/n8n/campaigns/[id]/items
 
 Busca destinatários pendentes de uma campanha.
 
@@ -344,7 +595,7 @@ Incrementa contadores de envio/falha.
 
 ### 6. PATCH /api/n8n/campaigns/[id]/complete
 
-Finaliza campanha quando todos destinatários foram processados.
+Finaliza campanha quando todos destinatários foram processados. **Suporta recorrência automática**.
 
 **Autenticação**: Bearer Token (N8N_API_KEY)
 
@@ -354,55 +605,142 @@ Finaliza campanha quando todos destinatários foram processados.
   "success": true,
   "campaign": {
     "id": "uuid",
-    "status": "completed",  // ou "failed" se nenhum sucesso
-    "completed_at": "2025-01-24T13:00:00Z"
+    "status": "completed",
+    "completed_at": "2025-01-27T13:00:00Z",
+    "schedule_type": "recurring",
+    "recurrence_pattern": {
+      "type": "weekly",
+      "interval": 1
+    }
   },
   "statistics": {
-    "total_recipients": 10,
-    "sent_count": 9,
-    "failed_count": 1,
-    "success_rate": "90.00%"
-  }
+    "total_recipients": 150,
+    "sent_count": 148,
+    "failed_count": 2,
+    "success_rate": "98.67%",
+    "final_status": "completed"
+  },
+  "message": "Campanha finalizada com status: completed",
+  "recurring": {
+    "nextOccurrenceId": "uuid-da-proxima-campanha",
+    "message": "Próxima ocorrência agendada com sucesso"
+  },
+  "timestamp": "2025-01-27T13:00:00.000Z"
 }
 ```
 
 **Lógica de status final**:
 - `completed`: Se pelo menos 1 enviado com sucesso
 - `failed`: Se 0 enviados com sucesso E tem falhas
+- `processing`: Se ainda há items pendentes (retorna erro)
+
+**Recorrência Automática**:
+
+Se a campanha for `schedule_type: 'recurring'` e completada com sucesso:
+
+1. **Calcula próxima ocorrência**:
+   - `daily`: `scheduled_at + interval dias`
+   - `weekly`: `scheduled_at + (interval × 7) dias`
+   - `monthly`: `scheduled_at + interval meses`
+
+2. **Cria nova campanha** com:
+   - ✅ Mesmo título, mensagem, mídia, botões
+   - ✅ Mesmos destinatários (copiados de `campaign_items`)
+   - ✅ Nova `scheduled_at` calculada
+   - ✅ `status: 'scheduled'` (pronta para N8N processar)
+   - ✅ Mesmo `recurrence_pattern`
+
+3. **Retorna `nextOccurrenceId`** para tracking
+
+4. **N8N processará automaticamente** na próxima execução
+
+**Exemplo de Resposta (Sem Recorrência)**:
+```json
+{
+  "success": true,
+  "campaign": { "id": "uuid", "status": "completed" },
+  "statistics": { ... },
+  "message": "Campanha finalizada com status: completed",
+  "recurring": null,
+  "timestamp": "2025-01-27T13:00:00.000Z"
+}
+```
 
 ---
 
 ## 🚀 Como Funciona
 
-### 1. Detecção de Campanhas
+### 🔵 Workflow 1: Test Instances (30 segundos)
 
-A cada 30 segundos, o workflow:
-1. Faz GET em `/api/n8n/test-campaigns`
-2. Filtra campanhas de instâncias de teste Evolution API
-3. Verifica se há campanhas prontas para envio
+**1. Detecção de Campanhas de Teste**
+- Faz GET em `/api/n8n/test-campaigns`
+- Filtra campanhas de instâncias `is_test=true`
+- Verifica se `scheduled_at <= now` (baseado em `schedule_type`)
 
-### 2. Processamento de Campanha
+**2. Processamento**
+- Para cada campanha: busca destinatários pendentes
+- Atualiza status para "processing"
+- Processa 1 destinatário por vez
 
-Para cada campanha encontrada:
-1. Busca todos destinatários pendentes
-2. Atualiza status para "processing"
-3. Processa 1 destinatário por vez
+**3. Envio (Texto Simples)**
+- Chama Evolution API: `POST /message/sendText`
+- Atualiza status do item (sent/failed)
+- Atualiza contadores da campanha
+- **Decrementa crédito do usuário** (se sucesso)
+- Aguarda delay randômico (35-250s)
 
-### 3. Envio de Mensagem
+**4. Finalização**
+- Marca campanha como "completed" ou "failed"
+- Calcula estatísticas finais
+- **Se recorrente**: Cria próxima ocorrência automaticamente
 
-Para cada destinatário:
+---
+
+### 🟢 Workflow 2: Production Instances (2 minutos)
+
+**1. Detecção de Campanhas de Produção**
+- Faz GET em `/api/n8n/scheduled-campaigns`
+- Filtra campanhas de instâncias `is_test=false`
+- Verifica se instância está `connected`
+- Verifica se `scheduled_at <= now` (baseado em `schedule_type`)
+
+**2. Processamento Avançado**
+- Endpoint retorna mídia como **base64** (pronta para uso)
+- Retorna **todos recipients** em um único request
+- Inclui configurações de **throttling**
+- Suporta **botões interativos**
+
+**3. Envio (Com Mídia e Botões)**
+- Se tem mídia: `POST /message/sendMedia` (base64)
+- Se texto simples: `POST /message/sendText`
+- Suporta botões CTA e Quick Reply
+- Respeita throttling configurado
+- Atualiza status e contadores
+- **Decrementa crédito do usuário** (se sucesso)
+- Aguarda delay configurado (min_delay - max_delay)
+
+**4. Finalização com Recorrência**
+- Marca campanha como "completed" ou "failed"
+- **Se recorrente**: Calcula próxima data e cria nova campanha
+- Copia destinatários automaticamente
+- Retorna `nextOccurrenceId`
+
+---
+
+### 🔄 Fluxo Comum (Ambos Workflows)
+
+**Para cada destinatário:**
 1. Envia via Evolution API usando o `api_token` da instância
 2. Atualiza status do item (sent/failed)
-3. Atualiza contadores da campanha
+3. Atualiza contadores da campanha: `PATCH /api/n8n/campaigns/[id]/counters`
 4. **Decrementa crédito do usuário** (se enviado com sucesso)
-5. Aguarda delay randômico (35-250s)
+5. Aguarda delay randômico (evita ban do WhatsApp)
 
-### 4. Finalização
-
-Quando todos destinatários foram processados:
-1. Marca campanha como "completed" ou "failed"
-2. Registra completed_at
-3. Calcula estatísticas finais
+**Quando todos destinatários processados:**
+1. Finaliza campanha: `PATCH /api/n8n/campaigns/[id]/complete`
+2. Registra `completed_at`
+3. Calcula estatísticas finais (success_rate)
+4. Se recorrente: Cria próxima ocorrência automaticamente
 
 ---
 

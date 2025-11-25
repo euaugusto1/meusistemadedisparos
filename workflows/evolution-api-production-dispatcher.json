@@ -1,0 +1,525 @@
+{
+  "name": "Evolution API - Campaign Dispatcher (Production Instances)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 120
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.NEXT_PUBLIC_APP_URL}}/api/n8n/scheduled-campaigns",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.N8N_API_KEY}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-campaigns",
+      "name": "Fetch Production Campaigns",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.campaigns}}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "check-has-campaigns",
+      "name": "Has Campaigns?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-campaigns",
+      "name": "Split Campaigns",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$env.NEXT_PUBLIC_APP_URL}}/api/n8n/campaigns/{{$json.campaignId}}/status",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.N8N_API_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"processing\"\n}",
+        "options": {}
+      },
+      "id": "update-status-processing",
+      "name": "Update Status to Processing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.recipients}}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "check-has-recipients",
+      "name": "Has Recipients?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-recipients",
+      "name": "Split Recipients",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1450, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$('Split Campaigns').item.json.media}}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "check-has-media",
+      "name": "Has Media?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1650, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$('Split Campaigns').item.json.instance.apiUrl}}/message/sendMedia/{{$('Split Campaigns').item.json.instance.name}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$('Split Campaigns').item.json.instance.apiToken}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{$('Split Recipients').item.json.phoneNumber}}\",\n  \"mediatype\": \"image\",\n  \"mimetype\": \"{{$('Split Campaigns').item.json.media.mimeType}}\",\n  \"caption\": \"{{$('Split Campaigns').item.json.message}}\",\n  \"fileName\": \"{{$('Split Campaigns').item.json.media.fileName}}\",\n  \"media\": \"{{$('Split Campaigns').item.json.media.base64}}\",\n  \"delay\": {{$('Split Campaigns').item.json.throttling.delayBetweenMessages || 1200}}\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "send-media-message",
+      "name": "Send Media Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1850, 50]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$('Split Campaigns').item.json.instance.apiUrl}}/message/sendText/{{$('Split Campaigns').item.json.instance.name}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$('Split Campaigns').item.json.instance.apiToken}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{$('Split Recipients').item.json.phoneNumber}}\",\n  \"text\": \"{{$('Split Campaigns').item.json.message}}\",\n  \"delay\": {{$('Split Campaigns').item.json.throttling.delayBetweenMessages || 1200}}\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "send-text-message",
+      "name": "Send Text Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1850, 150]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "merge-send-results",
+      "name": "Merge Send Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [2050, 100]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$env.NEXT_PUBLIC_APP_URL}}/api/n8n/campaign-items/{{$('Split Recipients').item.json.id}}/status",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.N8N_API_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"{{$json.error ? 'failed' : 'sent'}}\",\n  \"error_message\": \"{{$json.error || null}}\",\n  \"response_data\": {{$json}}\n}",
+        "options": {}
+      },
+      "id": "update-item-status",
+      "name": "Update Item Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2250, 100]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$env.NEXT_PUBLIC_APP_URL}}/api/n8n/campaigns/{{$('Split Campaigns').item.json.campaignId}}/counters",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.N8N_API_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"increment_sent\": {{$('Merge Send Results').item.json.error ? 0 : 1}},\n  \"increment_failed\": {{$('Merge Send Results').item.json.error ? 1 : 0}}\n}",
+        "options": {}
+      },
+      "id": "update-counters",
+      "name": "Update Campaign Counters",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2450, 100]
+    },
+    {
+      "parameters": {
+        "amount": "={{Math.floor(Math.random() * ({{$('Split Campaigns').item.json.throttling.maxDelay}} - {{$('Split Campaigns').item.json.throttling.minDelay}}) + {{$('Split Campaigns').item.json.throttling.minDelay}})}}",
+        "unit": "seconds"
+      },
+      "id": "random-delay",
+      "name": "Random Delay (Configurable)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [2650, 100],
+      "webhookId": "random-delay-webhook"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$env.NEXT_PUBLIC_APP_URL}}/api/n8n/campaigns/{{$('Split Campaigns').item.json.campaignId}}/complete",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.N8N_API_KEY}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "complete-campaign",
+      "name": "Complete Campaign",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {},
+      "id": "no-op-end",
+      "name": "No Campaigns",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {},
+      "id": "no-op-no-recipients",
+      "name": "No Recipients",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Production Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Production Campaigns": {
+      "main": [
+        [
+          {
+            "node": "Has Campaigns?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Campaigns?": {
+      "main": [
+        [
+          {
+            "node": "Split Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Campaigns": {
+      "main": [
+        [
+          {
+            "node": "Update Status to Processing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Complete Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status to Processing": {
+      "main": [
+        [
+          {
+            "node": "Has Recipients?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Recipients?": {
+      "main": [
+        [
+          {
+            "node": "Split Recipients",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Recipients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Recipients": {
+      "main": [
+        [
+          {
+            "node": "Has Media?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Media?": {
+      "main": [
+        [
+          {
+            "node": "Send Media Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Text Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Media Message": {
+      "main": [
+        [
+          {
+            "node": "Merge Send Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Text Message": {
+      "main": [
+        [
+          {
+            "node": "Merge Send Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Send Results": {
+      "main": [
+        [
+          {
+            "node": "Update Item Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Item Status": {
+      "main": [
+        [
+          {
+            "node": "Update Campaign Counters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Campaign Counters": {
+      "main": [
+        [
+          {
+            "node": "Random Delay (Configurable)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Random Delay (Configurable)": {
+      "main": [
+        [
+          {
+            "node": "Split Recipients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "WhatsApp",
+      "id": "whatsapp-tag"
+    },
+    {
+      "name": "Evolution API",
+      "id": "evolution-tag"
+    },
+    {
+      "name": "Campaign",
+      "id": "campaign-tag"
+    },
+    {
+      "name": "Production",
+      "id": "production-tag"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-27T00:00:00.000Z",
+  "versionId": "1"
+}
