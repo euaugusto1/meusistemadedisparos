@@ -739,13 +739,23 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
                       <div>
                         <span className="text-xs text-muted-foreground">Data/Hora:</span>
                         <p className="font-medium text-blue-600 dark:text-blue-400">
-                          {new Date(viewCampaign.scheduled_at).toLocaleString('pt-BR', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
+                          {(() => {
+                            // Parse the scheduled_at without timezone conversion
+                            const dateStr = viewCampaign.scheduled_at
+                            if (dateStr.includes('T')) {
+                              const [datePart, timePart] = dateStr.split('T')
+                              const [year, month, day] = datePart.split('-')
+                              const time = timePart.split(':').slice(0, 2).join(':')
+                              return `${day}/${month}/${year}, ${time}`
+                            }
+                            return new Date(dateStr).toLocaleString('pt-BR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          })()}
                         </p>
                       </div>
                     )}

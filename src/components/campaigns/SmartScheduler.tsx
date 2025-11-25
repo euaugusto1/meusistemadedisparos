@@ -178,11 +178,14 @@ export function SmartScheduler({
   const [recurrenceTime, setRecurrenceTime] = useState(recurrencePattern?.time || '10:00')
 
   // Combine date and time into localDateTime when either changes
+  // Store as ISO string with the timezone offset
   useEffect(() => {
     if (localDate && localTime) {
-      setLocalDateTime(`${localDate}T${localTime}`)
+      // Create a date string that will be interpreted correctly
+      // We store the local time as-is since the timezone is stored separately
+      setLocalDateTime(`${localDate}T${localTime}:00`)
     } else if (localDate) {
-      setLocalDateTime(`${localDate}T10:00`)
+      setLocalDateTime(`${localDate}T10:00:00`)
     } else {
       setLocalDateTime('')
     }
@@ -474,13 +477,13 @@ export function SmartScheduler({
                 <div className="flex items-center gap-2 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
                   <CheckCircle2 className="h-4 w-4 text-blue-500" />
                   <span className="text-sm text-blue-700 dark:text-blue-300">
-                    Agendado para {new Date(`${localDate}T${localTime}`).toLocaleString('pt-BR', {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
+                    Agendado para {(() => {
+                      const [year, month, day] = localDate.split('-')
+                      const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+                      const weekdays = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado']
+                      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+                      return `${weekdays[date.getDay()]}, ${parseInt(day)} de ${months[parseInt(month) - 1]} às ${localTime}`
+                    })()}
                   </span>
                 </div>
               )}
