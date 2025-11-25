@@ -672,6 +672,17 @@
           }
         ]
       ]
+    },
+    "Complete Campaign": {
+      "main": [
+        [
+          {
+            "node": "Loop Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
