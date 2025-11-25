@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { dispatchCampaign, createCampaign } from '@/services/campaigns'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -435,6 +435,11 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
       }
     })
   }
+
+  // Memoize onChange to prevent infinite loop
+  const handleScheduleDataChange = useCallback((data: Partial<ScheduleData>) => {
+    setScheduleData(prev => ({ ...prev, ...data }))
+  }, [])
 
   return (
     <div className="space-y-4">
@@ -1169,9 +1174,7 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
               throttleDelay={scheduleData.throttle_delay}
               smartTiming={scheduleData.smart_timing}
               suggestedSendTime={null}
-              onChange={(data) => {
-                setScheduleData(prev => ({ ...prev, ...data }))
-              }}
+              onChange={handleScheduleDataChange}
             />
           </div>
 
