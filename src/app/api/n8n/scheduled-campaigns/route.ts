@@ -149,7 +149,10 @@ export async function GET(request: NextRequest) {
 
       // Aceita instâncias de produção E de teste
       const isConnected = inst.status === 'connected'
-      const hasApiToken = !!inst.api_token
+      // Para instâncias UAZAPI (is_test=false), usamos UAZAPI_ADMIN_TOKEN do ambiente
+      // Para instâncias Evolution (is_test=true), precisamos do api_token na tabela
+      const isTestInstance = inst.is_test === true
+      const hasApiToken = isTestInstance ? !!inst.api_token : true // UAZAPI não precisa de token na tabela
 
       // Verifica se a campanha está expirada (passou muito tempo do horário agendado)
       if (campaign.schedule_type === 'scheduled' && campaign.scheduled_at) {
@@ -170,10 +173,19 @@ export async function GET(request: NextRequest) {
         console.log(`[N8N] SKIP ${campaign.title}: Instance not connected (status: ${inst.status})`)
         continue
       }
-      if (!hasApiToken) {
-        console.log(`[N8N] SKIP ${campaign.title}: No api_token`)
+
+      // Para UAZAPI, verificar se UAZAPI_ADMIN_TOKEN está definido no ambiente
+      if (!isTestInstance && !process.env.UAZAPI_ADMIN_TOKEN) {
+        console.log(`[N8N] SKIP ${campaign.title}: UAZAPI instance but UAZAPI_ADMIN_TOKEN not configured in environment`)
         continue
       }
+
+      if (!hasApiToken) {
+        console.log(`[N8N] SKIP ${campaign.title}: No api_token (is_test=${isTestInstance})`)
+        continue
+      }
+
+      console.log(`[N8N] ${campaign.title}: Instance type = ${isTestInstance ? 'Evolution (test)' : 'UAZAPI (production)'}, hasApiToken=${hasApiToken}`)
 
       // Verifica se está pronta para envio baseado no schedule_type
       let isReadyToSend = false
@@ -289,17 +301,37 @@ export async function GET(request: NextRequest) {
             const instData = campaign.instance as any
             const inst = Array.isArray(instData) ? instData[0] : instData
             if (!inst || !inst.id) return null
+
+            const isTestInstance = inst.is_test === true
+
+            // Para Evolution API (teste): usa api_token da tabela e EVOLUTION_API_URL
+            // Para UAZAPI (produção): usa UAZAPI_ADMIN_TOKEN do ambiente e UAZAPI_BASE_URL
+            const apiUrl = isTestInstance
+              ? (process.env.EVOLUTION_API_URL || 'https://dev.evo.sistemabrasil.online')
+              : (process.env.UAZAPI_BASE_URL || 'https://monitor-grupo.uazapi.com')
+
+            const apiToken = isTestInstance
+              ? inst.api_token
+              : (process.env.UAZAPI_ADMIN_TOKEN || '')
+
             return {
               id: inst.id,
               name: inst.name,
+              instanceKey: inst.name, // Nome da instância usado como instance_key
               phoneNumber: inst.phone_number,
-              apiToken: inst.api_token,
-              // URL baseada no tipo de instância (teste usa Evolution API, produção usa UAZAPI)
-              apiUrl: inst.is_test
-                ? (process.env.EVOLUTION_API_URL || 'https://dev.evo.sistemabrasil.online')
-                : (process.env.UAZAPI_BASE_URL || 'https://monitor-grupo.uazapi.com'),
+              apiToken,
+              apiUrl,
+              // Header name: Evolution usa 'apikey', UAZAPI usa 'token'
+              apiHeaderName: isTestInstance ? 'apikey' : 'token',
+              // Endpoints para envio de mensagens
+              sendTextEndpoint: isTestInstance
+                ? `/message/sendText/${inst.name}` // Evolution API
+                : '/send/text', // UAZAPI
+              sendMediaEndpoint: isTestInstance
+                ? `/message/sendMedia/${inst.name}` // Evolution API
+                : '/send/media', // UAZAPI
               status: inst.status,
-              isTest: inst.is_test
+              isTest: isTestInstance
             }
           })(),
 

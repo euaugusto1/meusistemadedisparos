@@ -131,9 +131,17 @@ O workflow automatiza o envio de mensagens em massa via WhatsApp, processando ca
       "title": "Nome da Campanha",
       "message": "Texto da mensagem",
       "instance": {
+        "id": "uuid",
         "name": "instancia",
+        "instanceKey": "instancia",
+        "phoneNumber": "5511999999999",
+        "apiToken": "token_de_autenticacao",
         "apiUrl": "https://api.url",
-        "apiToken": "token"
+        "apiHeaderName": "apikey | token",
+        "sendTextEndpoint": "/message/sendText/instancia | /send/text",
+        "sendMediaEndpoint": "/message/sendMedia/instancia | /send/media",
+        "status": "connected",
+        "isTest": true | false
       },
       "recipients": [
         { "id": "uuid", "phoneNumber": "5511999999999" }
@@ -144,6 +152,15 @@ O workflow automatiza o envio de mensagens em massa via WhatsApp, processando ca
   ]
 }
 ```
+
+**Campos importantes da instância:**
+| Campo | Evolution API (isTest=true) | UAZAPI (isTest=false) |
+|-------|-----------------------------|-----------------------|
+| `apiUrl` | `EVOLUTION_API_URL` env | `UAZAPI_BASE_URL` env |
+| `apiToken` | Token da tabela `whatsapp_instances` | `UAZAPI_ADMIN_TOKEN` env |
+| `apiHeaderName` | `apikey` | `token` |
+| `sendTextEndpoint` | `/message/sendText/{instanceName}` | `/send/text` |
+| `sendMediaEndpoint` | `/message/sendMedia/{instanceName}` | `/send/media` |
 
 ---
 
@@ -271,11 +288,17 @@ return [{ json: campaign }];
 |-------------|-------|
 | **Tipo** | HTTP Request |
 | **Método** | POST |
-| **URL** | `{{ $json.apiUrl }}/message/sendMedia/{{ $json.instanceName }}` |
-| **Headers** | `apikey: {{ $json.apiToken }}` |
+| **URL** | `{{ $json.apiUrl }}{{ $json.sendMediaEndpoint }}` |
+| **Headers** | `{{ $json.apiHeaderName }}: {{ $json.apiToken }}` |
 | **Timeout** | 60000ms |
 
-**Body:**
+**IMPORTANTE:** O workflow agora suporta Evolution API e UAZAPI dinamicamente:
+- `apiUrl`: URL base da API (Evolution ou UAZAPI)
+- `sendMediaEndpoint`: Endpoint específico para envio de mídia
+- `apiHeaderName`: Nome do header de autenticação ('apikey' para Evolution, 'token' para UAZAPI)
+- `apiToken`: Token de autenticação
+
+**Body para Evolution API (is_test=true):**
 ```json
 {
   "number": "{{ $json.phoneNumber }}",
@@ -287,6 +310,16 @@ return [{ json: campaign }];
 }
 ```
 
+**Body para UAZAPI (is_test=false):**
+```json
+{
+  "number": "{{ $json.phoneNumber }}",
+  "type": "image",
+  "file": "data:{{ $json.media.mimeType }};base64,{{ $json.media.base64 }}",
+  "caption": "{{ $json.campaignMessage }}"
+}
+```
+
 ---
 
 ### 14. Enviar Texto
@@ -294,11 +327,19 @@ return [{ json: campaign }];
 |-------------|-------|
 | **Tipo** | HTTP Request |
 | **Método** | POST |
-| **URL** | `{{ $json.apiUrl }}/message/sendText/{{ $json.instanceName }}` |
-| **Headers** | `apikey: {{ $json.apiToken }}` |
+| **URL** | `{{ $json.apiUrl }}{{ $json.sendTextEndpoint }}` |
+| **Headers** | `{{ $json.apiHeaderName }}: {{ $json.apiToken }}` |
 | **Timeout** | 60000ms |
 
-**Body:**
+**Body para Evolution API (is_test=true):**
+```json
+{
+  "number": "{{ $json.phoneNumber }}",
+  "text": "{{ $json.campaignMessage }}"
+}
+```
+
+**Body para UAZAPI (is_test=false):**
 ```json
 {
   "number": "{{ $json.phoneNumber }}",
