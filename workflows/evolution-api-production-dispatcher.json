@@ -110,7 +110,7 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{$json.campaignId}}/status",
+        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{ $json.campaignId }}/status",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -122,7 +122,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"status\": \"processing\",\n  \"started_at\": \"{{ new Date().toISOString() }}\"\n}",
+        "jsonBody": "{\n  \"status\": \"processing\"\n}",
         "options": {}
       },
       "id": "update-status-processing",
@@ -310,7 +310,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"status\": \"{{ $json.status }}\",\n  \"error_message\": {{ $json.errorMessage ? '\"' + $json.errorMessage + '\"' : 'null' }},\n  \"sent_at\": \"{{ $json.sentAt }}\"\n}",
+        "jsonBody": "={\n  \"status\": \"{{ $json.status }}\",\n  \"error_message\": \"{{ $json.errorMessage || '' }}\"\n}",
         "options": {}
       },
       "id": "update-item-status",
@@ -372,7 +372,7 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{$('Loop Campaigns').item.json.campaignId}}/complete",
+        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{ $('Loop Campaigns').item.json.campaignId }}/status",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -384,7 +384,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"completed_at\": \"{{ new Date().toISOString() }}\",\n  \"schedule_type\": \"{{ $('Loop Campaigns').item.json.scheduleType || 'immediate' }}\"\n}",
+        "jsonBody": "{\n  \"status\": \"completed\"\n}",
         "options": {}
       },
       "id": "complete-campaign",

@@ -1,4 +1,4 @@
-# Guia de Configuração N8N - Campaign Dispatcher v2.0
+# Guia de Configuração N8N - Campaign Dispatcher v2.1
 
 ## 📋 Pré-requisitos
 
@@ -325,10 +325,188 @@ FROM campaigns WHERE id = 'uuid';
 | `/api/n8n/campaigns/:id/status` | PATCH | Atualiza status |
 | `/api/n8n/campaign-items/:id/status` | PATCH | Atualiza item |
 | `/api/n8n/campaigns/:id/counters` | PATCH | Incrementa contadores |
-| `/api/n8n/campaigns/:id/complete` | PATCH | Finaliza campanha |
+
+---
+
+## 🔧 11. CONFIGURAÇÃO DETALHADA DOS NÓS
+
+### A) Fetch Scheduled Campaigns
+```
+Método: GET
+URL: https://dev.wpp.sistemabrasil.online/api/n8n/scheduled-campaigns
+Headers:
+  - Name: Authorization
+  - Value: Bearer [SEU_N8N_API_KEY]
+```
+
+### B) Status → Processing
+```
+Método: PATCH
+URL: https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{ $json.campaignId }}/status
+Headers:
+  - Name: Authorization
+  - Value: Bearer [SEU_N8N_API_KEY]
+Body (JSON):
+{
+  "status": "processing"
+}
+```
+
+### C) Update Item Status (após envio)
+```
+Método: PATCH
+URL: https://dev.wpp.sistemabrasil.online/api/n8n/campaign-items/{{ $json.recipientId }}/status
+Headers:
+  - Name: Authorization
+  - Value: Bearer [SEU_N8N_API_KEY]
+Body (JSON) - Sucesso:
+{
+  "status": "sent"
+}
+
+Body (JSON) - Falha:
+{
+  "status": "failed",
+  "error_message": "{{ $json.error }}"
+}
+```
+
+### D) Update Counters
+```
+Método: PATCH
+URL: https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{ $json.campaignId }}/counters
+Headers:
+  - Name: Authorization
+  - Value: Bearer [SEU_N8N_API_KEY]
+Body (JSON) - Incrementar enviados:
+{
+  "increment_sent": 1
+}
+
+Body (JSON) - Incrementar falhas:
+{
+  "increment_failed": 1
+}
+```
+
+### E) Complete Campaign (quando todos enviados)
+```
+Método: PATCH
+URL: https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{ $json.campaignId }}/status
+Headers:
+  - Name: Authorization
+  - Value: Bearer [SEU_N8N_API_KEY]
+Body (JSON):
+{
+  "status": "completed"
+}
+```
+
+### F) No Recipients (marcar como completed)
+```
+Método: PATCH
+URL: https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{ $json.campaignId }}/status
+Headers:
+  - Name: Authorization
+  - Value: Bearer [SEU_N8N_API_KEY]
+Body (JSON):
+{
+  "status": "completed"
+}
+```
+
+---
+
+## ⚠️ 12. ERROS COMUNS E SOLUÇÕES
+
+### Erro: "404 - Page not found"
+**Causa**: URL incorreta ou variável não substituída
+**Verificar**:
+- A URL deve mostrar o ID real, não `{{ $json.campaignId }}`
+- Use `$json.campaignId` (minúsculo), não `$json.campaign.Id`
+
+### Erro: "JSON parameter needs to be valid JSON"
+**Causa**: Body mal formatado
+**Solução**:
+- Verifique se o JSON está correto
+- Use aspas duplas `"`, não simples `'`
+- Não inclua vírgulas extras
+
+### Erro: "invalid input syntax for type timestamp"
+**Causa**: Expressão N8N não executada no body
+**Solução**:
+- Use `{{ $now.toISO() }}` ao invés de `{{ new Date().toISOString() }}`
+- Ou simplesmente omita o campo (o servidor preenche automaticamente)
+
+### Erro: "401 Unauthorized"
+**Causa**: Token inválido ou ausente
+**Solução**:
+- Verifique se o header Authorization está configurado
+- Formato: `Bearer SEU_TOKEN_AQUI`
+- Não inclua `{{ }}` no token se for fixo
+
+---
+
+## 📊 13. ESTRUTURA DOS DADOS (JSON)
+
+### Dados retornados por /scheduled-campaigns:
+```json
+{
+  "success": true,
+  "count": 1,
+  "campaigns": [
+    {
+      "campaignId": "0e259ce3-5b80-4b8c-a6e7-f5c9d7cc0b8f",
+      "title": "Modelo para o n8n",
+      "message": "Mensagem de teste",
+      "status": "scheduled",
+      "scheduledAt": "2025-11-25T13:17:00+00:00",
+      "scheduleType": "scheduled",
+      "timezone": "America/Sao_Paulo",
+      "instance": {
+        "id": "cd03378d-a629-4dc6-93ac-e3b76012161b",
+        "name": "Teste Grátis - 15 dias",
+        "phoneNumber": null,
+        "apiToken": "AF99CF7D-D31F-453F-9545-D13766898E0C",
+        "apiUrl": "https://dev.evo.sistemabrasil.online",
+        "status": "connected",
+        "isTest": true
+      },
+      "recipients": [
+        {
+          "id": "b008d461-8887-4f74-b3c8-bbeb548b3f31",
+          "phoneNumber": "559884100789-1501047849@g.us",
+          "status": "pending"
+        }
+      ],
+      "totalRecipients": 1,
+      "media": null,
+      "linkUrl": null,
+      "buttonType": null,
+      "buttons": [],
+      "throttling": {
+        "enabled": false,
+        "messagesPerMinute": null,
+        "delayBetweenMessages": null,
+        "minDelay": null,
+        "maxDelay": null
+      }
+    }
+  ]
+}
+```
+
+### Campos importantes para usar no N8N:
+- `{{ $json.campaignId }}` - ID da campanha
+- `{{ $json.title }}` - Título
+- `{{ $json.message }}` - Mensagem a enviar
+- `{{ $json.instance.apiToken }}` - Token da API WhatsApp
+- `{{ $json.instance.apiUrl }}` - URL da API (Evolution ou UAZAPI)
+- `{{ $json.recipients[0].id }}` - ID do recipient (para Loop)
+- `{{ $json.recipients[0].phoneNumber }}` - Número do destinatário
 
 ---
 
 **Última atualização**: 2025-11-25
-**Versão do Workflow**: 2.0
+**Versão do Workflow**: 2.1
 **Compatível com**: N8N v1.x, Evolution API v2.x
