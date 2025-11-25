@@ -1,5 +1,5 @@
 {
-  "name": "Campaign Dispatcher v4.1",
+  "name": "Campaign Dispatcher v4.2",
   "nodes": [
     {
       "parameters": {
@@ -21,13 +21,13 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.NEXT_PUBLIC_APP_URL }}/api/n8n/scheduled-campaigns",
+        "url": "https://dev.wpp.sistemabrasil.online/api/n8n/scheduled-campaigns",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer {{ $vars.N8N_API_KEY }}"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTYxNDJhMi1kMDIzLTQ1OTYtYWZkMy0xMTI5NTY4MzcyYTAiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYzOTI1OTIyfQ.FccQV_2o06C-xdI6cKC-hqksLbIfOpvC3-5rsVqXsvA"
             }
           ]
         },
@@ -100,13 +100,13 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.NEXT_PUBLIC_APP_URL }}/api/n8n/campaigns/{{ $json.campaignId }}/status",
+        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{ $json.campaignId }}/status",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer {{ $vars.N8N_API_KEY }}"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTYxNDJhMi1kMDIzLTQ1OTYtYWZkMy0xMTI5NTY4MzcyYTAiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYzOTI1OTIyfQ.FccQV_2o06C-xdI6cKC-hqksLbIfOpvC3-5rsVqXsvA"
             },
             {
               "name": "Content-Type",
@@ -168,13 +168,13 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.NEXT_PUBLIC_APP_URL }}/api/n8n/campaigns/{{ $json.campaignId }}/status",
+        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{ $json.campaignId }}/status",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer {{ $vars.N8N_API_KEY }}"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTYxNDJhMi1kMDIzLTQ1OTYtYWZkMy0xMTI5NTY4MzcyYTAiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYzOTI1OTIyfQ.FccQV_2o06C-xdI6cKC-hqksLbIfOpvC3-5rsVqXsvA"
             },
             {
               "name": "Content-Type",
@@ -318,13 +318,13 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.NEXT_PUBLIC_APP_URL }}/api/n8n/campaign-items/{{ $json.recipientId }}/status",
+        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaign-items/{{ $json.recipientId }}/status",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer {{ $vars.N8N_API_KEY }}"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTYxNDJhMi1kMDIzLTQ1OTYtYWZkMy0xMTI5NTY4MzcyYTAiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYzOTI1OTIyfQ.FccQV_2o06C-xdI6cKC-hqksLbIfOpvC3-5rsVqXsvA"
             },
             {
               "name": "Content-Type",
@@ -386,13 +386,13 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.NEXT_PUBLIC_APP_URL }}/api/n8n/campaigns/{{ $json.campaignId }}/counters",
+        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{ $json.campaignId }}/counters",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer {{ $vars.N8N_API_KEY }}"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTYxNDJhMi1kMDIzLTQ1OTYtYWZkMy0xMTI5NTY4MzcyYTAiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYzOTI1OTIyfQ.FccQV_2o06C-xdI6cKC-hqksLbIfOpvC3-5rsVqXsvA"
             },
             {
               "name": "Content-Type",
@@ -415,13 +415,13 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.NEXT_PUBLIC_APP_URL }}/api/n8n/campaigns/{{ $json.campaignId }}/counters",
+        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{ $json.campaignId }}/counters",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer {{ $vars.N8N_API_KEY }}"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTYxNDJhMi1kMDIzLTQ1OTYtYWZkMy0xMTI5NTY4MzcyYTAiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYzOTI1OTIyfQ.FccQV_2o06C-xdI6cKC-hqksLbIfOpvC3-5rsVqXsvA"
             },
             {
               "name": "Content-Type",
@@ -474,13 +474,13 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.NEXT_PUBLIC_APP_URL }}/api/n8n/campaigns/{{ $json.campaignId }}/status",
+        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{ $json.campaignId }}/status",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer {{ $vars.N8N_API_KEY }}"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTYxNDJhMi1kMDIzLTQ1OTYtYWZkMy0xMTI5NTY4MzcyYTAiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYzOTI1OTIyfQ.FccQV_2o06C-xdI6cKC-hqksLbIfOpvC3-5rsVqXsvA"
             },
             {
               "name": "Content-Type",
@@ -806,9 +806,9 @@
   "staticData": null,
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "campaign-dispatcher-v4.1"
+    "instanceId": "campaign-dispatcher-v4.2"
   },
   "pinData": {},
-  "versionId": "4.1.0",
+  "versionId": "4.2.0",
   "triggerCount": 1
 }
