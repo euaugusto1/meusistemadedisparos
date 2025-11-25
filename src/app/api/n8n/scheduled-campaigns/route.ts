@@ -66,8 +66,7 @@ export async function GET(request: NextRequest) {
           phone_number,
           api_token,
           status,
-          is_test,
-          api_url
+          is_test
         ),
         media:media_files(
           id,
@@ -250,9 +249,9 @@ export async function GET(request: NextRequest) {
             phoneNumber: campaign.instance[0].phone_number,
             apiToken: campaign.instance[0].api_token,
             // URL baseada no tipo de instância (teste usa Evolution API, produção usa UAZAPI)
-            apiUrl: campaign.instance[0].api_url || (campaign.instance[0].is_test
+            apiUrl: campaign.instance[0].is_test
               ? (process.env.EVOLUTION_API_URL || 'https://dev.evo.sistemabrasil.online')
-              : (process.env.UAZAPI_BASE_URL || 'https://monitor-grupo.uazapi.com')),
+              : (process.env.UAZAPI_BASE_URL || 'https://monitor-grupo.uazapi.com'),
             status: campaign.instance[0].status,
             isTest: campaign.instance[0].is_test
           } : null,
