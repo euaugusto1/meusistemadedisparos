@@ -1,5 +1,5 @@
 {
-  "name": "Evolution API Campaign Dispatcher v3.1",
+  "name": "Campaign Dispatcher v4.0",
   "nodes": [
     {
       "parameters": {
@@ -12,11 +12,11 @@
           ]
         }
       },
-      "id": "schedule-trigger",
-      "name": "Schedule Trigger (60s)",
+      "id": "trigger",
+      "name": "A cada 60 segundos",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [0, 0]
+      "position": [0, 300]
     },
     {
       "parameters": {
@@ -24,15 +24,13 @@
         "url": "={{ $vars.NEXT_PUBLIC_APP_URL }}/api/n8n/scheduled-campaigns",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {
-          "timeout": 30000
-        }
+        "options": {}
       },
-      "id": "fetch-campaigns",
-      "name": "Fetch Scheduled Campaigns",
+      "id": "fetch",
+      "name": "Buscar Campanhas",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [220, 0],
+      "position": [220, 300],
       "credentials": {
         "httpHeaderAuth": {
           "id": "n8n-api-key",
@@ -50,7 +48,7 @@
           },
           "conditions": [
             {
-              "id": "has-campaigns",
+              "id": "check-count",
               "leftValue": "={{ $json.count }}",
               "rightValue": 0,
               "operator": {
@@ -63,52 +61,40 @@
         },
         "options": {}
       },
-      "id": "has-campaigns",
-      "name": "Has Campaigns?",
+      "id": "check-campaigns",
+      "name": "Tem Campanhas?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [440, 0]
+      "position": [440, 300]
     },
     {
       "parameters": {},
       "id": "no-campaigns",
-      "name": "No Campaigns",
+      "name": "Sem Campanhas",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [660, 120]
+      "position": [660, 400]
     },
     {
       "parameters": {
         "fieldToSplitOut": "campaigns",
         "options": {}
       },
-      "id": "extract-campaigns",
-      "name": "Extract Campaigns",
+      "id": "split-campaigns",
+      "name": "Separar Campanhas",
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
-      "position": [660, -120]
+      "position": [660, 200]
     },
     {
       "parameters": {
-        "options": {
-          "reset": false
-        }
+        "jsCode": "// Processar cada campanha\nconst campaigns = $input.all();\n\nfor (const item of campaigns) {\n  const campaign = item.json;\n  console.log(`\\n📤 Campanha: ${campaign.title}`);\n  console.log(`   ID: ${campaign.campaignId}`);\n  console.log(`   Recipients: ${campaign.totalRecipients}`);\n}\n\nreturn campaigns;"
       },
-      "id": "loop-campaigns",
-      "name": "Loop Campaigns",
-      "type": "n8n-nodes-base.splitInBatches",
-      "typeVersion": 3,
-      "position": [880, -120]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Log detalhado da campanha\nconst campaign = $input.first().json;\n\nconsole.log('========================================');\nconsole.log(`📤 Iniciando: ${campaign.title}`);\nconsole.log(`   ID: ${campaign.campaignId}`);\nconsole.log(`   Tipo: ${campaign.scheduleType}`);\nconsole.log(`   Agendado: ${campaign.scheduledAt}`);\nconsole.log(`   Timezone: ${campaign.timezone}`);\nconsole.log(`   Destinatários: ${campaign.totalRecipients}`);\nconsole.log(`   Instance: ${campaign.instance?.name} (${campaign.instance?.isTest ? 'TESTE' : 'PRODUÇÃO'})`);\nconsole.log('========================================');\n\nreturn $input.all();"
-      },
-      "id": "log-campaign",
-      "name": "Log Campaign Info",
+      "id": "log-campaigns",
+      "name": "Log Campanhas",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, -120]
+      "position": [880, 200]
     },
     {
       "parameters": {
@@ -118,16 +104,14 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"status\": \"processing\"\n}",
-        "options": {
-          "timeout": 30000
-        }
+        "jsonBody": "{ \"status\": \"processing\" }",
+        "options": {}
       },
-      "id": "status-processing",
+      "id": "set-processing",
       "name": "Status → Processing",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1320, -120],
+      "position": [1100, 200],
       "credentials": {
         "httpHeaderAuth": {
           "id": "n8n-api-key",
@@ -138,13 +122,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Pegar dados da campanha do Loop\nconst loopData = $('Loop Campaigns').first().json;\n\n// Após Status → Processing, a resposta tem campaignId no nível raiz\n// Mas precisamos dos dados completos da campanha\nreturn [{\n  json: {\n    ...loopData,\n    processingStarted: true\n  }\n}];"
+        "jsCode": "// Restaurar dados da campanha após a chamada HTTP\nconst campaigns = $('Log Campanhas').all();\nconst currentIndex = $itemIndex;\nconst campaign = campaigns[currentIndex]?.json;\n\nif (!campaign) {\n  return [{ json: { error: 'Campaign not found', index: currentIndex } }];\n}\n\nreturn [{ json: campaign }];"
       },
-      "id": "restore-campaign-data",
-      "name": "Restore Campaign Data",
+      "id": "restore-data",
+      "name": "Restaurar Dados",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1540, -120]
+      "position": [1320, 200]
     },
     {
       "parameters": {
@@ -157,7 +141,7 @@
           "conditions": [
             {
               "id": "has-recipients",
-              "leftValue": "={{ $json.recipients.length }}",
+              "leftValue": "={{ $json.recipients?.length || 0 }}",
               "rightValue": 0,
               "operator": {
                 "type": "number",
@@ -169,11 +153,11 @@
         },
         "options": {}
       },
-      "id": "has-recipients",
-      "name": "Has Recipients?",
+      "id": "check-recipients",
+      "name": "Tem Recipients?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1760, -120]
+      "position": [1540, 200]
     },
     {
       "parameters": {
@@ -183,16 +167,14 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"status\": \"completed\"\n}",
-        "options": {
-          "timeout": 30000
-        }
+        "jsonBody": "{ \"status\": \"completed\" }",
+        "options": {}
       },
-      "id": "no-recipients-complete",
-      "name": "No Recipients → Complete",
+      "id": "complete-empty",
+      "name": "Completar (Vazia)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1980, 60],
+      "position": [1760, 340],
       "credentials": {
         "httpHeaderAuth": {
           "id": "n8n-api-key",
@@ -202,24 +184,24 @@
     },
     {
       "parameters": {
-        "jsCode": "// Preparar recipients com dados da campanha\nconst campaign = $input.first().json;\nconst recipients = campaign.recipients || [];\n\nconst preparedRecipients = recipients.map((recipient, index) => ({\n  // Dados do recipient\n  recipientId: recipient.id,\n  phoneNumber: recipient.phoneNumber,\n  recipientStatus: recipient.status,\n  \n  // Dados da campanha (propagados)\n  campaignId: campaign.campaignId,\n  campaignTitle: campaign.title,\n  campaignMessage: campaign.message,\n  \n  // Dados da instância\n  instanceId: campaign.instance?.id,\n  instanceName: campaign.instance?.name,\n  apiUrl: campaign.instance?.apiUrl,\n  apiToken: campaign.instance?.apiToken,\n  isTest: campaign.instance?.isTest,\n  \n  // Mídia (se existir)\n  media: campaign.media,\n  \n  // Throttling\n  minDelay: campaign.throttling?.minDelay || 1000,\n  maxDelay: campaign.throttling?.maxDelay || 3000,\n  \n  // Progresso\n  currentIndex: index + 1,\n  totalRecipients: recipients.length\n}));\n\nreturn preparedRecipients.map(r => ({ json: r }));"
+        "jsCode": "// Preparar lista de recipients para envio\nconst campaign = $input.first().json;\nconst recipients = campaign.recipients || [];\n\nconsole.log(`\\n📋 Preparando ${recipients.length} recipients para campanha ${campaign.campaignId}`);\n\nconst items = recipients.map((recipient, index) => ({\n  json: {\n    // IDs\n    campaignId: campaign.campaignId,\n    recipientId: recipient.id,\n    \n    // Dados do recipient\n    phoneNumber: recipient.phoneNumber,\n    \n    // Dados da campanha\n    campaignTitle: campaign.title,\n    campaignMessage: campaign.message,\n    \n    // Instância WhatsApp\n    instanceName: campaign.instance?.name,\n    apiUrl: campaign.instance?.apiUrl,\n    apiToken: campaign.instance?.apiToken,\n    \n    // Mídia\n    media: campaign.media,\n    \n    // Throttling\n    minDelay: campaign.throttling?.minDelay || 1000,\n    maxDelay: campaign.throttling?.maxDelay || 3000,\n    \n    // Controle\n    index: index + 1,\n    total: recipients.length\n  }\n}));\n\nreturn items;"
       },
       "id": "prepare-recipients",
-      "name": "Prepare Recipients",
+      "name": "Preparar Recipients",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1980, -240]
+      "position": [1760, 100]
     },
     {
       "parameters": {
         "batchSize": 1,
         "options": {}
       },
-      "id": "loop-recipients",
+      "id": "loop",
       "name": "Loop Recipients",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [2200, -240]
+      "position": [1980, 100]
     },
     {
       "parameters": {
@@ -232,7 +214,7 @@
           "conditions": [
             {
               "id": "has-media",
-              "leftValue": "={{ $json.media }}",
+              "leftValue": "={{ $json.media?.base64 }}",
               "rightValue": "",
               "operator": {
                 "type": "string",
@@ -244,59 +226,57 @@
         },
         "options": {}
       },
-      "id": "has-media",
-      "name": "Has Media?",
+      "id": "check-media",
+      "name": "Tem Mídia?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [2420, -240]
+      "position": [2200, 100]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "={{ $json.apiUrl }}/message/sendMedia/{{ $json.instanceName }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "apikey",
               "value": "={{ $json.apiToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"number\": \"{{ $json.phoneNumber }}\",\n  \"mediatype\": \"{{ $json.media.mimeType.startsWith('image') ? 'image' : 'video' }}\",\n  \"mimetype\": \"{{ $json.media.mimeType }}\",\n  \"caption\": \"{{ $json.campaignMessage }}\",\n  \"media\": \"{{ $json.media.base64 }}\",\n  \"fileName\": \"{{ $json.media.fileName }}\"\n}",
+        "jsonBody": "={\n  \"number\": \"{{ $json.phoneNumber }}\",\n  \"mediatype\": \"{{ $json.media.mimeType?.startsWith('image') ? 'image' : 'document' }}\",\n  \"mimetype\": \"{{ $json.media.mimeType }}\",\n  \"caption\": \"{{ $json.campaignMessage }}\",\n  \"media\": \"{{ $json.media.base64 }}\",\n  \"fileName\": \"{{ $json.media.fileName }}\"\n}",
         "options": {
           "timeout": 60000
         }
       },
       "id": "send-media",
-      "name": "Send Media",
+      "name": "Enviar Mídia",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2640, -360],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "evolution-api-key",
-          "name": "Evolution API Key"
-        }
-      },
+      "position": [2420, 0],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "method": "POST",
         "url": "={{ $json.apiUrl }}/message/sendText/{{ $json.instanceName }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "apikey",
               "value": "={{ $json.apiToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
             }
           ]
         },
@@ -308,46 +288,21 @@
         }
       },
       "id": "send-text",
-      "name": "Send Text",
+      "name": "Enviar Texto",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2640, -120],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "evolution-api-key",
-          "name": "Evolution API Key"
-        }
-      },
+      "position": [2420, 200],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "mode": "combine",
-        "mergeByFields": {
-          "values": [
-            {
-              "field1": "recipientId",
-              "field2": "recipientId"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Analisar resultado e preparar atualização\nconst sendResult = $input.first().json;\nconst loopData = $('Loop Recipients').first().json;\n\n// Verificar se enviou com sucesso\nconst hasError = sendResult.error || sendResult.statusCode >= 400 || !sendResult.key;\nconst status = hasError ? 'failed' : 'sent';\nconst errorMsg = hasError ? (sendResult.message || sendResult.error || 'Erro no envio') : null;\n\nconsole.log(`${status === 'sent' ? '✅' : '❌'} [${loopData.index}/${loopData.total}] ${loopData.phoneNumber}`);\n\nreturn [{\n  json: {\n    ...loopData,\n    sendStatus: status,\n    sendError: errorMsg,\n    sendResult: sendResult\n  }\n}];"
       },
-      "id": "merge-results",
-      "name": "Merge Results",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [2860, -240]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Analisar resultado do envio\nconst input = $input.first().json;\nconst loopData = $('Loop Recipients').first().json;\n\n// Verificar se houve erro\nconst hasError = input.error || input.code === 400 || input.code === 500 || !input.key;\nconst status = hasError ? 'failed' : 'sent';\nconst errorMessage = hasError ? (input.error || input.message || 'Erro desconhecido') : null;\n\nconsole.log(`${status === 'sent' ? '✅' : '❌'} [${loopData.currentIndex}/${loopData.totalRecipients}] ${loopData.phoneNumber}`);\n\nreturn [{\n  json: {\n    ...loopData,\n    sendResult: input,\n    status,\n    errorMessage\n  }\n}];"
-      },
-      "id": "analyze-result",
-      "name": "Analyze Result",
+      "id": "analyze",
+      "name": "Analisar Resultado",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3080, -240]
+      "position": [2640, 100]
     },
     {
       "parameters": {
@@ -357,16 +312,14 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"status\": \"{{ $json.status }}\",\n  \"error_message\": {{ $json.errorMessage ? '\"' + $json.errorMessage + '\"' : 'null' }}\n}",
-        "options": {
-          "timeout": 30000
-        }
+        "jsonBody": "={\n  \"status\": \"{{ $json.sendStatus }}\",\n  \"error_message\": {{ $json.sendError ? JSON.stringify($json.sendError) : 'null' }}\n}",
+        "options": {}
       },
-      "id": "update-item-status",
-      "name": "Update Item Status",
+      "id": "update-item",
+      "name": "Atualizar Item",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [3300, -240],
+      "position": [2860, 100],
       "credentials": {
         "httpHeaderAuth": {
           "id": "n8n-api-key",
@@ -377,13 +330,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Restaurar dados do loop para próximas operações\nconst loopData = $('Loop Recipients').first().json;\nconst updateResult = $input.first().json;\n\nreturn [{\n  json: {\n    ...loopData,\n    itemUpdateResult: updateResult\n  }\n}];"
+        "jsCode": "// Restaurar dados do loop para incrementar contadores\nconst loopData = $('Loop Recipients').first().json;\nconst analyzeData = $('Analisar Resultado').first().json;\n\nreturn [{\n  json: {\n    ...loopData,\n    sendStatus: analyzeData.sendStatus,\n    sendError: analyzeData.sendError\n  }\n}];"
       },
-      "id": "restore-loop-data",
-      "name": "Restore Loop Data",
+      "id": "restore-for-counter",
+      "name": "Restaurar para Contador",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3520, -240]
+      "position": [3080, 100]
     },
     {
       "parameters": {
@@ -396,7 +349,7 @@
           "conditions": [
             {
               "id": "is-sent",
-              "leftValue": "={{ $json.status }}",
+              "leftValue": "={{ $json.sendStatus }}",
               "rightValue": "sent",
               "operator": {
                 "type": "string",
@@ -408,11 +361,11 @@
         },
         "options": {}
       },
-      "id": "is-sent",
-      "name": "Is Sent?",
+      "id": "check-sent",
+      "name": "Enviou?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [3740, -240]
+      "position": [3300, 100]
     },
     {
       "parameters": {
@@ -422,108 +375,75 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"increment_sent\": 1\n}",
-        "options": {
-          "timeout": 30000
-        }
-      },
-      "id": "increment-sent",
-      "name": "Increment Sent",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [3960, -360],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "n8n-api-key",
-          "name": "N8N API Key"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "method": "PATCH",
-        "url": "={{ $vars.NEXT_PUBLIC_APP_URL }}/api/n8n/campaigns/{{ $json.campaignId }}/counters",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{\n  \"increment_failed\": 1\n}",
-        "options": {
-          "timeout": 30000
-        }
-      },
-      "id": "increment-failed",
-      "name": "Increment Failed",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [3960, -120],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "n8n-api-key",
-          "name": "N8N API Key"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "mode": "combine",
-        "mergeByFields": {
-          "values": [
-            {
-              "field1": "recipientId",
-              "field2": "recipientId"
-            }
-          ]
-        },
+        "jsonBody": "{ \"increment_sent\": 1 }",
         "options": {}
       },
-      "id": "merge-counters",
-      "name": "Merge Counters",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [4180, -240]
+      "id": "inc-sent",
+      "name": "+1 Enviado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3520, 0],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "n8n-api-key",
+          "name": "N8N API Key"
+        }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "// Restaurar dados para o delay e próximo loop\nconst loopData = $('Loop Recipients').first().json;\n\nreturn [{\n  json: {\n    ...loopData\n  }\n}];"
+        "method": "PATCH",
+        "url": "={{ $vars.NEXT_PUBLIC_APP_URL }}/api/n8n/campaigns/{{ $json.campaignId }}/counters",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"increment_failed\": 1 }",
+        "options": {}
       },
-      "id": "prepare-delay",
-      "name": "Prepare Delay",
+      "id": "inc-failed",
+      "name": "+1 Falha",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3520, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "n8n-api-key",
+          "name": "N8N API Key"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar delay e voltar para o loop\nconst loopData = $('Loop Recipients').first().json;\nconst minDelay = loopData.minDelay || 1000;\nconst maxDelay = loopData.maxDelay || 3000;\nconst delay = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;\n\nconsole.log(`⏱️ Delay: ${delay}ms`);\n\nreturn [{\n  json: {\n    ...loopData,\n    delay: delay\n  }\n}];"
+      },
+      "id": "calc-delay",
+      "name": "Calcular Delay",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [4400, -240]
+      "position": [3740, 100]
     },
     {
       "parameters": {
-        "jsCode": "// Calcular delay aleatório\nconst data = $input.first().json;\nconst minDelay = data.minDelay || 1000;\nconst maxDelay = data.maxDelay || 3000;\n\nconst delay = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;\n\nconsole.log(`⏱️ Delay: ${delay}ms`);\n\nreturn [{\n  json: {\n    ...data,\n    calculatedDelay: delay\n  }\n}];"
-      },
-      "id": "calculate-delay",
-      "name": "Calculate Delay",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [4620, -240]
-    },
-    {
-      "parameters": {
-        "amount": "={{ $json.calculatedDelay }}",
+        "amount": "={{ $json.delay }}",
         "unit": "milliseconds"
       },
       "id": "wait",
-      "name": "Wait",
+      "name": "Aguardar",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [4840, -240],
-      "webhookId": "wait-webhook"
+      "position": [3960, 100],
+      "webhookId": "wait-id"
     },
     {
       "parameters": {},
       "id": "back-to-loop",
-      "name": "Back to Loop",
+      "name": "Próximo",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [5060, -240]
+      "position": [4180, 100]
     },
     {
       "parameters": {
@@ -533,16 +453,14 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"status\": \"completed\"\n}",
-        "options": {
-          "timeout": 30000
-        }
+        "jsonBody": "{ \"status\": \"completed\" }",
+        "options": {}
       },
       "id": "complete-campaign",
-      "name": "Complete Campaign",
+      "name": "Completar Campanha",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2420, -480],
+      "position": [2200, -140],
       "credentials": {
         "httpHeaderAuth": {
           "id": "n8n-api-key",
@@ -552,86 +470,68 @@
     },
     {
       "parameters": {
-        "jsCode": "// Log de conclusão\nconst data = $input.first().json;\nconsole.log('========================================');\nconsole.log(`✅ Campanha \"${data.title || data.campaignTitle}\" concluída!`);\nconsole.log(`   ID: ${data.campaignId}`);\nconsole.log('========================================');\n\nreturn $input.all();"
+        "jsCode": "console.log('\\n✅ Campanha finalizada!');\nreturn $input.all();"
       },
-      "id": "log-complete",
-      "name": "Log Complete",
+      "id": "log-done",
+      "name": "Log Fim",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2640, -480]
+      "position": [2420, -140]
     }
   ],
   "connections": {
-    "Schedule Trigger (60s)": {
+    "A cada 60 segundos": {
       "main": [
         [
           {
-            "node": "Fetch Scheduled Campaigns",
+            "node": "Buscar Campanhas",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Fetch Scheduled Campaigns": {
+    "Buscar Campanhas": {
       "main": [
         [
           {
-            "node": "Has Campaigns?",
+            "node": "Tem Campanhas?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Has Campaigns?": {
+    "Tem Campanhas?": {
       "main": [
         [
           {
-            "node": "Extract Campaigns",
+            "node": "Separar Campanhas",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "No Campaigns",
+            "node": "Sem Campanhas",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Extract Campaigns": {
+    "Separar Campanhas": {
       "main": [
         [
           {
-            "node": "Loop Campaigns",
+            "node": "Log Campanhas",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Loop Campaigns": {
-      "main": [
-        [
-          {
-            "node": "Log Campaign Info",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Complete Campaign",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Log Campaign Info": {
+    "Log Campanhas": {
       "main": [
         [
           {
@@ -646,54 +546,43 @@
       "main": [
         [
           {
-            "node": "Restore Campaign Data",
+            "node": "Restaurar Dados",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Restore Campaign Data": {
+    "Restaurar Dados": {
       "main": [
         [
           {
-            "node": "Has Recipients?",
+            "node": "Tem Recipients?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Has Recipients?": {
+    "Tem Recipients?": {
       "main": [
         [
           {
-            "node": "Prepare Recipients",
+            "node": "Preparar Recipients",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "No Recipients → Complete",
+            "node": "Completar (Vazia)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "No Recipients → Complete": {
-      "main": [
-        [
-          {
-            "node": "Loop Campaigns",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare Recipients": {
+    "Preparar Recipients": {
       "main": [
         [
           {
@@ -708,189 +597,156 @@
       "main": [
         [
           {
-            "node": "Has Media?",
+            "node": "Tem Mídia?",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Loop Campaigns",
+            "node": "Completar Campanha",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Has Media?": {
+    "Tem Mídia?": {
       "main": [
         [
           {
-            "node": "Send Media",
+            "node": "Enviar Mídia",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Send Text",
+            "node": "Enviar Texto",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send Media": {
+    "Enviar Mídia": {
       "main": [
         [
           {
-            "node": "Merge Results",
+            "node": "Analisar Resultado",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send Text": {
+    "Enviar Texto": {
       "main": [
         [
           {
-            "node": "Merge Results",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Merge Results": {
-      "main": [
-        [
-          {
-            "node": "Analyze Result",
+            "node": "Analisar Resultado",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Analyze Result": {
+    "Analisar Resultado": {
       "main": [
         [
           {
-            "node": "Update Item Status",
+            "node": "Atualizar Item",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Update Item Status": {
+    "Atualizar Item": {
       "main": [
         [
           {
-            "node": "Restore Loop Data",
+            "node": "Restaurar para Contador",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Restore Loop Data": {
+    "Restaurar para Contador": {
       "main": [
         [
           {
-            "node": "Is Sent?",
+            "node": "Enviou?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Is Sent?": {
+    "Enviou?": {
       "main": [
         [
           {
-            "node": "Increment Sent",
+            "node": "+1 Enviado",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Increment Failed",
+            "node": "+1 Falha",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Increment Sent": {
+    "+1 Enviado": {
       "main": [
         [
           {
-            "node": "Merge Counters",
+            "node": "Calcular Delay",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Increment Failed": {
+    "+1 Falha": {
       "main": [
         [
           {
-            "node": "Merge Counters",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Merge Counters": {
-      "main": [
-        [
-          {
-            "node": "Prepare Delay",
+            "node": "Calcular Delay",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Delay": {
+    "Calcular Delay": {
       "main": [
         [
           {
-            "node": "Calculate Delay",
+            "node": "Aguardar",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Calculate Delay": {
+    "Aguardar": {
       "main": [
         [
           {
-            "node": "Wait",
+            "node": "Próximo",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Wait": {
-      "main": [
-        [
-          {
-            "node": "Back to Loop",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Back to Loop": {
+    "Próximo": {
       "main": [
         [
           {
@@ -901,11 +757,11 @@
         ]
       ]
     },
-    "Complete Campaign": {
+    "Completar Campanha": {
       "main": [
         [
           {
-            "node": "Log Complete",
+            "node": "Log Fim",
             "type": "main",
             "index": 0
           }
@@ -919,9 +775,9 @@
   "staticData": null,
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "campaign-dispatcher-v3.1"
+    "instanceId": "campaign-dispatcher-v4"
   },
   "pinData": {},
-  "versionId": "3.1.0",
+  "versionId": "4.0.0",
   "triggerCount": 1
 }
