@@ -50,15 +50,14 @@ export async function PATCH(
 
     if (pendingCount && pendingCount > 0) {
       // Ainda há items pendentes, não finalizar
+      // Padronizado: campaignId sempre no nível raiz para consistência no N8N
       return NextResponse.json({
         success: false,
+        campaignId: campaign.id,
+        title: campaign.title,
+        status: campaign.status,
         message: 'Ainda há destinatários pendentes',
-        pendingCount,
-        campaign: {
-          id: campaign.id,
-          title: campaign.title,
-          status: campaign.status
-        }
+        pendingCount
       })
     }
 
@@ -165,15 +164,19 @@ export async function PATCH(
       ? ((campaign.sent_count / campaign.total_recipients) * 100).toFixed(2)
       : '0.00'
 
+    // Padronizado: campaignId sempre no nível raiz para consistência no N8N
     return NextResponse.json({
       success: true,
-      campaign: updated,
+      campaignId: updated.id,
+      title: updated.title,
+      status: updated.status,
+      completedAt: updated.completed_at,
       statistics: {
-        total_recipients: campaign.total_recipients,
-        sent_count: campaign.sent_count,
-        failed_count: campaign.failed_count,
-        success_rate: `${successRate}%`,
-        final_status: finalStatus
+        totalRecipients: campaign.total_recipients,
+        sentCount: campaign.sent_count,
+        failedCount: campaign.failed_count,
+        successRate: `${successRate}%`,
+        finalStatus: finalStatus
       },
       message: `Campanha finalizada com status: ${finalStatus}`,
       recurring: nextOccurrenceId ? {

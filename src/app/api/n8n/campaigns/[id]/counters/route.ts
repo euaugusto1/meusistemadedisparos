@@ -65,9 +65,11 @@ export async function PATCH(
       )
     }
 
+    // Padronizado: campaignId sempre no nível raiz para consistência no N8N
     return NextResponse.json({
       success: true,
-      campaign: updated,
+      campaignId: updated.id,
+      title: updated.title,
       incremented: {
         sent: increment_sent || 0,
         failed: increment_failed || 0

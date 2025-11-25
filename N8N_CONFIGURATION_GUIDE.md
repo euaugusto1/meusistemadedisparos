@@ -507,6 +507,134 @@ Body (JSON):
 
 ---
 
+## 📊 14. RESPOSTAS PADRONIZADAS DAS APIS
+
+### ⚠️ IMPORTANTE: Padrão de Nomenclatura
+
+**TODAS as APIs retornam `campaignId` no NÍVEL RAIZ da resposta.**
+
+Isso significa que em QUALQUER nó do N8N você pode usar:
+- `{{ $json.campaignId }}` - Sempre disponível
+
+---
+
+### A) POST /api/n8n/campaigns/{id}/status
+**Resposta:**
+```json
+{
+  "success": true,
+  "campaignId": "0e259ce3-5b80-4b8c-a6e7-f5c9d7cc0b8f",
+  "title": "Modelo para o n8n",
+  "status": "processing",
+  "startedAt": "2025-11-25T10:00:00Z",
+  "updatedAt": "2025-11-25T10:00:00Z",
+  "message": "Status atualizado para: processing",
+  "timestamp": "2025-11-25T10:00:00Z"
+}
+```
+
+### B) POST /api/n8n/campaigns/{id}/complete
+**Resposta (sucesso):**
+```json
+{
+  "success": true,
+  "campaignId": "0e259ce3-5b80-4b8c-a6e7-f5c9d7cc0b8f",
+  "title": "Modelo para o n8n",
+  "status": "completed",
+  "completedAt": "2025-11-25T10:30:00Z",
+  "statistics": {
+    "totalRecipients": 100,
+    "sentCount": 95,
+    "failedCount": 5,
+    "successRate": "95.00%",
+    "finalStatus": "completed"
+  },
+  "message": "Campanha finalizada com status: completed",
+  "recurring": null,
+  "timestamp": "2025-11-25T10:30:00Z"
+}
+```
+
+**Resposta (pendentes):**
+```json
+{
+  "success": false,
+  "campaignId": "0e259ce3-5b80-4b8c-a6e7-f5c9d7cc0b8f",
+  "title": "Modelo para o n8n",
+  "status": "processing",
+  "message": "Ainda há destinatários pendentes",
+  "pendingCount": 10
+}
+```
+
+### C) POST /api/n8n/campaigns/{id}/counters
+**Resposta:**
+```json
+{
+  "success": true,
+  "campaignId": "0e259ce3-5b80-4b8c-a6e7-f5c9d7cc0b8f",
+  "title": "Modelo para o n8n",
+  "incremented": {
+    "sent": 1,
+    "failed": 0
+  },
+  "progress": {
+    "total": 100,
+    "sent": 50,
+    "failed": 5,
+    "remaining": 45
+  },
+  "timestamp": "2025-11-25T10:15:00Z"
+}
+```
+
+### D) POST /api/n8n/campaign-items/{id}/status
+**Resposta:**
+```json
+{
+  "success": true,
+  "itemId": "b008d461-8887-4f74-b3c8-bbeb548b3f31",
+  "campaignId": "0e259ce3-5b80-4b8c-a6e7-f5c9d7cc0b8f",
+  "recipient": "5511999999999",
+  "status": "sent",
+  "sentAt": "2025-11-25T10:10:00Z",
+  "errorMessage": null,
+  "message": "Status atualizado para: sent",
+  "timestamp": "2025-11-25T10:10:00Z"
+}
+```
+
+---
+
+## 📋 15. REFERÊNCIA RÁPIDA N8N
+
+### Dentro do Loop de Campanhas:
+```
+{{ $json.campaignId }}           - ID da campanha atual
+{{ $json.title }}                - Título da campanha
+{{ $json.message }}              - Mensagem a enviar
+{{ $json.instance.apiUrl }}      - URL da API WhatsApp
+{{ $json.instance.apiToken }}    - Token da API
+```
+
+### Dentro do Loop de Recipients:
+```
+{{ $json.recipientId }}          - ID do item/recipient
+{{ $json.phoneNumber }}          - Número do destinatário
+{{ $json.campaignId }}           - ID da campanha (herdado)
+{{ $json.campaignMessage }}      - Mensagem da campanha (herdado)
+```
+
+### Após qualquer chamada de API:
+```
+{{ $json.campaignId }}           - SEMPRE disponível no nível raiz
+{{ $json.success }}              - true/false
+{{ $json.status }}               - Status atual
+```
+
+---
+
 **Última atualização**: 2025-11-25
-**Versão do Workflow**: 2.1
+**Versão do Workflow**: 3.0
+**Versão da API**: 2.0 (Padronizada)
 **Compatível com**: N8N v1.x, Evolution API v2.x
