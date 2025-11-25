@@ -3,19 +3,25 @@ import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
+const N8N_API_KEY = process.env.N8N_API_KEY || ''
+
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    // Verificar autenticação N8N
+    const authHeader = request.headers.get('authorization')
+    const apiKey = authHeader?.replace('Bearer ', '')
 
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!apiKey || apiKey !== N8N_API_KEY) {
+      return NextResponse.json(
+        { error: 'Não autorizado' },
+        { status: 401 }
+      )
     }
 
+    const supabase = createClient()
     const now = new Date().toISOString()
 
-    // Get scheduled campaigns that are ready to be sent
+    // Get scheduled campaigns that are ready to be sent (production instances only)
     const { data: campaigns, error: campaignsError } = await supabase
       .from('campaigns')
       .select(`
@@ -38,13 +44,16 @@ export async function GET(request: NextRequest) {
         media_id,
         instance_id,
         user_id,
+        suggested_send_time,
+        recurrence_pattern,
         instance:whatsapp_instances(
           id,
           name,
           phone_number,
           api_token,
           api_url,
-          status
+          status,
+          is_test
         ),
         media:media_files(
           id,
@@ -56,17 +65,47 @@ export async function GET(request: NextRequest) {
           storage_path
         )
       `)
-      .eq('user_id', user.id)
       .eq('status', 'scheduled')
-      .lte('scheduled_at', now)
       .not('is_paused', 'eq', true)
+      .not('instance_id', 'is', null)
+      .order('created_at', { ascending: true })
 
     if (campaignsError) {
       console.error('Error fetching campaigns:', campaignsError)
       return NextResponse.json({ error: campaignsError.message }, { status: 500 })
     }
 
-    if (!campaigns || campaigns.length === 0) {
+    // Filtrar campanhas de produção (não-teste) prontas para envio
+    const productionCampaigns = campaigns?.filter(campaign => {
+      const instance = campaign.instance as any
+      if (!instance || !instance.length) return false
+
+      const inst = instance[0]
+
+      // Apenas instâncias de produção (não-teste)
+      const isProduction = !inst.is_test || inst.is_test === false
+      const isConnected = inst.status === 'connected'
+      const hasApiToken = !!inst.api_token
+
+      // Verifica se está pronta para envio baseado no schedule_type
+      const currentTime = new Date()
+      let isReadyToSend = false
+
+      if (!campaign.schedule_type || campaign.schedule_type === 'immediate') {
+        isReadyToSend = true
+      } else if (campaign.schedule_type === 'scheduled') {
+        isReadyToSend = !campaign.scheduled_at || new Date(campaign.scheduled_at) <= currentTime
+      } else if (campaign.schedule_type === 'recurring') {
+        isReadyToSend = !campaign.scheduled_at || new Date(campaign.scheduled_at) <= currentTime
+      } else if (campaign.schedule_type === 'smart') {
+        const smartTime = campaign.suggested_send_time || campaign.scheduled_at
+        isReadyToSend = !smartTime || new Date(smartTime) <= currentTime
+      }
+
+      return isProduction && isConnected && hasApiToken && isReadyToSend
+    }) || []
+
+    if (productionCampaigns.length === 0) {
       return NextResponse.json({
         success: true,
         count: 0,
@@ -77,7 +116,7 @@ export async function GET(request: NextRequest) {
 
     // For each campaign, get recipients and prepare full data
     const campaignsWithRecipients = await Promise.all(
-      campaigns.map(async (campaign) => {
+      productionCampaigns.map(async (campaign) => {
         // Get all pending recipients
         const { data: recipients, error: recipientsError } = await supabase
           .from('campaign_items')
@@ -125,7 +164,10 @@ export async function GET(request: NextRequest) {
           message: campaign.message,
           status: campaign.status,
           scheduledAt: campaign.scheduled_at,
+          scheduleType: campaign.schedule_type,
           timezone: campaign.timezone,
+          suggestedSendTime: campaign.suggested_send_time,
+          recurrencePattern: campaign.recurrence_pattern,
 
           // WhatsApp Instance info
           instance: campaign.instance && campaign.instance.length > 0 ? {
@@ -134,7 +176,8 @@ export async function GET(request: NextRequest) {
             phoneNumber: campaign.instance[0].phone_number,
             apiToken: campaign.instance[0].api_token,
             apiUrl: campaign.instance[0].api_url,
-            status: campaign.instance[0].status
+            status: campaign.instance[0].status,
+            isTest: campaign.instance[0].is_test
           } : null,
 
           // Recipients

@@ -64,8 +64,24 @@ export async function GET(request: NextRequest) {
       const hasEvolutionToken = !!instance.api_token
       const notExpired = !instance.expires_at || new Date(instance.expires_at) > new Date()
 
-      // Verifica se está agendada para agora ou sem agendamento
-      const isReadyToSend = !campaign.scheduled_for || new Date(campaign.scheduled_for) <= new Date()
+      // Verifica se está pronta para envio baseado no schedule_type
+      const now = new Date()
+      let isReadyToSend = false
+
+      if (!campaign.schedule_type || campaign.schedule_type === 'immediate') {
+        // Envio imediato: sempre pronto
+        isReadyToSend = true
+      } else if (campaign.schedule_type === 'scheduled') {
+        // Agendado: verifica se chegou a hora
+        isReadyToSend = !campaign.scheduled_at || new Date(campaign.scheduled_at) <= now
+      } else if (campaign.schedule_type === 'recurring') {
+        // Recorrente: verifica próxima ocorrência
+        isReadyToSend = !campaign.scheduled_at || new Date(campaign.scheduled_at) <= now
+      } else if (campaign.schedule_type === 'smart') {
+        // Smart: usa sugestão de IA ou scheduled_at como fallback
+        const smartTime = campaign.suggested_send_time || campaign.scheduled_at
+        isReadyToSend = !smartTime || new Date(smartTime) <= now
+      }
 
       return isTest && hasEvolutionToken && notExpired && isReadyToSend
     }) || []
