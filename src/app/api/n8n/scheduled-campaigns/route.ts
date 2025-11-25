@@ -75,15 +75,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: campaignsError.message }, { status: 500 })
     }
 
-    // Filtrar campanhas de produção (não-teste) prontas para envio
-    const productionCampaigns = campaigns?.filter(campaign => {
+    // Filtrar campanhas prontas para envio (produção ou teste)
+    const readyCampaigns = campaigns?.filter(campaign => {
       const instance = campaign.instance as any
       if (!instance || !instance.length) return false
 
       const inst = instance[0]
 
-      // Apenas instâncias de produção (não-teste)
-      const isProduction = !inst.is_test || inst.is_test === false
+      // Aceita instâncias de produção E de teste
       const isConnected = inst.status === 'connected'
       const hasApiToken = !!inst.api_token
 
@@ -102,10 +101,10 @@ export async function GET(request: NextRequest) {
         isReadyToSend = !smartTime || new Date(smartTime) <= currentTime
       }
 
-      return isProduction && isConnected && hasApiToken && isReadyToSend
+      return isConnected && hasApiToken && isReadyToSend
     }) || []
 
-    if (productionCampaigns.length === 0) {
+    if (readyCampaigns.length === 0) {
       return NextResponse.json({
         success: true,
         count: 0,
@@ -116,7 +115,7 @@ export async function GET(request: NextRequest) {
 
     // For each campaign, get recipients and prepare full data
     const campaignsWithRecipients = await Promise.all(
-      productionCampaigns.map(async (campaign) => {
+      readyCampaigns.map(async (campaign) => {
         // Get all pending recipients
         const { data: recipients, error: recipientsError } = await supabase
           .from('campaign_items')
