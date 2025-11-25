@@ -18,8 +18,8 @@ export default function CampaignsPage() {
       .from('campaigns')
       .select(`
         *,
-        instance:whatsapp_instances(id, name, phone_number),
-        media:media_files(id, public_url, original_name)
+        instance:whatsapp_instances(id, name, phone_number, status, api_token, is_test),
+        media:media_files(id, public_url, original_name, mime_type, storage_path)
       `)
       .order('created_at', { ascending: false })
 
