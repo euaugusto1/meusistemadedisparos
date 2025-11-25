@@ -89,15 +89,34 @@ export async function GET(request: NextRequest) {
 
     // Debug: Log all campaigns found with status='scheduled'
     console.log(`[N8N] Found ${campaigns?.length || 0} campaigns with status='scheduled'`)
-    campaigns?.forEach((c, i) => {
+
+    // Debug: Check if instances exist for campaigns with instance_id but no instance data
+    for (const c of campaigns || []) {
       const inst = c.instance as any
-      console.log(`[N8N] Campaign ${i + 1}: ${c.title}`)
+      console.log(`[N8N] Campaign: ${c.title}`)
       console.log(`  - ID: ${c.id}`)
-      console.log(`  - instance_id: ${c.instance_id}`)
+      console.log(`  - instance_id: ${c.instance_id || 'NULL'}`)
       console.log(`  - schedule_type: ${c.schedule_type}`)
       console.log(`  - scheduled_at: ${c.scheduled_at}`)
-      console.log(`  - instance data: ${JSON.stringify(inst)}`)
-    })
+      console.log(`  - instance data from JOIN: ${JSON.stringify(inst)}`)
+
+      // If instance_id exists but no instance data, query directly
+      if (c.instance_id && (!inst || inst.length === 0)) {
+        const { data: directInstance, error: directError } = await supabase
+          .from('whatsapp_instances')
+          .select('id, name, status, api_token, is_test, user_id')
+          .eq('id', c.instance_id)
+          .single()
+
+        if (directError) {
+          console.log(`  - Direct query ERROR: ${directError.message}`)
+        } else if (directInstance) {
+          console.log(`  - Direct query FOUND: ${directInstance.name} (user_id: ${directInstance.user_id}, status: ${directInstance.status})`)
+        } else {
+          console.log(`  - Direct query: Instance not found in database`)
+        }
+      }
+    }
 
     // Filtrar campanhas prontas para envio (produção ou teste)
     const readyCampaigns = campaigns?.filter(campaign => {
