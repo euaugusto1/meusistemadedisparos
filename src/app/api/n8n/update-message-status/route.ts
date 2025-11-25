@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
+
+const N8N_API_KEY = process.env.N8N_API_KEY || ''
 
 interface UpdateStatusRequest {
   campaignItemId: string
@@ -12,13 +14,15 @@ interface UpdateStatusRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    // Verificar autenticação N8N
+    const authHeader = request.headers.get('authorization')
+    const apiKey = authHeader?.replace('Bearer ', '')
 
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!apiKey || apiKey !== N8N_API_KEY) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
     }
+
+    const supabase = createAdminClient()
 
     const body: UpdateStatusRequest = await request.json()
     const { campaignItemId, status, errorMessage, sentAt } = body

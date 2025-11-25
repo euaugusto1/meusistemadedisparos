@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import type { CampaignStatus } from '@/types'
+
+export const dynamic = 'force-dynamic'
 
 const N8N_API_KEY = process.env.N8N_API_KEY || ''
 
@@ -34,7 +36,7 @@ export async function PATCH(
       )
     }
 
-    const supabase = createClient()
+    const supabase = createAdminClient()
 
     // Preparar dados para atualização
     const updateData: any = {
