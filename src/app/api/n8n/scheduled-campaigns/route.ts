@@ -74,16 +74,39 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: campaignsError.message }, { status: 500 })
     }
 
+    // Debug: Log all campaigns found with status='scheduled'
+    console.log(`[N8N] Found ${campaigns?.length || 0} campaigns with status='scheduled'`)
+    campaigns?.forEach((c, i) => {
+      const inst = (c.instance as any)?.[0]
+      console.log(`[N8N] Campaign ${i + 1}: ${c.title}`)
+      console.log(`  - ID: ${c.id}`)
+      console.log(`  - schedule_type: ${c.schedule_type}`)
+      console.log(`  - scheduled_at: ${c.scheduled_at}`)
+      console.log(`  - instance: ${inst?.name || 'NULL'} (status: ${inst?.status}, has_token: ${!!inst?.api_token})`)
+    })
+
     // Filtrar campanhas prontas para envio (produção ou teste)
     const readyCampaigns = campaigns?.filter(campaign => {
       const instance = campaign.instance as any
-      if (!instance || !instance.length) return false
+      if (!instance || !instance.length) {
+        console.log(`[N8N] SKIP ${campaign.title}: No instance`)
+        return false
+      }
 
       const inst = instance[0]
 
       // Aceita instâncias de produção E de teste
       const isConnected = inst.status === 'connected'
       const hasApiToken = !!inst.api_token
+
+      if (!isConnected) {
+        console.log(`[N8N] SKIP ${campaign.title}: Instance not connected (status: ${inst.status})`)
+        return false
+      }
+      if (!hasApiToken) {
+        console.log(`[N8N] SKIP ${campaign.title}: No api_token`)
+        return false
+      }
 
       // Verifica se está pronta para envio baseado no schedule_type
       const currentTime = new Date()
@@ -92,7 +115,9 @@ export async function GET(request: NextRequest) {
       if (!campaign.schedule_type || campaign.schedule_type === 'immediate') {
         isReadyToSend = true
       } else if (campaign.schedule_type === 'scheduled') {
-        isReadyToSend = !campaign.scheduled_at || new Date(campaign.scheduled_at) <= currentTime
+        const scheduledTime = campaign.scheduled_at ? new Date(campaign.scheduled_at) : null
+        isReadyToSend = !scheduledTime || scheduledTime <= currentTime
+        console.log(`[N8N] ${campaign.title}: scheduled_at=${campaign.scheduled_at}, currentTime=${currentTime.toISOString()}, isReady=${isReadyToSend}`)
       } else if (campaign.schedule_type === 'recurring') {
         isReadyToSend = !campaign.scheduled_at || new Date(campaign.scheduled_at) <= currentTime
       } else if (campaign.schedule_type === 'smart') {
@@ -100,7 +125,13 @@ export async function GET(request: NextRequest) {
         isReadyToSend = !smartTime || new Date(smartTime) <= currentTime
       }
 
-      return isConnected && hasApiToken && isReadyToSend
+      if (!isReadyToSend) {
+        console.log(`[N8N] SKIP ${campaign.title}: Not ready to send yet`)
+        return false
+      }
+
+      console.log(`[N8N] READY ${campaign.title}: All conditions met!`)
+      return true
     }) || []
 
     if (readyCampaigns.length === 0) {
