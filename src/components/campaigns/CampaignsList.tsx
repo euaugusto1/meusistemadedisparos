@@ -44,6 +44,12 @@ import {
   RotateCcw,
   Play,
   Calendar,
+  MessageSquare,
+  Image,
+  Users,
+  Smartphone,
+  Link,
+  FileText,
 } from 'lucide-react'
 import { formatDateTime, formatNumber, getStatusColor } from '@/lib/utils'
 import { dispatchCampaign } from '@/services/campaigns'
@@ -755,47 +761,197 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
 
       {/* Schedule Campaign Dialog */}
       <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Agendar Campanha</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Agendar Campanha
+            </DialogTitle>
             <DialogDescription>
               Configure o agendamento para a campanha "{campaignToSchedule?.title}"
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <SmartScheduler
-              scheduleType={scheduleType}
-              scheduledAt={scheduledAt}
-              timezone={timezone}
-              recurrencePattern={recurrencePattern}
-              throttleEnabled={throttleEnabled}
-              throttleRate={throttleRate}
-              throttleDelay={throttleDelay}
-              smartTiming={smartTiming}
-              suggestedSendTime={suggestedSendTime}
-              onChange={handleScheduleChange}
-            />
-
-            <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setScheduleDialogOpen(false)
-                  setCampaignToSchedule(null)
-                }}
-                disabled={loading}
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleScheduleCampaign}
-                disabled={loading || !scheduledAt}
-              >
-                {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Agendar Campanha
-              </Button>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Coluna Esquerda - Configurações de Agendamento */}
+            <div>
+              <SmartScheduler
+                scheduleType={scheduleType}
+                scheduledAt={scheduledAt}
+                timezone={timezone}
+                recurrencePattern={recurrencePattern}
+                throttleEnabled={throttleEnabled}
+                throttleRate={throttleRate}
+                throttleDelay={throttleDelay}
+                smartTiming={smartTiming}
+                suggestedSendTime={suggestedSendTime}
+                onChange={handleScheduleChange}
+              />
             </div>
+
+            {/* Coluna Direita - Resumo da Campanha */}
+            <div className="space-y-4">
+              <Card className="border-2 border-primary/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    Resumo da Campanha
+                  </CardTitle>
+                  <CardDescription>
+                    Dados que serão enviados ao N8N para processamento
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Instância WhatsApp */}
+                  <div className="p-3 bg-muted rounded-lg space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Smartphone className="h-4 w-4 text-green-600" />
+                      Instância WhatsApp
+                    </div>
+                    <div className="pl-6 text-sm space-y-1">
+                      <p><span className="text-muted-foreground">Nome:</span> {(campaignToSchedule as any)?.instance?.name || 'Não definida'}</p>
+                      <p><span className="text-muted-foreground">Número:</span> {(campaignToSchedule as any)?.instance?.phone_number || 'N/A'}</p>
+                      <p><span className="text-muted-foreground">Status:</span>{' '}
+                        <Badge variant={(campaignToSchedule as any)?.instance?.status === 'connected' ? 'default' : 'secondary'} className="text-xs">
+                          {(campaignToSchedule as any)?.instance?.status || 'desconhecido'}
+                        </Badge>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Destinatários */}
+                  <div className="p-3 bg-muted rounded-lg space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Users className="h-4 w-4 text-blue-600" />
+                      Destinatários
+                    </div>
+                    <div className="pl-6 text-sm">
+                      <p className="text-2xl font-bold text-primary">{formatNumber(campaignToSchedule?.total_recipients || 0)}</p>
+                      <p className="text-muted-foreground">contatos receberão esta mensagem</p>
+                    </div>
+                  </div>
+
+                  {/* Mensagem */}
+                  <div className="p-3 bg-muted rounded-lg space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <MessageSquare className="h-4 w-4 text-purple-600" />
+                      Mensagem
+                    </div>
+                    <div className="pl-6">
+                      <p className="text-sm text-muted-foreground line-clamp-4 whitespace-pre-wrap">
+                        {campaignToSchedule?.message || 'Sem mensagem'}
+                      </p>
+                      {campaignToSchedule?.message && campaignToSchedule.message.length > 200 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          ({campaignToSchedule.message.length} caracteres)
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Mídia */}
+                  <div className="p-3 bg-muted rounded-lg space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Image className="h-4 w-4 text-orange-600" />
+                      Mídia
+                    </div>
+                    <div className="pl-6 text-sm">
+                      {(campaignToSchedule as any)?.media ? (
+                        <div className="space-y-1">
+                          <p><span className="text-muted-foreground">Arquivo:</span> {(campaignToSchedule as any).media.original_name}</p>
+                          <p><span className="text-muted-foreground">Tipo:</span> {(campaignToSchedule as any).media.mime_type}</p>
+                          <Badge variant="secondary" className="text-xs">Com mídia anexada</Badge>
+                        </div>
+                      ) : (
+                        <p className="text-muted-foreground">Sem mídia anexada (apenas texto)</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Link */}
+                  {campaignToSchedule?.link_url && (
+                    <div className="p-3 bg-muted rounded-lg space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Link className="h-4 w-4 text-cyan-600" />
+                        Link
+                      </div>
+                      <div className="pl-6 text-sm">
+                        <p className="text-primary truncate">{campaignToSchedule.link_url}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Botões */}
+                  {campaignToSchedule?.buttons && campaignToSchedule.buttons.length > 0 && (
+                    <div className="p-3 bg-muted rounded-lg space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Send className="h-4 w-4 text-indigo-600" />
+                        Botões ({campaignToSchedule.buttons.length})
+                      </div>
+                      <div className="pl-6 text-sm space-y-1">
+                        {campaignToSchedule.buttons.map((btn: any, idx: number) => (
+                          <Badge key={idx} variant="outline" className="mr-1">
+                            {btn.text || btn.buttonText || `Botão ${idx + 1}`}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Configurações de Delay */}
+                  <div className="p-3 bg-gradient-to-r from-primary/5 to-blue-600/5 rounded-lg border border-primary/20">
+                    <div className="flex items-center gap-2 text-sm font-medium mb-2">
+                      <Clock className="h-4 w-4 text-primary" />
+                      Configurações de Envio
+                    </div>
+                    <div className="pl-6 text-sm grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-muted-foreground">Delay mínimo:</span>
+                        <p className="font-medium">{campaignToSchedule?.min_delay || 5}s</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Delay máximo:</span>
+                        <p className="font-medium">{campaignToSchedule?.max_delay || 20}s</p>
+                      </div>
+                      {throttleEnabled && (
+                        <>
+                          <div>
+                            <span className="text-muted-foreground">Msgs/min:</span>
+                            <p className="font-medium">{throttleRate}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Intervalo:</span>
+                            <p className="font-medium">{throttleDelay}s</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setScheduleDialogOpen(false)
+                setCampaignToSchedule(null)
+              }}
+              disabled={loading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleScheduleCampaign}
+              disabled={loading || !scheduledAt}
+              className="bg-gradient-to-r from-primary to-blue-600"
+            >
+              {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Calendar className="h-4 w-4 mr-2" />
+              Agendar Campanha
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
