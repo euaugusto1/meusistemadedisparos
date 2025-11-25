@@ -138,13 +138,14 @@ export async function GET(request: NextRequest) {
         continue
       }
 
-      const instance = campaign.instance as any
-      if (!instance || !instance.length) {
+      const instanceData = campaign.instance as any
+      // Instance pode ser objeto único (foreign key explícito) ou array
+      const inst = Array.isArray(instanceData) ? instanceData[0] : instanceData
+
+      if (!inst || !inst.id) {
         console.log(`[N8N] SKIP ${campaign.title}: No instance data (foreign key issue?)`)
         continue
       }
-
-      const inst = instance[0]
 
       // Aceita instâncias de produção E de teste
       const isConnected = inst.status === 'connected'
@@ -284,18 +285,23 @@ export async function GET(request: NextRequest) {
           recurrencePattern: campaign.recurrence_pattern,
 
           // WhatsApp Instance info
-          instance: campaign.instance && campaign.instance.length > 0 ? {
-            id: campaign.instance[0].id,
-            name: campaign.instance[0].name,
-            phoneNumber: campaign.instance[0].phone_number,
-            apiToken: campaign.instance[0].api_token,
-            // URL baseada no tipo de instância (teste usa Evolution API, produção usa UAZAPI)
-            apiUrl: campaign.instance[0].is_test
-              ? (process.env.EVOLUTION_API_URL || 'https://dev.evo.sistemabrasil.online')
-              : (process.env.UAZAPI_BASE_URL || 'https://monitor-grupo.uazapi.com'),
-            status: campaign.instance[0].status,
-            isTest: campaign.instance[0].is_test
-          } : null,
+          instance: (() => {
+            const instData = campaign.instance as any
+            const inst = Array.isArray(instData) ? instData[0] : instData
+            if (!inst || !inst.id) return null
+            return {
+              id: inst.id,
+              name: inst.name,
+              phoneNumber: inst.phone_number,
+              apiToken: inst.api_token,
+              // URL baseada no tipo de instância (teste usa Evolution API, produção usa UAZAPI)
+              apiUrl: inst.is_test
+                ? (process.env.EVOLUTION_API_URL || 'https://dev.evo.sistemabrasil.online')
+                : (process.env.UAZAPI_BASE_URL || 'https://monitor-grupo.uazapi.com'),
+              status: inst.status,
+              isTest: inst.is_test
+            }
+          })(),
 
           // Recipients
           recipients: recipients?.map(r => ({
