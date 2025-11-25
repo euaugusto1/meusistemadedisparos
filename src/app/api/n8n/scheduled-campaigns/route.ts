@@ -21,6 +21,18 @@ export async function GET(request: NextRequest) {
     const supabase = createClient()
     const now = new Date().toISOString()
 
+    // First, let's check ALL campaigns to debug
+    const { data: allCampaigns, error: allError } = await supabase
+      .from('campaigns')
+      .select('id, title, status, is_paused, instance_id, schedule_type, scheduled_at')
+      .order('created_at', { ascending: false })
+      .limit(10)
+
+    console.log('[N8N] DEBUG - Last 10 campaigns in database:')
+    allCampaigns?.forEach((c, i) => {
+      console.log(`  ${i + 1}. "${c.title}" - status: ${c.status}, is_paused: ${c.is_paused}, instance_id: ${c.instance_id ? 'SET' : 'NULL'}, schedule_type: ${c.schedule_type}, scheduled_at: ${c.scheduled_at}`)
+    })
+
     // Get scheduled campaigns that are ready to be sent (production instances only)
     const { data: campaigns, error: campaignsError } = await supabase
       .from('campaigns')
@@ -46,6 +58,7 @@ export async function GET(request: NextRequest) {
         user_id,
         suggested_send_time,
         recurrence_pattern,
+        is_paused,
         instance:whatsapp_instances(
           id,
           name,
@@ -65,8 +78,6 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq('status', 'scheduled')
-      .not('is_paused', 'eq', true)
-      .not('instance_id', 'is', null)
       .order('created_at', { ascending: true })
 
     if (campaignsError) {
@@ -87,9 +98,21 @@ export async function GET(request: NextRequest) {
 
     // Filtrar campanhas prontas para envio (produção ou teste)
     const readyCampaigns = campaigns?.filter(campaign => {
+      // Skip paused campaigns
+      if ((campaign as any).is_paused === true) {
+        console.log(`[N8N] SKIP ${campaign.title}: Campaign is paused`)
+        return false
+      }
+
+      // Skip campaigns without instance_id
+      if (!campaign.instance_id) {
+        console.log(`[N8N] SKIP ${campaign.title}: No instance_id`)
+        return false
+      }
+
       const instance = campaign.instance as any
       if (!instance || !instance.length) {
-        console.log(`[N8N] SKIP ${campaign.title}: No instance`)
+        console.log(`[N8N] SKIP ${campaign.title}: No instance data (foreign key issue?)`)
         return false
       }
 
