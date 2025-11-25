@@ -1,5 +1,5 @@
 {
-  "name": "Evolution API Campaign Dispatcher v3.0",
+  "name": "Evolution API Campaign Dispatcher v3.1",
   "nodes": [
     {
       "parameters": {
@@ -212,9 +212,8 @@
     },
     {
       "parameters": {
-        "options": {
-          "reset": false
-        }
+        "batchSize": 1,
+        "options": {}
       },
       "id": "loop-recipients",
       "name": "Loop Recipients",
@@ -519,43 +518,12 @@
       "webhookId": "wait-webhook"
     },
     {
-      "parameters": {
-        "jsCode": "// Verificar se é o último recipient\nconst data = $input.first().json;\nconst isLast = data.currentIndex >= data.totalRecipients;\n\nreturn [{\n  json: {\n    ...data,\n    isLastRecipient: isLast\n  }\n}];"
-      },
-      "id": "check-last",
-      "name": "Check Last Recipient",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "parameters": {},
+      "id": "back-to-loop",
+      "name": "Back to Loop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
       "position": [5060, -240]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "is-last",
-              "leftValue": "={{ $json.isLastRecipient }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "is-last-recipient",
-      "name": "Is Last Recipient?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [5280, -240]
     },
     {
       "parameters": {
@@ -574,7 +542,7 @@
       "name": "Complete Campaign",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [5500, -360],
+      "position": [2420, -480],
       "credentials": {
         "httpHeaderAuth": {
           "id": "n8n-api-key",
@@ -590,7 +558,7 @@
       "name": "Log Complete",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [5720, -360]
+      "position": [2640, -480]
     }
   ],
   "connections": {
@@ -650,6 +618,13 @@
         [
           {
             "node": "Log Campaign Info",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Complete Campaign",
             "type": "main",
             "index": 0
           }
@@ -734,6 +709,13 @@
         [
           {
             "node": "Has Media?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Campaigns",
             "type": "main",
             "index": 0
           }
@@ -901,33 +883,15 @@
       "main": [
         [
           {
-            "node": "Check Last Recipient",
+            "node": "Back to Loop",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Check Last Recipient": {
+    "Back to Loop": {
       "main": [
-        [
-          {
-            "node": "Is Last Recipient?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Is Last Recipient?": {
-      "main": [
-        [
-          {
-            "node": "Complete Campaign",
-            "type": "main",
-            "index": 0
-          }
-        ],
         [
           {
             "node": "Loop Recipients",
@@ -947,17 +911,6 @@
           }
         ]
       ]
-    },
-    "Log Complete": {
-      "main": [
-        [
-          {
-            "node": "Loop Campaigns",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
     }
   },
   "settings": {
@@ -966,9 +919,9 @@
   "staticData": null,
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "campaign-dispatcher-v3"
+    "instanceId": "campaign-dispatcher-v3.1"
   },
   "pinData": {},
-  "versionId": "3.0.0",
+  "versionId": "3.1.0",
   "triggerCount": 1
 }
