@@ -1,5 +1,5 @@
 {
-  "name": "Evolution API - Campaign Dispatcher",
+  "name": "Evolution API Campaign Dispatcher v3.0",
   "nodes": [
     {
       "parameters": {
@@ -15,23 +15,15 @@
       "id": "schedule-trigger",
       "name": "Schedule Trigger (60s)",
       "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.1,
-      "position": [250, 300],
-      "notes": "Executa a cada 60 segundos para verificar campanhas agendadas"
+      "typeVersion": 1.2,
+      "position": [0, 0]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "https://dev.wpp.sistemabrasil.online/api/n8n/scheduled-campaigns",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer SEU_TOKEN_AQUI"
-            }
-          ]
-        },
+        "url": "={{ $vars.NEXT_PUBLIC_APP_URL }}/api/n8n/scheduled-campaigns",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "options": {
           "timeout": 30000
         }
@@ -39,9 +31,14 @@
       "id": "fetch-campaigns",
       "name": "Fetch Scheduled Campaigns",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [450, 300],
-      "notes": "Busca campanhas prontas: scheduled_at <= NOW() e status='scheduled'"
+      "typeVersion": 4.2,
+      "position": [220, 0],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "n8n-api-key",
+          "name": "N8N API Key"
+        }
+      }
     },
     {
       "parameters": {
@@ -53,7 +50,7 @@
           },
           "conditions": [
             {
-              "id": "check-count",
+              "id": "has-campaigns",
               "leftValue": "={{ $json.count }}",
               "rightValue": 0,
               "operator": {
@@ -66,71 +63,88 @@
         },
         "options": {}
       },
-      "id": "check-has-campaigns",
+      "id": "has-campaigns",
       "name": "Has Campaigns?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [650, 300],
-      "notes": "Verifica se count > 0"
+      "position": [440, 0]
+    },
+    {
+      "parameters": {},
+      "id": "no-campaigns",
+      "name": "No Campaigns",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [660, 120]
     },
     {
       "parameters": {
-        "jsCode": "// Extrai campanhas e adiciona log\nconst response = $input.first().json;\nconst campaigns = response.campaigns || [];\n\nif (campaigns.length > 0) {\n  console.log(`\\n========================================`);\n  console.log(`📋 ${campaigns.length} campanha(s) pronta(s) para envio`);\n  console.log(`⏰ Timestamp: ${response.timestamp}`);\n  console.log(`========================================\\n`);\n}\n\nreturn campaigns.map(c => ({ json: c }));"
+        "fieldToSplitOut": "campaigns",
+        "options": {}
       },
       "id": "extract-campaigns",
       "name": "Extract Campaigns",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [850, 200],
-      "notes": "Converte array em items separados"
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [660, -120]
     },
     {
       "parameters": {
-        "batchSize": 1,
-        "options": {}
+        "options": {
+          "reset": false
+        }
       },
-      "id": "split-campaigns",
+      "id": "loop-campaigns",
       "name": "Loop Campaigns",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [1050, 200],
-      "notes": "Processa uma campanha por vez"
+      "position": [880, -120]
     },
     {
       "parameters": {
-        "jsCode": "const c = $input.item.json;\n\nconsole.log(`\\n📤 Iniciando: ${c.title}`);\nconsole.log(`   ID: ${c.campaignId}`);\nconsole.log(`   Tipo: ${c.scheduleType || 'immediate'}`);\nconsole.log(`   Agendado: ${c.scheduledAt || 'Imediato'}`);\nconsole.log(`   Timezone: ${c.timezone || 'America/Sao_Paulo'}`);\nconsole.log(`   Destinatários: ${c.recipients?.length || 0}`);\nif (c.recurrencePattern) {\n  console.log(`   Recorrência: ${c.recurrencePattern.type} (${c.recurrencePattern.interval}x)`);\n}\nconsole.log(`   Throttle: ${c.throttling?.enabled ? `${c.throttling.messagesPerMinute}msg/min` : 'OFF'}`);\n\nreturn $input.item;"
+        "jsCode": "// Log detalhado da campanha\nconst campaign = $input.first().json;\n\nconsole.log('========================================');\nconsole.log(`📤 Iniciando: ${campaign.title}`);\nconsole.log(`   ID: ${campaign.campaignId}`);\nconsole.log(`   Tipo: ${campaign.scheduleType}`);\nconsole.log(`   Agendado: ${campaign.scheduledAt}`);\nconsole.log(`   Timezone: ${campaign.timezone}`);\nconsole.log(`   Destinatários: ${campaign.totalRecipients}`);\nconsole.log(`   Instance: ${campaign.instance?.name} (${campaign.instance?.isTest ? 'TESTE' : 'PRODUÇÃO'})`);\nconsole.log('========================================');\n\nreturn $input.all();"
       },
       "id": "log-campaign",
       "name": "Log Campaign Info",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1250, 200],
-      "notes": "Registra detalhes da campanha"
+      "position": [1100, -120]
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{ $json.campaignId }}/status",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer SEU_TOKEN_AQUI"
-            }
-          ]
-        },
+        "url": "={{ $vars.NEXT_PUBLIC_APP_URL }}/api/n8n/campaigns/{{ $json.campaignId }}/status",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "{\n  \"status\": \"processing\"\n}",
-        "options": {}
+        "options": {
+          "timeout": 30000
+        }
       },
-      "id": "update-status-processing",
+      "id": "status-processing",
       "name": "Status → Processing",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [1450, 200],
-      "notes": "Atualiza status para processing"
+      "typeVersion": 4.2,
+      "position": [1320, -120],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "n8n-api-key",
+          "name": "N8N API Key"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pegar dados da campanha do Loop\nconst loopData = $('Loop Campaigns').first().json;\n\n// Após Status → Processing, a resposta tem campaignId no nível raiz\n// Mas precisamos dos dados completos da campanha\nreturn [{\n  json: {\n    ...loopData,\n    processingStarted: true\n  }\n}];"
+      },
+      "id": "restore-campaign-data",
+      "name": "Restore Campaign Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, -120]
     },
     {
       "parameters": {
@@ -142,8 +156,8 @@
           },
           "conditions": [
             {
-              "id": "check-recipients",
-              "leftValue": "={{ $('Loop Campaigns').item.json.recipients.length }}",
+              "id": "has-recipients",
+              "leftValue": "={{ $json.recipients.length }}",
               "rightValue": 0,
               "operator": {
                 "type": "number",
@@ -155,35 +169,58 @@
         },
         "options": {}
       },
-      "id": "check-has-recipients",
+      "id": "has-recipients",
       "name": "Has Recipients?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1650, 200],
-      "notes": "Verifica se há destinatários pendentes"
+      "position": [1760, -120]
     },
     {
       "parameters": {
-        "jsCode": "// Prepara destinatários com dados da campanha\nconst campaign = $('Loop Campaigns').item.json;\nconst recipients = campaign.recipients || [];\n\n// Calcula delay baseado no throttling\nconst throttling = campaign.throttling || {};\nlet baseDelay = 1000;\n\nif (throttling.enabled && throttling.messagesPerMinute) {\n  baseDelay = Math.ceil(60000 / throttling.messagesPerMinute);\n} else if (throttling.delayBetweenMessages) {\n  baseDelay = throttling.delayBetweenMessages * 1000;\n}\n\nconst minDelay = throttling.minDelay || Math.floor(baseDelay * 0.8);\nconst maxDelay = throttling.maxDelay || Math.ceil(baseDelay * 1.2);\n\nconsole.log(`\\n⏱️ Delay configurado: ${minDelay}-${maxDelay}ms`);\n\nreturn recipients.map((r, i) => ({\n  json: {\n    ...r,\n    campaignId: campaign.campaignId,\n    campaign: {\n      title: campaign.title,\n      message: campaign.message,\n      media: campaign.media,\n      scheduleType: campaign.scheduleType,\n      recurrencePattern: campaign.recurrencePattern\n    },\n    instance: campaign.instance,\n    delay: { min: minDelay, max: maxDelay },\n    progress: { current: i + 1, total: recipients.length }\n  }\n}));"
+        "method": "PATCH",
+        "url": "={{ $vars.NEXT_PUBLIC_APP_URL }}/api/n8n/campaigns/{{ $json.campaignId }}/status",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"status\": \"completed\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "no-recipients-complete",
+      "name": "No Recipients → Complete",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1980, 60],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "n8n-api-key",
+          "name": "N8N API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar recipients com dados da campanha\nconst campaign = $input.first().json;\nconst recipients = campaign.recipients || [];\n\nconst preparedRecipients = recipients.map((recipient, index) => ({\n  // Dados do recipient\n  recipientId: recipient.id,\n  phoneNumber: recipient.phoneNumber,\n  recipientStatus: recipient.status,\n  \n  // Dados da campanha (propagados)\n  campaignId: campaign.campaignId,\n  campaignTitle: campaign.title,\n  campaignMessage: campaign.message,\n  \n  // Dados da instância\n  instanceId: campaign.instance?.id,\n  instanceName: campaign.instance?.name,\n  apiUrl: campaign.instance?.apiUrl,\n  apiToken: campaign.instance?.apiToken,\n  isTest: campaign.instance?.isTest,\n  \n  // Mídia (se existir)\n  media: campaign.media,\n  \n  // Throttling\n  minDelay: campaign.throttling?.minDelay || 1000,\n  maxDelay: campaign.throttling?.maxDelay || 3000,\n  \n  // Progresso\n  currentIndex: index + 1,\n  totalRecipients: recipients.length\n}));\n\nreturn preparedRecipients.map(r => ({ json: r }));"
       },
       "id": "prepare-recipients",
       "name": "Prepare Recipients",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1850, 100],
-      "notes": "Prepara lista com dados de campanha"
+      "position": [1980, -240]
     },
     {
       "parameters": {
-        "batchSize": 1,
-        "options": {}
+        "options": {
+          "reset": false
+        }
       },
-      "id": "split-recipients",
+      "id": "loop-recipients",
       "name": "Loop Recipients",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [2050, 100],
-      "notes": "Processa um por vez"
+      "position": [2200, -240]
     },
     {
       "parameters": {
@@ -195,12 +232,12 @@
           },
           "conditions": [
             {
-              "id": "check-media",
-              "leftValue": "={{ $json.campaign.media }}",
+              "id": "has-media",
+              "leftValue": "={{ $json.media }}",
               "rightValue": "",
               "operator": {
                 "type": "string",
-                "operation": "isNotEmpty"
+                "operation": "notEmpty"
               }
             }
           ],
@@ -208,213 +245,352 @@
         },
         "options": {}
       },
-      "id": "check-has-media",
+      "id": "has-media",
       "name": "Has Media?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [2250, 100],
-      "notes": "Verifica se tem mídia"
+      "position": [2420, -240]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.instance.apiUrl }}/message/sendMedia/{{ $json.instance.name }}",
+        "url": "={{ $json.apiUrl }}/message/sendMedia/{{ $json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "apikey",
-              "value": "={{ $json.instance.apiToken }}"
+              "value": "={{ $json.apiToken }}"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"number\": \"{{ $json.phoneNumber }}\",\n  \"mediatype\": \"image\",\n  \"mimetype\": \"{{ $json.campaign.media.mimeType }}\",\n  \"caption\": \"{{ $json.campaign.message }}\",\n  \"fileName\": \"{{ $json.campaign.media.fileName }}\",\n  \"media\": \"{{ $json.campaign.media.base64 }}\"\n}",
+        "jsonBody": "={\n  \"number\": \"{{ $json.phoneNumber }}\",\n  \"mediatype\": \"{{ $json.media.mimeType.startsWith('image') ? 'image' : 'video' }}\",\n  \"mimetype\": \"{{ $json.media.mimeType }}\",\n  \"caption\": \"{{ $json.campaignMessage }}\",\n  \"media\": \"{{ $json.media.base64 }}\",\n  \"fileName\": \"{{ $json.media.fileName }}\"\n}",
         "options": {
           "timeout": 60000
         }
       },
-      "id": "send-media-message",
+      "id": "send-media",
       "name": "Send Media",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [2450, 0],
-      "notes": "Envia imagem/video via Evolution API",
-      "continueOnFail": true
+      "typeVersion": 4.2,
+      "position": [2640, -360],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "evolution-api-key",
+          "name": "Evolution API Key"
+        }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $('Loop Recipients').item.json.instance.apiUrl }}/message/sendText/{{ $('Loop Recipients').item.json.instance.name }}",
+        "url": "={{ $json.apiUrl }}/message/sendText/{{ $json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "apikey",
-              "value": "={{ $('Loop Recipients').item.json.instance.apiToken }}"
+              "value": "={{ $json.apiToken }}"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"number\": \"{{ $('Loop Recipients').item.json.phoneNumber }}\",\n  \"text\": \"{{ $('Loop Recipients').item.json.campaign.message }}\"\n}",
+        "jsonBody": "={\n  \"number\": \"{{ $json.phoneNumber }}\",\n  \"text\": \"{{ $json.campaignMessage }}\"\n}",
         "options": {
           "timeout": 60000
         }
       },
-      "id": "send-text-message",
+      "id": "send-text",
       "name": "Send Text",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [2450, 150],
-      "notes": "Envia texto via Evolution API",
-      "continueOnFail": true
+      "typeVersion": 4.2,
+      "position": [2640, -120],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "evolution-api-key",
+          "name": "Evolution API Key"
+        }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "mode": "combine",
-        "combineBy": "combineAll",
+        "mergeByFields": {
+          "values": [
+            {
+              "field1": "recipientId",
+              "field2": "recipientId"
+            }
+          ]
+        },
         "options": {}
       },
-      "id": "merge-send-results",
+      "id": "merge-results",
       "name": "Merge Results",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [2650, 75],
-      "notes": "Combina resultado do envio"
+      "position": [2860, -240]
     },
     {
       "parameters": {
-        "jsCode": "// Analisa resultado\nconst result = $input.first().json;\nconst recipient = $('Loop Recipients').item.json;\n\nconst hasError = result.error || result.statusCode >= 400;\nconst status = hasError ? 'failed' : 'sent';\nconst errorMsg = hasError ? (result.error?.message || result.body?.message || 'Erro desconhecido') : null;\n\nconst emoji = hasError ? '❌' : '✅';\nconsole.log(`${emoji} [${recipient.progress.current}/${recipient.progress.total}] ${recipient.phoneNumber}`);\n\nreturn [{\n  json: {\n    recipientId: recipient.id,\n    campaignId: recipient.campaignId,\n    phoneNumber: recipient.phoneNumber,\n    status,\n    errorMessage: errorMsg,\n    sentAt: new Date().toISOString(),\n    delay: recipient.delay\n  }\n}];"
+        "jsCode": "// Analisar resultado do envio\nconst input = $input.first().json;\nconst loopData = $('Loop Recipients').first().json;\n\n// Verificar se houve erro\nconst hasError = input.error || input.code === 400 || input.code === 500 || !input.key;\nconst status = hasError ? 'failed' : 'sent';\nconst errorMessage = hasError ? (input.error || input.message || 'Erro desconhecido') : null;\n\nconsole.log(`${status === 'sent' ? '✅' : '❌'} [${loopData.currentIndex}/${loopData.totalRecipients}] ${loopData.phoneNumber}`);\n\nreturn [{\n  json: {\n    ...loopData,\n    sendResult: input,\n    status,\n    errorMessage\n  }\n}];"
       },
       "id": "analyze-result",
       "name": "Analyze Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2850, 75],
-      "notes": "Determina status sent/failed"
+      "position": [3080, -240]
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaign-items/{{ $json.recipientId }}/status",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer SEU_TOKEN_AQUI"
-            }
-          ]
-        },
+        "url": "={{ $vars.NEXT_PUBLIC_APP_URL }}/api/n8n/campaign-items/{{ $json.recipientId }}/status",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"status\": \"{{ $json.status }}\",\n  \"error_message\": \"{{ $json.errorMessage || '' }}\"\n}",
-        "options": {}
+        "jsonBody": "={\n  \"status\": \"{{ $json.status }}\",\n  \"error_message\": {{ $json.errorMessage ? '\"' + $json.errorMessage + '\"' : 'null' }}\n}",
+        "options": {
+          "timeout": 30000
+        }
       },
       "id": "update-item-status",
       "name": "Update Item Status",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [3050, 75],
-      "notes": "Atualiza status no banco"
+      "typeVersion": 4.2,
+      "position": [3300, -240],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "n8n-api-key",
+          "name": "N8N API Key"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Restaurar dados do loop para próximas operações\nconst loopData = $('Loop Recipients').first().json;\nconst updateResult = $input.first().json;\n\nreturn [{\n  json: {\n    ...loopData,\n    itemUpdateResult: updateResult\n  }\n}];"
+      },
+      "id": "restore-loop-data",
+      "name": "Restore Loop Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3520, -240]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-sent",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "sent",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-sent",
+      "name": "Is Sent?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [3740, -240]
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{ $json.campaignId }}/counters",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer SEU_TOKEN_AQUI"
-            }
-          ]
-        },
+        "url": "={{ $vars.NEXT_PUBLIC_APP_URL }}/api/n8n/campaigns/{{ $json.campaignId }}/counters",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"increment_sent\": {{ $json.status === 'sent' ? 1 : 0 }},\n  \"increment_failed\": {{ $json.status === 'failed' ? 1 : 0 }}\n}",
-        "options": {}
+        "jsonBody": "{\n  \"increment_sent\": 1\n}",
+        "options": {
+          "timeout": 30000
+        }
       },
-      "id": "update-counters",
-      "name": "Update Counters",
+      "id": "increment-sent",
+      "name": "Increment Sent",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [3250, 75],
-      "notes": "Incrementa sent/failed count"
+      "typeVersion": 4.2,
+      "position": [3960, -360],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "n8n-api-key",
+          "name": "N8N API Key"
+        }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "// Delay aleatório anti-detecção\nconst delay = $json.delay || { min: 1000, max: 3000 };\nconst waitMs = Math.floor(Math.random() * (delay.max - delay.min)) + delay.min;\n\nconsole.log(`⏳ Aguardando ${waitMs}ms...`);\n\nreturn [{ json: { ...$json, waitMs } }];"
+        "method": "PATCH",
+        "url": "={{ $vars.NEXT_PUBLIC_APP_URL }}/api/n8n/campaigns/{{ $json.campaignId }}/counters",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"increment_failed\": 1\n}",
+        "options": {
+          "timeout": 30000
+        }
       },
-      "id": "calc-delay",
+      "id": "increment-failed",
+      "name": "Increment Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3960, -120],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "n8n-api-key",
+          "name": "N8N API Key"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "mergeByFields": {
+          "values": [
+            {
+              "field1": "recipientId",
+              "field2": "recipientId"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "merge-counters",
+      "name": "Merge Counters",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [4180, -240]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Restaurar dados para o delay e próximo loop\nconst loopData = $('Loop Recipients').first().json;\n\nreturn [{\n  json: {\n    ...loopData\n  }\n}];"
+      },
+      "id": "prepare-delay",
+      "name": "Prepare Delay",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4400, -240]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calcular delay aleatório\nconst data = $input.first().json;\nconst minDelay = data.minDelay || 1000;\nconst maxDelay = data.maxDelay || 3000;\n\nconst delay = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;\n\nconsole.log(`⏱️ Delay: ${delay}ms`);\n\nreturn [{\n  json: {\n    ...data,\n    calculatedDelay: delay\n  }\n}];"
+      },
+      "id": "calculate-delay",
       "name": "Calculate Delay",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3450, 75],
-      "notes": "Delay aleatório"
+      "position": [4620, -240]
     },
     {
       "parameters": {
-        "amount": "={{ $json.waitMs }}",
+        "amount": "={{ $json.calculatedDelay }}",
         "unit": "milliseconds"
       },
-      "id": "wait-delay",
+      "id": "wait",
       "name": "Wait",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [3650, 75],
-      "webhookId": "wait-delay-webhook",
-      "notes": "Aguarda antes do próximo"
+      "position": [4840, -240],
+      "webhookId": "wait-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verificar se é o último recipient\nconst data = $input.first().json;\nconst isLast = data.currentIndex >= data.totalRecipients;\n\nreturn [{\n  json: {\n    ...data,\n    isLastRecipient: isLast\n  }\n}];"
+      },
+      "id": "check-last",
+      "name": "Check Last Recipient",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5060, -240]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-last",
+              "leftValue": "={{ $json.isLastRecipient }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-last-recipient",
+      "name": "Is Last Recipient?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [5280, -240]
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{ $('Loop Campaigns').item.json.campaignId }}/status",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer SEU_TOKEN_AQUI"
-            }
-          ]
-        },
+        "url": "={{ $vars.NEXT_PUBLIC_APP_URL }}/api/n8n/campaigns/{{ $json.campaignId }}/status",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "{\n  \"status\": \"completed\"\n}",
-        "options": {}
+        "options": {
+          "timeout": 30000
+        }
       },
       "id": "complete-campaign",
       "name": "Complete Campaign",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [1850, 350],
-      "notes": "Marca campanha como completa"
+      "typeVersion": 4.2,
+      "position": [5500, -360],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "n8n-api-key",
+          "name": "N8N API Key"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "console.log('\\n💤 Nenhuma campanha agendada.');\nconsole.log(`⏰ Próxima verificação em 60s...\\n`);\nreturn [];"
+        "jsCode": "// Log de conclusão\nconst data = $input.first().json;\nconsole.log('========================================');\nconsole.log(`✅ Campanha \"${data.title || data.campaignTitle}\" concluída!`);\nconsole.log(`   ID: ${data.campaignId}`);\nconsole.log('========================================');\n\nreturn $input.all();"
       },
-      "id": "no-campaigns",
-      "name": "No Campaigns",
+      "id": "log-complete",
+      "name": "Log Complete",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [850, 400],
-      "notes": "Quando não há campanhas"
-    },
-    {
-      "parameters": {
-        "jsCode": "const c = $('Loop Campaigns').item.json;\nconsole.log(`⚠️ Campanha \"${c.title}\" sem destinatários pendentes.`);\nreturn [{ json: c }];"
-      },
-      "id": "no-recipients",
-      "name": "No Recipients",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1850, 250],
-      "notes": "Sem destinatários pendentes"
+      "position": [5720, -360]
     }
   ],
   "connections": {
@@ -477,13 +653,6 @@
             "type": "main",
             "index": 0
           }
-        ],
-        [
-          {
-            "node": "Complete Campaign",
-            "type": "main",
-            "index": 0
-          }
         ]
       ]
     },
@@ -499,6 +668,17 @@
       ]
     },
     "Status → Processing": {
+      "main": [
+        [
+          {
+            "node": "Restore Campaign Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Campaign Data": {
       "main": [
         [
           {
@@ -520,18 +700,18 @@
         ],
         [
           {
-            "node": "No Recipients",
+            "node": "No Recipients → Complete",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "No Recipients": {
+    "No Recipients → Complete": {
       "main": [
         [
           {
-            "node": "Complete Campaign",
+            "node": "Loop Campaigns",
             "type": "main",
             "index": 0
           }
@@ -554,13 +734,6 @@
         [
           {
             "node": "Has Media?",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Loop Campaigns",
             "type": "main",
             "index": 0
           }
@@ -633,14 +806,76 @@
       "main": [
         [
           {
-            "node": "Update Counters",
+            "node": "Restore Loop Data",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Update Counters": {
+    "Restore Loop Data": {
+      "main": [
+        [
+          {
+            "node": "Is Sent?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Sent?": {
+      "main": [
+        [
+          {
+            "node": "Increment Sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Increment Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Increment Sent": {
+      "main": [
+        [
+          {
+            "node": "Merge Counters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Increment Failed": {
+      "main": [
+        [
+          {
+            "node": "Merge Counters",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Counters": {
+      "main": [
+        [
+          {
+            "node": "Prepare Delay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Delay": {
       "main": [
         [
           {
@@ -666,6 +901,35 @@
       "main": [
         [
           {
+            "node": "Check Last Recipient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Last Recipient": {
+      "main": [
+        [
+          {
+            "node": "Is Last Recipient?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Last Recipient?": {
+      "main": [
+        [
+          {
+            "node": "Complete Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Loop Recipients",
             "type": "main",
             "index": 0
@@ -677,6 +941,17 @@
       "main": [
         [
           {
+            "node": "Log Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Complete": {
+      "main": [
+        [
+          {
             "node": "Loop Campaigns",
             "type": "main",
             "index": 0
@@ -685,32 +960,15 @@
       ]
     }
   },
-  "pinData": {},
   "settings": {
-    "executionOrder": "v1",
-    "saveManualExecutions": true,
-    "callerPolicy": "workflowsFromSameOwner"
+    "executionOrder": "v1"
   },
   "staticData": null,
-  "tags": [
-    {
-      "name": "WhatsApp",
-      "id": "whatsapp-tag"
-    },
-    {
-      "name": "Evolution API",
-      "id": "evolution-tag"
-    },
-    {
-      "name": "Campaign",
-      "id": "campaign-tag"
-    },
-    {
-      "name": "Scheduling",
-      "id": "scheduling-tag"
-    }
-  ],
-  "triggerCount": 1,
-  "updatedAt": "2025-11-25T17:30:00.000Z",
-  "versionId": "3.0"
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "campaign-dispatcher-v3"
+  },
+  "pinData": {},
+  "versionId": "3.0.0",
+  "triggerCount": 1
 }
