@@ -286,7 +286,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Analisa resultado\nconst result = $input.first().json;\nconst recipient = $('Loop Recipients').item.json;\n\nconst hasError = result.error || result.statusCode >= 400;\nconst status = hasError ? 'failed' : 'sent';\nconst errorMsg = hasError ? (result.error?.message || result.body?.message || 'Erro') : null;\n\nconst emoji = hasError ? '❌' : '✅';\nconsole.log(`${emoji} [${recipient.progress.current}/${recipient.progress.total}] ${recipient.phoneNumber}`);\n\nreturn [{\n  json: {\n    recipientId: recipient.id,\n    campaignId: recipient.campaign.id,\n    phoneNumber: recipient.phoneNumber,\n    status,\n    errorMessage: errorMsg,\n    sentAt: new Date().toISOString(),\n    delay: recipient.delay\n  }\n}];"
+        "jsCode": "// Analisa resultado\nconst result = $input.first().json;\nconst recipient = $('Loop Recipients').item.json;\nconst campaign = $('Loop Campaigns').item.json;\n\nconst hasError = result.error || result.statusCode >= 400;\nconst status = hasError ? 'failed' : 'sent';\nconst errorMsg = hasError ? (result.error?.message || result.body?.message || 'Erro') : null;\n\nconst emoji = hasError ? '❌' : '✅';\nconsole.log(`${emoji} [${recipient.progress.current}/${recipient.progress.total}] ${recipient.phoneNumber}`);\n\nreturn [{\n  json: {\n    recipientId: recipient.id,\n    campaignId: campaign.campaignId,\n    phoneNumber: recipient.phoneNumber,\n    status,\n    errorMessage: errorMsg,\n    sentAt: new Date().toISOString(),\n    delay: recipient.delay\n  }\n}];"
       },
       "id": "analyze-result",
       "name": "Analyze Result",
@@ -715,6 +715,6 @@
     }
   ],
   "triggerCount": 1,
-  "updatedAt": "2025-11-25T00:00:00.000Z",
-  "versionId": "2.1"
+  "updatedAt": "2025-11-25T16:00:00.000Z",
+  "versionId": "2.2"
 }
