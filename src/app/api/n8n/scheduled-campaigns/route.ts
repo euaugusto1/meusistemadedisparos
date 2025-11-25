@@ -51,7 +51,6 @@ export async function GET(request: NextRequest) {
           name,
           phone_number,
           api_token,
-          api_url,
           status,
           is_test
         ),
@@ -174,7 +173,10 @@ export async function GET(request: NextRequest) {
             name: campaign.instance[0].name,
             phoneNumber: campaign.instance[0].phone_number,
             apiToken: campaign.instance[0].api_token,
-            apiUrl: campaign.instance[0].api_url,
+            // URL baseada no tipo de instância (teste usa Evolution API, produção usa UAZAPI)
+            apiUrl: campaign.instance[0].is_test
+              ? (process.env.EVOLUTION_API_URL || 'https://dev.evo.sistemabrasil.online')
+              : (process.env.UAZAPI_BASE_URL || 'https://monitor-grupo.uazapi.com'),
             status: campaign.instance[0].status,
             isTest: campaign.instance[0].is_test
           } : null,
