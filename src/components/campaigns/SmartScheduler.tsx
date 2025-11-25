@@ -424,7 +424,7 @@ export function SmartScheduler({
             <div className="grid gap-4 pl-6">
               <div className="space-y-2">
                 <Label htmlFor="throttle-rate">
-                  Máximo de mensagens por minuto: {localThrottleRate}
+                  Máximo de mensagens por minuto: <span className="font-bold text-primary">{localThrottleRate}</span>
                 </Label>
                 <Input
                   id="throttle-rate"
@@ -442,7 +442,7 @@ export function SmartScheduler({
 
               <div className="space-y-2">
                 <Label htmlFor="throttle-delay">
-                  Intervalo entre mensagens: {localThrottleDelay}s
+                  Intervalo entre mensagens: <span className="font-bold text-primary">{localThrottleDelay}s</span>
                 </Label>
                 <Input
                   id="throttle-delay"
@@ -460,6 +460,76 @@ export function SmartScheduler({
             </div>
           )}
         </div>
+
+        {/* Schedule Summary */}
+        {localScheduleType !== 'immediate' && (
+          <div className="p-4 bg-gradient-to-r from-primary/5 to-blue-600/5 rounded-lg border border-primary/20">
+            <div className="flex items-center gap-2 mb-3">
+              <Calendar className="h-4 w-4 text-primary" />
+              <span className="font-semibold text-sm">Resumo do Agendamento</span>
+            </div>
+            <div className="grid gap-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tipo:</span>
+                <span className="font-medium">
+                  {localScheduleType === 'scheduled' && 'Agendado'}
+                  {localScheduleType === 'recurring' && 'Recorrente'}
+                  {localScheduleType === 'smart' && 'Inteligente (IA)'}
+                </span>
+              </div>
+              {(localScheduleType === 'scheduled' || localScheduleType === 'smart') && localDateTime && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Data/Hora:</span>
+                  <span className="font-medium">
+                    {new Date(localDateTime).toLocaleString('pt-BR', {
+                      dateStyle: 'short',
+                      timeStyle: 'short'
+                    })}
+                  </span>
+                </div>
+              )}
+              {localScheduleType === 'recurring' && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Frequência:</span>
+                    <span className="font-medium">
+                      A cada {recurrenceInterval} {
+                        recurrenceType === 'daily' ? 'dia(s)' :
+                        recurrenceType === 'weekly' ? 'semana(s)' : 'mês(es)'
+                      }
+                    </span>
+                  </div>
+                  {recurrenceType === 'weekly' && recurrenceDays.length > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Dias:</span>
+                      <span className="font-medium">
+                        {recurrenceDays.map(d => DAYS_OF_WEEK.find(day => day.value === d)?.label).join(', ')}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Horário:</span>
+                    <span className="font-medium">{recurrenceTime}</span>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Fuso Horário:</span>
+                <span className="font-medium">
+                  {TIMEZONES.find(tz => tz.value === localTimezone)?.label || localTimezone}
+                </span>
+              </div>
+              {localThrottleEnabled && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Throttling:</span>
+                  <span className="font-medium text-green-600 dark:text-green-400">
+                    {localThrottleRate} msg/min • {localThrottleDelay}s delay
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

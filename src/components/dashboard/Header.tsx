@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { User, LogOut, Settings, Crown, CreditCard, Shield, Palette } from 'lucide-react'
+import { User, LogOut, Settings, Crown, CreditCard, Shield, Palette, Key, FileCode2 } from 'lucide-react'
 import { getPlanColor } from '@/lib/utils'
 import { MobileSidebar } from './MobileSidebar'
 import { ThemeSelector } from './ThemeSelector'
@@ -79,7 +79,33 @@ export function Header({ profile }: HeaderProps) {
         )}
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        {/* Admin Quick Actions */}
+        {isAdmin && (
+          <div className="hidden md:flex items-center gap-2">
+            <Link href="/api-docs">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 bg-gradient-to-r from-blue-600/10 to-purple-600/10 border-blue-500/30 hover:border-blue-500/50 hover:bg-blue-600/20 text-blue-400 hover:text-blue-300"
+              >
+                <FileCode2 className="h-3.5 w-3.5" />
+                <span className="hidden lg:inline">API Docs</span>
+              </Button>
+            </Link>
+            <Link href="/admin/api-tokens">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 bg-gradient-to-r from-green-600/10 to-emerald-600/10 border-green-500/30 hover:border-green-500/50 hover:bg-green-600/20 text-green-400 hover:text-green-300"
+              >
+                <Key className="h-3.5 w-3.5" />
+                <span className="hidden lg:inline">Tokens</span>
+              </Button>
+            </Link>
+          </div>
+        )}
+
         {/* Créditos disponíveis */}
         {profile && (
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-primary/10 to-blue-600/10 border border-primary/20 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-105">
@@ -127,12 +153,26 @@ export function Header({ profile }: HeaderProps) {
               Escolher Tema
             </DropdownMenuItem>
             {isAdmin && (
-              <DropdownMenuItem asChild>
-                <Link href="/admin/settings" className="cursor-pointer">
-                  <Shield className="mr-2 h-4 w-4" />
-                  Painel Admin
-                </Link>
-              </DropdownMenuItem>
+              <>
+                <DropdownMenuItem asChild>
+                  <Link href="/admin/settings" className="cursor-pointer">
+                    <Shield className="mr-2 h-4 w-4" />
+                    Painel Admin
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="md:hidden">
+                  <Link href="/api-docs" className="cursor-pointer">
+                    <FileCode2 className="mr-2 h-4 w-4" />
+                    API Docs
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="md:hidden">
+                  <Link href="/admin/api-tokens" className="cursor-pointer">
+                    <Key className="mr-2 h-4 w-4" />
+                    Tokens API
+                  </Link>
+                </DropdownMenuItem>
+              </>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">

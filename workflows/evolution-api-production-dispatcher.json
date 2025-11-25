@@ -1,5 +1,5 @@
 {
-  "name": "Evolution API - Campaign Dispatcher (Production Instances)",
+  "name": "Evolution API - Campaign Dispatcher (Production)",
   "nodes": [
     {
       "parameters": {
@@ -7,56 +7,82 @@
           "interval": [
             {
               "field": "seconds",
-              "secondsInterval": 120
+              "secondsInterval": 60
             }
           ]
         }
       },
       "id": "schedule-trigger",
-      "name": "Schedule Trigger",
+      "name": "Schedule Trigger (60s)",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [250, 300]
+      "position": [250, 300],
+      "notes": "Executa a cada 60 segundos para verificar campanhas agendadas"
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{$env.NEXT_PUBLIC_APP_URL}}/api/n8n/scheduled-campaigns",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "https://dev.wpp.sistemabrasil.online/api/n8n/scheduled-campaigns",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer {{$env.N8N_API_KEY}}"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTYxNDJhMi1kMDIzLTQ1OTYtYWZkMy0xMTI5NTY4MzcyYTAiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYzOTI1OTIyfQ.FccQV_2o06C-xdI6cKC-hqksLbIfOpvC3-5rsVqXsvA"
             }
           ]
         },
-        "options": {}
+        "options": {
+          "timeout": 30000
+        }
       },
       "id": "fetch-campaigns",
-      "name": "Fetch Production Campaigns",
+      "name": "Fetch Scheduled Campaigns",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [450, 300]
+      "position": [450, 300],
+      "notes": "Busca campanhas prontas: scheduled_at <= NOW() e status='scheduled'"
     },
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
             {
-              "value1": "={{$json.campaigns}}",
-              "operation": "isNotEmpty"
+              "id": "check-count",
+              "leftValue": "={{ $json.count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "check-has-campaigns",
       "name": "Has Campaigns?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [650, 300]
+      "typeVersion": 2,
+      "position": [650, 300],
+      "notes": "Verifica se count > 0"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrai campanhas e adiciona log\nconst response = $input.first().json;\nconst campaigns = response.campaigns || [];\n\nif (campaigns.length > 0) {\n  console.log(`\\n========================================`);\n  console.log(`📋 ${campaigns.length} campanha(s) pronta(s) para envio`);\n  console.log(`⏰ Timestamp: ${response.timestamp}`);\n  console.log(`========================================\\n`);\n}\n\nreturn campaigns.map(c => ({ json: c }));"
+      },
+      "id": "extract-campaigns",
+      "name": "Extract Campaigns",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 200],
+      "notes": "Converte array em items separados"
     },
     {
       "parameters": {
@@ -64,53 +90,88 @@
         "options": {}
       },
       "id": "split-campaigns",
-      "name": "Split Campaigns",
+      "name": "Loop Campaigns",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [850, 200]
+      "position": [1050, 200],
+      "notes": "Processa uma campanha por vez"
+    },
+    {
+      "parameters": {
+        "jsCode": "const c = $input.item.json;\n\nconsole.log(`\\n📤 Iniciando: ${c.title}`);\nconsole.log(`   ID: ${c.campaignId}`);\nconsole.log(`   Tipo: ${c.scheduleType || 'immediate'}`);\nconsole.log(`   Agendado: ${c.scheduledAt || 'Imediato'}`);\nconsole.log(`   Timezone: ${c.timezone || 'America/Sao_Paulo'}`);\nconsole.log(`   Destinatários: ${c.recipients?.length || 0}`);\nif (c.recurrencePattern) {\n  console.log(`   Recorrência: ${c.recurrencePattern.type} (${c.recurrencePattern.interval}x)`);\n}\nconsole.log(`   Throttle: ${c.throttling?.enabled ? `${c.throttling.messagesPerMinute}msg/min` : 'OFF'}`);\n\nreturn $input.item;"
+      },
+      "id": "log-campaign",
+      "name": "Log Campaign Info",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 200],
+      "notes": "Registra detalhes da campanha"
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{$env.NEXT_PUBLIC_APP_URL}}/api/n8n/campaigns/{{$json.campaignId}}/status",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{$json.campaignId}}/status",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer {{$env.N8N_API_KEY}}"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTYxNDJhMi1kMDIzLTQ1OTYtYWZkMy0xMTI5NTY4MzcyYTAiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYzOTI1OTIyfQ.FccQV_2o06C-xdI6cKC-hqksLbIfOpvC3-5rsVqXsvA"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"status\": \"processing\"\n}",
+        "jsonBody": "{\n  \"status\": \"processing\",\n  \"started_at\": \"{{ new Date().toISOString() }}\"\n}",
         "options": {}
       },
       "id": "update-status-processing",
-      "name": "Update Status to Processing",
+      "name": "Status → Processing",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1050, 200]
+      "position": [1450, 200],
+      "notes": "Atualiza status para processing"
     },
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
             {
-              "value1": "={{$json.recipients}}",
-              "operation": "isNotEmpty"
+              "id": "check-recipients",
+              "leftValue": "={{ $('Loop Campaigns').item.json.recipients.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "check-has-recipients",
       "name": "Has Recipients?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [1250, 200]
+      "typeVersion": 2,
+      "position": [1650, 200],
+      "notes": "Verifica se há destinatários pendentes"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepara destinatários com dados da campanha\nconst campaign = $('Loop Campaigns').item.json;\nconst recipients = campaign.recipients || [];\n\n// Calcula delay baseado no throttling\nconst throttling = campaign.throttling || {};\nlet baseDelay = 1000;\n\nif (throttling.enabled && throttling.messagesPerMinute) {\n  baseDelay = Math.ceil(60000 / throttling.messagesPerMinute);\n} else if (throttling.delayBetweenMessages) {\n  baseDelay = throttling.delayBetweenMessages * 1000;\n}\n\nconst minDelay = throttling.minDelay || Math.floor(baseDelay * 0.8);\nconst maxDelay = throttling.maxDelay || Math.ceil(baseDelay * 1.2);\n\nconsole.log(`\\n⏱️ Delay configurado: ${minDelay}-${maxDelay}ms`);\n\nreturn recipients.map((r, i) => ({\n  json: {\n    ...r,\n    campaign: {\n      id: campaign.campaignId,\n      title: campaign.title,\n      message: campaign.message,\n      media: campaign.media,\n      scheduleType: campaign.scheduleType,\n      recurrencePattern: campaign.recurrencePattern\n    },\n    instance: campaign.instance,\n    delay: { min: minDelay, max: maxDelay },\n    progress: { current: i + 1, total: recipients.length }\n  }\n}));"
+      },
+      "id": "prepare-recipients",
+      "name": "Prepare Recipients",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1850, 100],
+      "notes": "Prepara lista com dados de campanha"
     },
     {
       "parameters": {
@@ -118,213 +179,257 @@
         "options": {}
       },
       "id": "split-recipients",
-      "name": "Split Recipients",
+      "name": "Loop Recipients",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [1450, 100]
+      "position": [2050, 100],
+      "notes": "Processa um por vez"
     },
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
             {
-              "value1": "={{$('Split Campaigns').item.json.media}}",
-              "operation": "isNotEmpty"
+              "id": "check-media",
+              "leftValue": "={{ $json.campaign.media }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "check-has-media",
       "name": "Has Media?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [1650, 100]
+      "typeVersion": 2,
+      "position": [2250, 100],
+      "notes": "Verifica se tem mídia"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{$('Split Campaigns').item.json.instance.apiUrl}}/message/sendMedia/{{$('Split Campaigns').item.json.instance.name}}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "={{ $json.instance.apiUrl }}/message/sendMedia/{{ $json.instance.name }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "apikey",
-              "value": "={{$('Split Campaigns').item.json.instance.apiToken}}"
+              "value": "={{ $json.instance.apiToken }}"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"number\": \"{{$('Split Recipients').item.json.phoneNumber}}\",\n  \"mediatype\": \"image\",\n  \"mimetype\": \"{{$('Split Campaigns').item.json.media.mimeType}}\",\n  \"caption\": \"{{$('Split Campaigns').item.json.message}}\",\n  \"fileName\": \"{{$('Split Campaigns').item.json.media.fileName}}\",\n  \"media\": \"{{$('Split Campaigns').item.json.media.base64}}\",\n  \"delay\": {{$('Split Campaigns').item.json.throttling.delayBetweenMessages || 1200}}\n}",
+        "jsonBody": "={\n  \"number\": \"{{ $json.phoneNumber }}\",\n  \"mediatype\": \"image\",\n  \"mimetype\": \"{{ $json.campaign.media.mimeType }}\",\n  \"caption\": \"{{ $json.campaign.message }}\",\n  \"fileName\": \"{{ $json.campaign.media.fileName }}\",\n  \"media\": \"{{ $json.campaign.media.base64 }}\"\n}",
         "options": {
-          "timeout": 30000
+          "timeout": 60000
         }
       },
       "id": "send-media-message",
-      "name": "Send Media Message",
+      "name": "Send Media",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1850, 50]
+      "position": [2450, 0],
+      "notes": "Envia imagem/video via Evolution API",
+      "continueOnFail": true
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{$('Split Campaigns').item.json.instance.apiUrl}}/message/sendText/{{$('Split Campaigns').item.json.instance.name}}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "={{ $('Loop Recipients').item.json.instance.apiUrl }}/message/sendText/{{ $('Loop Recipients').item.json.instance.name }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "apikey",
-              "value": "={{$('Split Campaigns').item.json.instance.apiToken}}"
+              "value": "={{ $('Loop Recipients').item.json.instance.apiToken }}"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"number\": \"{{$('Split Recipients').item.json.phoneNumber}}\",\n  \"text\": \"{{$('Split Campaigns').item.json.message}}\",\n  \"delay\": {{$('Split Campaigns').item.json.throttling.delayBetweenMessages || 1200}}\n}",
+        "jsonBody": "={\n  \"number\": \"{{ $('Loop Recipients').item.json.phoneNumber }}\",\n  \"text\": \"{{ $('Loop Recipients').item.json.campaign.message }}\"\n}",
         "options": {
-          "timeout": 30000
+          "timeout": 60000
         }
       },
       "id": "send-text-message",
-      "name": "Send Text Message",
+      "name": "Send Text",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1850, 150]
+      "position": [2450, 150],
+      "notes": "Envia texto via Evolution API",
+      "continueOnFail": true
     },
     {
       "parameters": {
         "mode": "combine",
-        "combinationMode": "mergeByPosition",
+        "combineBy": "combineAll",
         "options": {}
       },
       "id": "merge-send-results",
-      "name": "Merge Send Results",
+      "name": "Merge Results",
       "type": "n8n-nodes-base.merge",
-      "typeVersion": 2.1,
-      "position": [2050, 100]
+      "typeVersion": 3,
+      "position": [2650, 75],
+      "notes": "Combina resultado do envio"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analisa resultado\nconst result = $input.first().json;\nconst recipient = $('Loop Recipients').item.json;\n\nconst hasError = result.error || result.statusCode >= 400;\nconst status = hasError ? 'failed' : 'sent';\nconst errorMsg = hasError ? (result.error?.message || result.body?.message || 'Erro') : null;\n\nconst emoji = hasError ? '❌' : '✅';\nconsole.log(`${emoji} [${recipient.progress.current}/${recipient.progress.total}] ${recipient.phoneNumber}`);\n\nreturn [{\n  json: {\n    recipientId: recipient.id,\n    campaignId: recipient.campaign.id,\n    phoneNumber: recipient.phoneNumber,\n    status,\n    errorMessage: errorMsg,\n    sentAt: new Date().toISOString(),\n    delay: recipient.delay\n  }\n}];"
+      },
+      "id": "analyze-result",
+      "name": "Analyze Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2850, 75],
+      "notes": "Determina status sent/failed"
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{$env.NEXT_PUBLIC_APP_URL}}/api/n8n/campaign-items/{{$('Split Recipients').item.json.id}}/status",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaign-items/{{$json.recipientId}}/status",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer {{$env.N8N_API_KEY}}"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTYxNDJhMi1kMDIzLTQ1OTYtYWZkMy0xMTI5NTY4MzcyYTAiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYzOTI1OTIyfQ.FccQV_2o06C-xdI6cKC-hqksLbIfOpvC3-5rsVqXsvA"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"status\": \"{{$json.error ? 'failed' : 'sent'}}\",\n  \"error_message\": \"{{$json.error || null}}\",\n  \"response_data\": {{$json}}\n}",
+        "jsonBody": "={\n  \"status\": \"{{ $json.status }}\",\n  \"error_message\": {{ $json.errorMessage ? '\"' + $json.errorMessage + '\"' : 'null' }},\n  \"sent_at\": \"{{ $json.sentAt }}\"\n}",
         "options": {}
       },
       "id": "update-item-status",
       "name": "Update Item Status",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2250, 100]
+      "position": [3050, 75],
+      "notes": "Atualiza status no banco"
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{$env.NEXT_PUBLIC_APP_URL}}/api/n8n/campaigns/{{$('Split Campaigns').item.json.campaignId}}/counters",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{$json.campaignId}}/counters",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer {{$env.N8N_API_KEY}}"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTYxNDJhMi1kMDIzLTQ1OTYtYWZkMy0xMTI5NTY4MzcyYTAiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYzOTI1OTIyfQ.FccQV_2o06C-xdI6cKC-hqksLbIfOpvC3-5rsVqXsvA"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"increment_sent\": {{$('Merge Send Results').item.json.error ? 0 : 1}},\n  \"increment_failed\": {{$('Merge Send Results').item.json.error ? 1 : 0}}\n}",
+        "jsonBody": "={\n  \"increment_sent\": {{ $json.status === 'sent' ? 1 : 0 }},\n  \"increment_failed\": {{ $json.status === 'failed' ? 1 : 0 }}\n}",
         "options": {}
       },
       "id": "update-counters",
-      "name": "Update Campaign Counters",
+      "name": "Update Counters",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2450, 100]
+      "position": [3250, 75],
+      "notes": "Incrementa sent/failed count"
     },
     {
       "parameters": {
-        "amount": "={{Math.floor(Math.random() * ({{$('Split Campaigns').item.json.throttling.maxDelay}} - {{$('Split Campaigns').item.json.throttling.minDelay}}) + {{$('Split Campaigns').item.json.throttling.minDelay}})}}",
-        "unit": "seconds"
+        "jsCode": "// Delay aleatório anti-detecção\nconst delay = $json.delay || { min: 1000, max: 3000 };\nconst waitMs = Math.floor(Math.random() * (delay.max - delay.min)) + delay.min;\n\nconsole.log(`⏳ Aguardando ${waitMs}ms...`);\n\nreturn [{ json: { ...$json, waitMs } }];"
       },
-      "id": "random-delay",
-      "name": "Random Delay (Configurable)",
+      "id": "calc-delay",
+      "name": "Calculate Delay",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3450, 75],
+      "notes": "Delay aleatório"
+    },
+    {
+      "parameters": {
+        "amount": "={{ $json.waitMs }}",
+        "unit": "milliseconds"
+      },
+      "id": "wait-delay",
+      "name": "Wait",
       "type": "n8n-nodes-base.wait",
-      "typeVersion": 1,
-      "position": [2650, 100],
-      "webhookId": "random-delay-webhook"
+      "typeVersion": 1.1,
+      "position": [3650, 75],
+      "webhookId": "wait-delay-webhook",
+      "notes": "Aguarda antes do próximo"
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{$env.NEXT_PUBLIC_APP_URL}}/api/n8n/campaigns/{{$('Split Campaigns').item.json.campaignId}}/complete",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{$('Loop Campaigns').item.json.campaignId}}/complete",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer {{$env.N8N_API_KEY}}"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTYxNDJhMi1kMDIzLTQ1OTYtYWZkMy0xMTI5NTY4MzcyYTAiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYzOTI1OTIyfQ.FccQV_2o06C-xdI6cKC-hqksLbIfOpvC3-5rsVqXsvA"
             }
           ]
         },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"completed_at\": \"{{ new Date().toISOString() }}\",\n  \"schedule_type\": \"{{ $('Loop Campaigns').item.json.scheduleType || 'immediate' }}\"\n}",
         "options": {}
       },
       "id": "complete-campaign",
       "name": "Complete Campaign",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1650, 300]
+      "position": [1650, 350],
+      "notes": "Marca campanha como completa"
     },
     {
-      "parameters": {},
-      "id": "no-op-end",
+      "parameters": {
+        "jsCode": "console.log('\\n💤 Nenhuma campanha agendada.');\nconsole.log(`⏰ Próxima verificação em 60s...\\n`);\nreturn [];"
+      },
+      "id": "no-campaigns",
       "name": "No Campaigns",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [850, 400]
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400],
+      "notes": "Quando não há campanhas"
     },
     {
-      "parameters": {},
-      "id": "no-op-no-recipients",
+      "parameters": {
+        "jsCode": "const c = $('Loop Campaigns').item.json;\nconsole.log(`⚠️ Campanha \"${c.title}\" sem destinatários pendentes.`);\nreturn [{ json: c }];"
+      },
+      "id": "no-recipients",
       "name": "No Recipients",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [1450, 300]
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1850, 300],
+      "notes": "Sem destinatários pendentes"
     }
   ],
   "connections": {
-    "Schedule Trigger": {
+    "Schedule Trigger (60s)": {
       "main": [
         [
           {
-            "node": "Fetch Production Campaigns",
+            "node": "Fetch Scheduled Campaigns",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Fetch Production Campaigns": {
+    "Fetch Scheduled Campaigns": {
       "main": [
         [
           {
@@ -339,7 +444,7 @@
       "main": [
         [
           {
-            "node": "Split Campaigns",
+            "node": "Extract Campaigns",
             "type": "main",
             "index": 0
           }
@@ -353,11 +458,22 @@
         ]
       ]
     },
-    "Split Campaigns": {
+    "Extract Campaigns": {
       "main": [
         [
           {
-            "node": "Update Status to Processing",
+            "node": "Loop Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Campaigns": {
+      "main": [
+        [
+          {
+            "node": "Log Campaign Info",
             "type": "main",
             "index": 0
           }
@@ -371,7 +487,18 @@
         ]
       ]
     },
-    "Update Status to Processing": {
+    "Log Campaign Info": {
+      "main": [
+        [
+          {
+            "node": "Status → Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status → Processing": {
       "main": [
         [
           {
@@ -386,7 +513,7 @@
       "main": [
         [
           {
-            "node": "Split Recipients",
+            "node": "Prepare Recipients",
             "type": "main",
             "index": 0
           }
@@ -400,11 +527,40 @@
         ]
       ]
     },
-    "Split Recipients": {
+    "No Recipients": {
+      "main": [
+        [
+          {
+            "node": "Complete Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Recipients": {
+      "main": [
+        [
+          {
+            "node": "Loop Recipients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Recipients": {
       "main": [
         [
           {
             "node": "Has Media?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Campaigns",
             "type": "main",
             "index": 0
           }
@@ -415,43 +571,54 @@
       "main": [
         [
           {
-            "node": "Send Media Message",
+            "node": "Send Media",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Send Text Message",
+            "node": "Send Text",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send Media Message": {
+    "Send Media": {
       "main": [
         [
           {
-            "node": "Merge Send Results",
+            "node": "Merge Results",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send Text Message": {
+    "Send Text": {
       "main": [
         [
           {
-            "node": "Merge Send Results",
+            "node": "Merge Results",
             "type": "main",
             "index": 1
           }
         ]
       ]
     },
-    "Merge Send Results": {
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Analyze Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Result": {
       "main": [
         [
           {
@@ -466,29 +633,40 @@
       "main": [
         [
           {
-            "node": "Update Campaign Counters",
+            "node": "Update Counters",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Update Campaign Counters": {
+    "Update Counters": {
       "main": [
         [
           {
-            "node": "Random Delay (Configurable)",
+            "node": "Calculate Delay",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Random Delay (Configurable)": {
+    "Calculate Delay": {
       "main": [
         [
           {
-            "node": "Split Recipients",
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Recipients",
             "type": "main",
             "index": 0
           }
@@ -498,7 +676,9 @@
   },
   "pinData": {},
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
   },
   "staticData": null,
   "tags": [
@@ -517,9 +697,13 @@
     {
       "name": "Production",
       "id": "production-tag"
+    },
+    {
+      "name": "Scheduling",
+      "id": "scheduling-tag"
     }
   ],
   "triggerCount": 1,
-  "updatedAt": "2025-01-27T00:00:00.000Z",
-  "versionId": "1"
+  "updatedAt": "2025-11-25T00:00:00.000Z",
+  "versionId": "2.1"
 }

@@ -44,6 +44,21 @@ export interface Plan {
   updated_at: string
 }
 
+// API Token
+export interface ApiToken {
+  id: string
+  user_id: string
+  token: string
+  name: string
+  description: string | null
+  scopes: string[]
+  expires_at: string | null
+  last_used_at: string | null
+  created_at: string
+  updated_at: string
+  is_active: boolean
+}
+
 // System Settings
 export interface SystemSetting {
   id: string

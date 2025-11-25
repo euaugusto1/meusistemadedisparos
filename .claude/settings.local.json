@@ -21,7 +21,8 @@
       "Bash(git rm:*)",
       "Bash(npm install:*)",
       "Bash(del:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(Get-Date -Format \"yyyyMMddHHmmss\")"
     ],
     "deny": [],
     "ask": []
