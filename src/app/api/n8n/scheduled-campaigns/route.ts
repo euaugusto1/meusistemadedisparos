@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
           file_name,
           original_name,
           mime_type,
-          file_size,
+          size_bytes,
           public_url,
           storage_path
         )
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
               mediaInfo = {
                 fileName: campaign.media[0].original_name,
                 mimeType: campaign.media[0].mime_type,
-                fileSize: campaign.media[0].file_size,
+                fileSize: campaign.media[0].size_bytes,
                 base64: mediaBase64
               }
             }
