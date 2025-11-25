@@ -34,6 +34,8 @@ export default function CampaignsPage() {
 
     // Subscribe to realtime updates on campaigns table
     const supabase = createClient()
+    let debounceTimer: NodeJS.Timeout | null = null
+
     const channel = supabase
       .channel('campaigns-realtime')
       .on(
@@ -45,13 +47,22 @@ export default function CampaignsPage() {
         },
         (payload) => {
           console.log('[Realtime] Campaign change:', payload.eventType, payload)
-          // Refetch all campaigns to get updated data with relations
-          fetchCampaigns()
+
+          // Debounce to avoid excessive re-renders
+          if (debounceTimer) {
+            clearTimeout(debounceTimer)
+          }
+          debounceTimer = setTimeout(() => {
+            fetchCampaigns()
+          }, 500) // Wait 500ms before fetching
         }
       )
       .subscribe()
 
     return () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer)
+      }
       supabase.removeChannel(channel)
     }
   }, [fetchCampaigns])

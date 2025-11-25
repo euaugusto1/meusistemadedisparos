@@ -148,6 +148,8 @@ export interface MediaFile {
   mime_type: string
   type: MediaType
   size_bytes: number
+  deletion_requested_at: string | null
+  deletion_requested_by: string | null
   created_at: string
 }
 

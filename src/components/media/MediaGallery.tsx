@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
@@ -37,7 +37,13 @@ import {
   Grid,
   List,
   Loader2,
+  Pencil,
+  X,
+  Save,
+  AlertTriangle,
+  Clock,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { formatBytes, formatDate } from '@/lib/utils'
 import type { MediaFile, MediaType, Profile } from '@/types'
 
@@ -56,6 +62,10 @@ const MEDIA_ICONS: Record<MediaType, typeof ImageIcon> = {
   document: FileText,
 }
 
+// Limite de tamanho de arquivo: 50MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB em bytes
+const MAX_FILE_SIZE_LABEL = '50MB'
+
 export function MediaGallery({
   media: initialMedia,
   profile,
@@ -67,12 +77,59 @@ export function MediaGallery({
   const [uploading, setUploading] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<MediaFile | null>(null)
+  const [deleteRequestConfirm, setDeleteRequestConfirm] = useState<MediaFile | null>(null)
+  const [requestingDeletion, setRequestingDeletion] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [previewMedia, setPreviewMedia] = useState<MediaFile | null>(null)
 
+  // Estados para renomear
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [newName, setNewName] = useState('')
+  const [savingRename, setSavingRename] = useState(false)
+
   const isAdmin = profile?.role === 'admin'
+  const userId = profile?.id
+
+  // Verifica se o usuário pode editar/renomear o arquivo (admin ou dono do arquivo)
+  const canEditFile = (file: MediaFile) => isAdmin || file.user_id === userId
+
+  // Realtime subscription
+  useEffect(() => {
+    const supabase = createClient()
+    let debounceTimer: NodeJS.Timeout | null = null
+
+    const channel = supabase
+      .channel('media-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'media_files'
+        },
+        (payload) => {
+          console.log('[Realtime] Media change:', payload.eventType)
+
+          // Debounce para evitar re-renders excessivos
+          if (debounceTimer) {
+            clearTimeout(debounceTimer)
+          }
+          debounceTimer = setTimeout(() => {
+            reloadMedia()
+          }, 500)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer)
+      }
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
   // Função para sincronizar arquivos do bucket com o banco
   const syncFromBucket = async () => {
@@ -164,9 +221,63 @@ export function MediaGallery({
     }
   }
 
+  // Função para renomear arquivo
+  const handleRename = async (mediaFile: MediaFile) => {
+    if (!newName.trim() || newName === mediaFile.original_name) {
+      setRenamingId(null)
+      setNewName('')
+      return
+    }
+
+    setSavingRename(true)
+    const supabase = createClient()
+
+    try {
+      const { error } = await supabase
+        .from('media_files')
+        .update({ original_name: newName.trim() })
+        .eq('id', mediaFile.id)
+
+      if (error) throw error
+
+      toast.success('Arquivo renomeado com sucesso!')
+      setRenamingId(null)
+      setNewName('')
+      await reloadMedia()
+    } catch (error) {
+      console.error('Error renaming file:', error)
+      toast.error('Erro ao renomear arquivo')
+    } finally {
+      setSavingRename(false)
+    }
+  }
+
+  // Iniciar renomeação
+  const startRename = (mediaFile: MediaFile, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    setRenamingId(mediaFile.id)
+    setNewName(mediaFile.original_name)
+  }
+
+  // Cancelar renomeação
+  const cancelRename = (e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    setRenamingId(null)
+    setNewName('')
+  }
+
   // Upload de arquivos
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return
+
+    // Validar tamanho dos arquivos
+    const oversizedFiles = acceptedFiles.filter(file => file.size > MAX_FILE_SIZE)
+    if (oversizedFiles.length > 0) {
+      toast.error(`Arquivo(s) muito grande(s)! Limite: ${MAX_FILE_SIZE_LABEL}`, {
+        description: oversizedFiles.map(f => `${f.name} (${formatBytes(f.size)})`).join(', ')
+      })
+      return
+    }
 
     setUploading(true)
     const supabase = createClient()
@@ -174,10 +285,13 @@ export function MediaGallery({
     // Get current user
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      alert('Você precisa estar logado para fazer upload de arquivos')
+      toast.error('Você precisa estar logado para fazer upload de arquivos')
       setUploading(false)
       return
     }
+
+    let successCount = 0
+    let errorCount = 0
 
     for (const file of acceptedFiles) {
       try {
@@ -231,15 +345,25 @@ export function MediaGallery({
         }
 
         console.log('Database insert success:', dbData)
+        successCount++
       } catch (error) {
         console.error('Error uploading file:', error)
-        alert(`Erro ao enviar arquivo: ${error instanceof Error ? error.message : 'Erro desconhecido'}`)
+        errorCount++
       }
     }
 
     setUploading(false)
     await reloadMedia()
     onUploadComplete?.()
+
+    // Mostrar resultado
+    if (successCount > 0 && errorCount === 0) {
+      toast.success(`${successCount} arquivo(s) enviado(s) com sucesso!`)
+    } else if (successCount > 0 && errorCount > 0) {
+      toast.warning(`${successCount} enviado(s), ${errorCount} erro(s)`)
+    } else if (errorCount > 0) {
+      toast.error(`Erro ao enviar ${errorCount} arquivo(s)`)
+    }
   }, [onUploadComplete])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -250,6 +374,7 @@ export function MediaGallery({
       'audio/*': ['.mp3', '.wav', '.ogg'],
       'application/pdf': ['.pdf'],
     },
+    maxSize: MAX_FILE_SIZE,
   })
 
   // Deletar mídia (apenas admin)
@@ -266,13 +391,76 @@ export function MediaGallery({
       // Deletar do banco
       await supabase.from('media_files').delete().eq('id', mediaFile.id)
 
+      toast.success('Arquivo excluído com sucesso!')
       await reloadMedia()
       onUploadComplete?.()
     } catch (error) {
       console.error('Error deleting file:', error)
+      toast.error('Erro ao excluir arquivo')
     } finally {
       setDeleting(null)
       setDeleteConfirm(null)
+    }
+  }
+
+  // Solicitar exclusão (usuário cliente)
+  const handleRequestDeletion = async (mediaFile: MediaFile) => {
+    setRequestingDeletion(mediaFile.id)
+    const supabase = createClient()
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error('Você precisa estar logado')
+        return
+      }
+
+      const { error } = await supabase
+        .from('media_files')
+        .update({
+          deletion_requested_at: new Date().toISOString(),
+          deletion_requested_by: user.id
+        })
+        .eq('id', mediaFile.id)
+
+      if (error) throw error
+
+      toast.success('Solicitação de exclusão enviada!', {
+        description: 'Um administrador irá analisar sua solicitação.'
+      })
+      await reloadMedia()
+    } catch (error) {
+      console.error('Error requesting deletion:', error)
+      toast.error('Erro ao solicitar exclusão')
+    } finally {
+      setRequestingDeletion(null)
+      setDeleteRequestConfirm(null)
+    }
+  }
+
+  // Cancelar solicitação de exclusão
+  const handleCancelDeletionRequest = async (mediaFile: MediaFile) => {
+    setRequestingDeletion(mediaFile.id)
+    const supabase = createClient()
+
+    try {
+      const { error } = await supabase
+        .from('media_files')
+        .update({
+          deletion_requested_at: null,
+          deletion_requested_by: null
+        })
+        .eq('id', mediaFile.id)
+
+      if (error) throw error
+
+      toast.success('Solicitação de exclusão cancelada!')
+      await reloadMedia()
+    } catch (error) {
+      console.error('Error canceling deletion request:', error)
+      toast.error('Erro ao cancelar solicitação')
+    } finally {
+      setRequestingDeletion(null)
     }
   }
 
@@ -319,7 +507,7 @@ export function MediaGallery({
               ou clique para selecionar
             </p>
             <p className="text-xs text-muted-foreground mt-2">
-              Imagens, vídeos, áudios e PDFs
+              Imagens, vídeos, áudios e PDFs (máx. {MAX_FILE_SIZE_LABEL})
             </p>
           </div>
         )}
@@ -398,11 +586,55 @@ export function MediaGallery({
                   )}
 
                   <div className="p-3">
-                    <p className="text-sm font-medium truncate">{item.original_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatBytes(item.size_bytes)}
-                    </p>
+                    {renamingId === item.id ? (
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Input
+                          value={newName}
+                          onChange={(e) => setNewName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleRename(item)
+                            if (e.key === 'Escape') cancelRename()
+                          }}
+                          className="h-7 text-sm"
+                          autoFocus
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => handleRename(item)}
+                          disabled={savingRename}
+                        >
+                          {savingRename ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={cancelRename}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm font-medium truncate">{item.original_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatBytes(item.size_bytes)}
+                        </p>
+                      </>
+                    )}
                   </div>
+
+                  {/* Badge de solicitação pendente */}
+                  {item.deletion_requested_at && (
+                    <div className="absolute top-2 right-2 z-10">
+                      <Badge variant="destructive" className="flex items-center gap-1 text-xs">
+                        <Clock className="h-3 w-3" />
+                        Exclusão solicitada
+                      </Badge>
+                    </div>
+                  )}
 
                   {/* Actions Overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
@@ -420,7 +652,17 @@ export function MediaGallery({
                         <Copy className="h-4 w-4" />
                       )}
                     </Button>
-                    {isAdmin && (
+                    {canEditFile(item) && (
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        onClick={(e) => startRename(item, e)}
+                        title="Renomear"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {isAdmin ? (
                       <Button
                         size="icon"
                         variant="destructive"
@@ -429,6 +671,7 @@ export function MediaGallery({
                           setDeleteConfirm(item)
                         }}
                         disabled={deleting === item.id}
+                        title="Excluir arquivo"
                       >
                         {deleting === item.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -436,6 +679,43 @@ export function MediaGallery({
                           <Trash2 className="h-4 w-4" />
                         )}
                       </Button>
+                    ) : canEditFile(item) && (
+                      item.deletion_requested_at ? (
+                        <Button
+                          size="icon"
+                          variant="secondary"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleCancelDeletionRequest(item)
+                          }}
+                          disabled={requestingDeletion === item.id}
+                          title="Cancelar solicitação"
+                        >
+                          {requestingDeletion === item.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <X className="h-4 w-4" />
+                          )}
+                        </Button>
+                      ) : (
+                        <Button
+                          size="icon"
+                          variant="secondary"
+                          className="hover:bg-destructive hover:text-destructive-foreground"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setDeleteRequestConfirm(item)
+                          }}
+                          disabled={requestingDeletion === item.id}
+                          title="Solicitar exclusão"
+                        >
+                          {requestingDeletion === item.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <AlertTriangle className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )
                     )}
                   </div>
                 </CardContent>
@@ -467,19 +747,61 @@ export function MediaGallery({
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{item.original_name}</p>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Badge className={
-                        item.type === 'image' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' :
-                        item.type === 'video' ? 'bg-purple-500/10 text-purple-600 border-purple-500/20' :
-                        item.type === 'audio' ? 'bg-green-500/10 text-green-600 border-green-500/20' :
-                        'bg-orange-500/10 text-orange-600 border-orange-500/20'
-                      }>
-                        {item.type}
-                      </Badge>
-                      <span>{formatBytes(item.size_bytes)}</span>
-                      <span>{formatDate(item.created_at)}</span>
-                    </div>
+                    {renamingId === item.id ? (
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Input
+                          value={newName}
+                          onChange={(e) => setNewName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleRename(item)
+                            if (e.key === 'Escape') cancelRename()
+                          }}
+                          className="h-8"
+                          autoFocus
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          onClick={() => handleRename(item)}
+                          disabled={savingRename}
+                        >
+                          {savingRename ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          onClick={cancelRename}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium truncate">{item.original_name}</p>
+                          {item.deletion_requested_at && (
+                            <Badge variant="destructive" className="flex items-center gap-1 text-xs">
+                              <Clock className="h-3 w-3" />
+                              Exclusão solicitada
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Badge className={
+                            item.type === 'image' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' :
+                            item.type === 'video' ? 'bg-purple-500/10 text-purple-600 border-purple-500/20' :
+                            item.type === 'audio' ? 'bg-green-500/10 text-green-600 border-green-500/20' :
+                            'bg-orange-500/10 text-orange-600 border-orange-500/20'
+                          }>
+                            {item.type}
+                          </Badge>
+                          <span>{formatBytes(item.size_bytes)}</span>
+                          <span>{formatDate(item.created_at)}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -497,7 +819,17 @@ export function MediaGallery({
                         <Copy className="h-4 w-4" />
                       )}
                     </Button>
-                    {isAdmin && (
+                    {canEditFile(item) && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={(e) => startRename(item, e)}
+                        title="Renomear"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {isAdmin ? (
                       <Button
                         size="icon"
                         variant="ghost"
@@ -506,6 +838,7 @@ export function MediaGallery({
                           setDeleteConfirm(item)
                         }}
                         disabled={deleting === item.id}
+                        title="Excluir arquivo"
                       >
                         {deleting === item.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -513,6 +846,43 @@ export function MediaGallery({
                           <Trash2 className="h-4 w-4 text-destructive" />
                         )}
                       </Button>
+                    ) : canEditFile(item) && (
+                      item.deletion_requested_at ? (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleCancelDeletionRequest(item)
+                          }}
+                          disabled={requestingDeletion === item.id}
+                          title="Cancelar solicitação"
+                        >
+                          {requestingDeletion === item.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <X className="h-4 w-4" />
+                          )}
+                        </Button>
+                      ) : (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="hover:bg-destructive hover:text-destructive-foreground"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setDeleteRequestConfirm(item)
+                          }}
+                          disabled={requestingDeletion === item.id}
+                          title="Solicitar exclusão"
+                        >
+                          {requestingDeletion === item.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <AlertTriangle className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )
                     )}
                   </div>
                 </CardContent>
@@ -522,7 +892,7 @@ export function MediaGallery({
         </div>
       )}
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog (Admin) */}
       <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -539,6 +909,33 @@ export function MediaGallery({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Request Confirmation Dialog (User) */}
+      <AlertDialog open={!!deleteRequestConfirm} onOpenChange={() => setDeleteRequestConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Solicitar Exclusão
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Você está solicitando a exclusão do arquivo "{deleteRequestConfirm?.original_name}".
+              <br /><br />
+              Um administrador irá analisar sua solicitação e poderá aprovar ou recusar a exclusão.
+              Você pode cancelar esta solicitação a qualquer momento enquanto ela estiver pendente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteRequestConfirm && handleRequestDeletion(deleteRequestConfirm)}
+              className="bg-amber-600 text-white hover:bg-amber-700"
+            >
+              Solicitar Exclusão
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
