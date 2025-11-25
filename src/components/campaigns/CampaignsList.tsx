@@ -685,72 +685,175 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
 
       {/* Campaign Details Dialog */}
       <Dialog open={!!viewCampaign} onOpenChange={() => setViewCampaign(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{viewCampaign?.title}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              {viewCampaign?.title}
+            </DialogTitle>
             <DialogDescription>
-              Detalhes da campanha
+              Detalhes completos da campanha
             </DialogDescription>
           </DialogHeader>
 
           {viewCampaign && (
-            <div className="space-y-4">
+            <div className="space-y-6">
+              {/* Status e Instância */}
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Status</label>
-                  <p className="font-medium">{STATUS_LABELS[viewCampaign.status]}</p>
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge className={getStatusColor(viewCampaign.status)}>
+                      {STATUS_LABELS[viewCampaign.status]}
+                    </Badge>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Instância</label>
-                  <p className="font-medium">{(viewCampaign as any).instance?.name || 'N/A'}</p>
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                    <Smartphone className="h-3 w-3" />
+                    Instância
+                  </label>
+                  <p className="font-medium mt-1">{(viewCampaign as any).instance?.name || 'N/A'}</p>
                 </div>
               </div>
 
+              {/* Agendamento - Se existir */}
+              {(viewCampaign.scheduled_at || viewCampaign.schedule_type) && (
+                <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                  <label className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    Agendamento
+                  </label>
+                  <div className="grid grid-cols-2 gap-4 mt-2">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Tipo:</span>
+                      <p className="font-medium">
+                        {viewCampaign.schedule_type === 'immediate' && 'Imediato'}
+                        {viewCampaign.schedule_type === 'scheduled' && 'Agendado'}
+                        {viewCampaign.schedule_type === 'recurring' && 'Recorrente'}
+                        {viewCampaign.schedule_type === 'smart' && 'Inteligente'}
+                        {!viewCampaign.schedule_type && 'Não definido'}
+                      </p>
+                    </div>
+                    {viewCampaign.scheduled_at && (
+                      <div>
+                        <span className="text-xs text-muted-foreground">Data/Hora:</span>
+                        <p className="font-medium text-blue-600 dark:text-blue-400">
+                          {new Date(viewCampaign.scheduled_at).toLocaleString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    )}
+                    {viewCampaign.timezone && (
+                      <div>
+                        <span className="text-xs text-muted-foreground">Fuso Horário:</span>
+                        <p className="font-medium">{viewCampaign.timezone}</p>
+                      </div>
+                    )}
+                    {(viewCampaign as any).recurrence_pattern && (
+                      <div>
+                        <span className="text-xs text-muted-foreground">Recorrência:</span>
+                        <p className="font-medium">
+                          {(viewCampaign as any).recurrence_pattern?.type === 'daily' && 'Diário'}
+                          {(viewCampaign as any).recurrence_pattern?.type === 'weekly' && 'Semanal'}
+                          {(viewCampaign as any).recurrence_pattern?.type === 'monthly' && 'Mensal'}
+                          {' às '}{(viewCampaign as any).recurrence_pattern?.time || ''}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Mensagem */}
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Mensagem</label>
-                <p className="mt-1 p-3 bg-muted rounded-lg text-sm whitespace-pre-wrap">
-                  {viewCampaign.message}
-                </p>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  <MessageSquare className="h-3 w-3" />
+                  Mensagem
+                </label>
+                <div className="mt-2 p-4 bg-muted rounded-lg border">
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                    {viewCampaign.message || 'Nenhuma mensagem definida'}
+                  </p>
+                </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-4 text-center p-4 bg-muted rounded-lg">
-                <div>
-                  <div className="text-xl font-bold">{viewCampaign.total_recipients}</div>
-                  <div className="text-xs text-muted-foreground">Total</div>
+              {/* Link e Mídia */}
+              {(viewCampaign.link_url || (viewCampaign as any).media) && (
+                <div className="grid grid-cols-2 gap-4">
+                  {viewCampaign.link_url && (
+                    <div className="p-3 bg-muted/50 rounded-lg">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                        <Link className="h-3 w-3" />
+                        Link
+                      </label>
+                      <p className="font-medium mt-1 text-sm truncate text-blue-500">
+                        {viewCampaign.link_url}
+                      </p>
+                    </div>
+                  )}
+                  {(viewCampaign as any).media && (
+                    <div className="p-3 bg-muted/50 rounded-lg">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                        <Image className="h-3 w-3" />
+                        Mídia
+                      </label>
+                      <p className="font-medium mt-1 text-sm truncate">
+                        {(viewCampaign as any).media.original_name || 'Arquivo anexado'}
+                      </p>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <div className="text-xl font-bold text-green-500">{viewCampaign.sent_count}</div>
-                  <div className="text-xs text-muted-foreground">Enviados</div>
+              )}
+
+              {/* Estatísticas */}
+              <div className="grid grid-cols-4 gap-3 text-center">
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="text-2xl font-bold">{viewCampaign.total_recipients}</div>
+                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                    <Users className="h-3 w-3" />
+                    Total
+                  </div>
                 </div>
-                <div>
-                  <div className="text-xl font-bold text-red-500">{viewCampaign.failed_count}</div>
-                  <div className="text-xs text-muted-foreground">Falhas</div>
+                <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                  <div className="text-2xl font-bold text-green-500">{viewCampaign.sent_count}</div>
+                  <div className="text-xs text-green-600 dark:text-green-400">Enviados</div>
                 </div>
-                <div>
-                  <div className="text-xl font-bold">
+                <div className="p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+                  <div className="text-2xl font-bold text-red-500">{viewCampaign.failed_count}</div>
+                  <div className="text-xs text-red-600 dark:text-red-400">Falhas</div>
+                </div>
+                <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                  <div className="text-2xl font-bold text-blue-500">
                     {viewCampaign.total_recipients > 0
                       ? Math.round((viewCampaign.sent_count / viewCampaign.total_recipients) * 100)
                       : 0}%
                   </div>
-                  <div className="text-xs text-muted-foreground">Taxa</div>
+                  <div className="text-xs text-blue-600 dark:text-blue-400">Taxa</div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              {/* Datas */}
+              <div className="grid grid-cols-3 gap-4 text-sm pt-2 border-t">
                 <div>
-                  <label className="font-medium text-muted-foreground">Criada em</label>
-                  <p>{formatDateTime(viewCampaign.created_at)}</p>
+                  <label className="text-xs font-medium text-muted-foreground">Criada em</label>
+                  <p className="font-medium">{formatDateTime(viewCampaign.created_at)}</p>
                 </div>
                 {viewCampaign.started_at && (
                   <div>
-                    <label className="font-medium text-muted-foreground">Iniciada em</label>
-                    <p>{formatDateTime(viewCampaign.started_at)}</p>
+                    <label className="text-xs font-medium text-muted-foreground">Iniciada em</label>
+                    <p className="font-medium">{formatDateTime(viewCampaign.started_at)}</p>
                   </div>
                 )}
                 {viewCampaign.completed_at && (
                   <div>
-                    <label className="font-medium text-muted-foreground">Concluída em</label>
-                    <p>{formatDateTime(viewCampaign.completed_at)}</p>
+                    <label className="text-xs font-medium text-muted-foreground">Concluída em</label>
+                    <p className="font-medium">{formatDateTime(viewCampaign.completed_at)}</p>
                   </div>
                 )}
               </div>

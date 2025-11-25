@@ -154,6 +154,21 @@ export function SmartScheduler({
   const [localSmartTiming, setLocalSmartTiming] = useState(smartTiming)
   const [selectedPreset, setSelectedPreset] = useState<number | null>(1) // Balanceado by default
 
+  // Separate date and time states for better UX
+  const [localDate, setLocalDate] = useState(() => {
+    if (scheduledAt) {
+      return scheduledAt.split('T')[0] || ''
+    }
+    return ''
+  })
+  const [localTime, setLocalTime] = useState(() => {
+    if (scheduledAt) {
+      const timePart = scheduledAt.split('T')[1]
+      return timePart ? timePart.slice(0, 5) : '10:00'
+    }
+    return '10:00'
+  })
+
   // Recurrence state
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>(
     recurrencePattern?.type || 'daily'
@@ -161,6 +176,17 @@ export function SmartScheduler({
   const [recurrenceInterval, setRecurrenceInterval] = useState(recurrencePattern?.interval || 1)
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>(recurrencePattern?.days || [1, 2, 3, 4, 5])
   const [recurrenceTime, setRecurrenceTime] = useState(recurrencePattern?.time || '10:00')
+
+  // Combine date and time into localDateTime when either changes
+  useEffect(() => {
+    if (localDate && localTime) {
+      setLocalDateTime(`${localDate}T${localTime}`)
+    } else if (localDate) {
+      setLocalDateTime(`${localDate}T10:00`)
+    } else {
+      setLocalDateTime('')
+    }
+  }, [localDate, localTime])
 
   // Memoize the onChange callback to prevent infinite loops
   const memoizedOnChange = useCallback(onChange, [])
@@ -239,7 +265,11 @@ export function SmartScheduler({
       suggested.setDate(suggested.getDate() + 1)
     }
 
-    setLocalDateTime(suggested.toISOString().slice(0, 16))
+    // Set separate date and time states
+    const dateStr = suggested.toISOString().split('T')[0]
+    const timeStr = '10:00'
+    setLocalDate(dateStr)
+    setLocalTime(timeStr)
     setLocalSmartTiming(true)
   }
 
@@ -387,19 +417,33 @@ export function SmartScheduler({
           {/* Scheduled */}
           {localScheduleType === 'scheduled' && (
             <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="scheduled-date" className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    Data e Hora
+                    Data
                   </Label>
                   <Input
                     id="scheduled-date"
-                    type="datetime-local"
-                    value={localDateTime}
-                    onChange={(e) => setLocalDateTime(e.target.value)}
-                    min={new Date().toISOString().slice(0, 16)}
-                    className="h-11"
+                    type="date"
+                    value={localDate}
+                    onChange={(e) => setLocalDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="h-11 cursor-pointer"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="scheduled-time" className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    Horário
+                  </Label>
+                  <Input
+                    id="scheduled-time"
+                    type="time"
+                    value={localTime}
+                    onChange={(e) => setLocalTime(e.target.value)}
+                    className="h-11 cursor-pointer"
                   />
                 </div>
 
@@ -426,11 +470,11 @@ export function SmartScheduler({
                 </div>
               </div>
 
-              {localDateTime && (
+              {localDate && localTime && (
                 <div className="flex items-center gap-2 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
                   <CheckCircle2 className="h-4 w-4 text-blue-500" />
                   <span className="text-sm text-blue-700 dark:text-blue-300">
-                    Agendado para {new Date(localDateTime).toLocaleString('pt-BR', {
+                    Agendado para {new Date(`${localDate}T${localTime}`).toLocaleString('pt-BR', {
                       weekday: 'long',
                       day: 'numeric',
                       month: 'long',
@@ -611,19 +655,33 @@ export function SmartScheduler({
                 </div>
               )}
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
-                  <Label htmlFor="smart-datetime" className="flex items-center gap-2">
+                  <Label htmlFor="smart-date" className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    Confirmar Data e Hora
+                    Data
                   </Label>
                   <Input
-                    id="smart-datetime"
-                    type="datetime-local"
-                    value={localDateTime}
-                    onChange={(e) => setLocalDateTime(e.target.value)}
-                    min={new Date().toISOString().slice(0, 16)}
-                    className="h-11"
+                    id="smart-date"
+                    type="date"
+                    value={localDate}
+                    onChange={(e) => setLocalDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="h-11 cursor-pointer"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="smart-time" className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    Horário
+                  </Label>
+                  <Input
+                    id="smart-time"
+                    type="time"
+                    value={localTime}
+                    onChange={(e) => setLocalTime(e.target.value)}
+                    className="h-11 cursor-pointer"
                   />
                 </div>
 
