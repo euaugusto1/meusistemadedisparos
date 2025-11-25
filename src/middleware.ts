@@ -14,7 +14,9 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public folder
      * - api/webhooks (webhook endpoints)
+     * - api/n8n (N8N integration endpoints - uses own auth)
+     * - api/swagger (Swagger API docs)
      */
-    '/((?!_next/static|_next/image|favicon.ico|api/webhooks|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/webhooks|api/n8n|api/swagger|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
