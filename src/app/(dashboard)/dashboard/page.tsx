@@ -9,6 +9,15 @@ export default async function DashboardPage() {
 
   if (!user) return null
 
+  // Obter perfil do usuário
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, email')
+    .eq('id', user.id)
+    .single()
+
+  const displayName = profile?.full_name || profile?.email?.split('@')[0] || 'Usuário'
+
   // Obter estatísticas
   const { data: stats } = await supabase
     .from('dashboard_stats')
@@ -28,8 +37,10 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       {/* Header - Premium Style */}
       <div className="text-center space-y-3">
-        <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary via-blue-600 to-purple-600 bg-clip-text text-transparent">
-          Dashboard
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary via-blue-600 to-purple-600 bg-clip-text text-transparent">
+          {/* Mobile: mostra saudação com nome | Desktop: mostra Dashboard */}
+          <span className="md:hidden">Olá, {displayName}</span>
+          <span className="hidden md:inline">Dashboard</span>
         </h1>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
           Visão geral das suas campanhas e estatísticas

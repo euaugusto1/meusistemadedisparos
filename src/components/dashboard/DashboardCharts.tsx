@@ -19,7 +19,8 @@ import {
   Legend,
 } from 'recharts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Send } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Send, PieChart as PieChartIcon, BarChart3, Gauge, CalendarDays, Crown } from 'lucide-react'
 import type { Campaign, DashboardStats } from '@/types'
 
 interface DashboardChartsProps {
@@ -73,6 +74,13 @@ export function DashboardCharts({ campaigns, stats }: DashboardChartsProps) {
     ]
   }, [stats])
 
+  // Calcular taxa de sucesso
+  const successRate = useMemo(() => {
+    const total = (stats?.total_sent || 0) + (stats?.total_failed || 0)
+    if (total === 0) return 0
+    return Math.round(((stats?.total_sent || 0) / total) * 100)
+  }, [stats])
+
   // Dados para gráfico de barras (envios por dia da semana)
   const weekdayData = useMemo(() => {
     const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -90,40 +98,77 @@ export function DashboardCharts({ campaigns, stats }: DashboardChartsProps) {
   }, [campaigns])
 
   // Dados para gráfico radial (consumo da cota)
+  // Consumo = total enviado / (total enviado + créditos restantes) * 100
+  // Isso mostra quanto do "pool total" já foi consumido
   const quotaData = useMemo(() => {
-    const credits = stats?.credits || 0
-    const used = stats?.total_sent || 0
-    const total = credits + used
-    const percentage = total > 0 ? Math.round((used / total) * 100) : 0
+    const creditsRemaining = stats?.credits || 0
+    const totalSent = stats?.total_sent || 0
+
+    // Total de créditos que o usuário teve = créditos restantes + créditos usados (enviados)
+    const totalCreditsEver = creditsRemaining + totalSent
+
+    // Porcentagem consumida do total
+    const percentage = totalCreditsEver > 0 ? Math.round((totalSent / totalCreditsEver) * 100) : 0
 
     return [
       {
         name: 'Consumo',
         value: percentage,
         fill: percentage > 80 ? COLORS.danger : percentage > 50 ? COLORS.warning : COLORS.primary,
+        creditsRemaining,
+        totalSent,
+        totalCreditsEver,
       },
     ]
   }, [stats])
 
+  // Determinar cor do badge do plano
+  const getPlanBadgeStyle = (tier: string) => {
+    switch (tier) {
+      case 'gold':
+        return 'bg-gradient-to-r from-yellow-500 to-amber-600 text-white border-0'
+      case 'silver':
+        return 'bg-gradient-to-r from-slate-400 to-slate-500 text-white border-0'
+      case 'bronze':
+        return 'bg-gradient-to-r from-orange-600 to-orange-700 text-white border-0'
+      default:
+        return 'bg-muted text-muted-foreground'
+    }
+  }
+
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      {/* Gráfico de Área - Timeline de Envios */}
-      <Card className="col-span-2 transition-all duration-300 hover:shadow-xl">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <div className="bg-gradient-to-br from-primary to-blue-600 p-2 rounded-lg">
-              <Send className="h-5 w-5 text-white" />
+    <div className="space-y-4 sm:space-y-6">
+      {/* Gráfico de Área - Timeline de Envios (Full Width) */}
+      <Card className="transition-all duration-300 hover:shadow-xl border-blue-500/20">
+        <CardHeader className="pb-2 sm:pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="bg-gradient-to-br from-primary to-blue-600 p-2 sm:p-2.5 rounded-xl shadow-lg">
+                <Send className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-base sm:text-lg">Timeline de Envios</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Histórico de mensagens nos últimos 7 dias
+                </CardDescription>
+              </div>
             </div>
-            Timeline de Envios
-          </CardTitle>
-          <CardDescription>
-            Histórico de mensagens enviadas nos últimos 7 dias
-          </CardDescription>
+            <div className="flex gap-3 text-xs sm:text-sm">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-green-500" />
+                <span className="text-muted-foreground">Enviados</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-red-500" />
+                <span className="text-muted-foreground">Falhas</span>
+              </div>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="h-[300px]">
+        <CardContent className="p-2 sm:p-6 pt-0">
+          <div className="h-[200px] sm:h-[280px] lg:h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={timelineData}>
+              <AreaChart data={timelineData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorSent" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={COLORS.success} stopOpacity={0.8} />
@@ -134,20 +179,33 @@ export function DashboardCharts({ campaigns, stats }: DashboardChartsProps) {
                     <stop offset="95%" stopColor={COLORS.danger} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="date" className="text-xs" />
-                <YAxis className="text-xs" />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  className="text-[10px] sm:text-xs"
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  className="text-[10px] sm:text-xs"
+                  tickLine={false}
+                  axisLine={false}
+                  width={35}
+                />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                   }}
+                  labelStyle={{ fontWeight: 'bold' }}
                 />
                 <Area
                   type="monotone"
                   dataKey="sent"
                   stroke={COLORS.success}
+                  strokeWidth={2}
                   fillOpacity={1}
                   fill="url(#colorSent)"
                   name="Enviados"
@@ -156,6 +214,7 @@ export function DashboardCharts({ campaigns, stats }: DashboardChartsProps) {
                   type="monotone"
                   dataKey="failed"
                   stroke={COLORS.danger}
+                  strokeWidth={2}
                   fillOpacity={1}
                   fill="url(#colorFailed)"
                   name="Falhas"
@@ -166,144 +225,200 @@ export function DashboardCharts({ campaigns, stats }: DashboardChartsProps) {
         </CardContent>
       </Card>
 
-      {/* Gráfico de Rosca - Sucesso vs Falha */}
-      <Card className="transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-        <CardHeader>
-          <CardTitle>Taxa de Sucesso</CardTitle>
-          <CardDescription>
-            Proporção entre mensagens enviadas e falhas
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Gráfico de Barras - Envios por Dia da Semana */}
-      <Card className="transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-        <CardHeader>
-          <CardTitle>Envios por Dia</CardTitle>
-          <CardDescription>
-            Distribuição de envios por dia da semana
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weekdayData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="day" className="text-xs" />
-                <YAxis className="text-xs" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                />
-                <Bar
-                  dataKey="envios"
-                  fill={COLORS.primary}
-                  radius={[4, 4, 0, 0]}
-                  name="Envios"
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Gráfico Radial - Consumo da Cota */}
-      <Card className="transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-        <CardHeader>
-          <CardTitle>Consumo da Cota</CardTitle>
-          <CardDescription>
-            Porcentagem de créditos utilizados
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadialBarChart
-                cx="50%"
-                cy="50%"
-                innerRadius="60%"
-                outerRadius="80%"
-                barSize={10}
-                data={quotaData}
-                startAngle={90}
-                endAngle={-270}
-              >
-                <RadialBar
-                  background
-                  dataKey="value"
-                  cornerRadius={10}
-                />
-                <text
-                  x="50%"
-                  y="50%"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  className="fill-foreground text-2xl font-bold"
-                >
-                  {quotaData[0].value}%
-                </text>
-              </RadialBarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Gráfico Radial - Dias Restantes */}
-      <Card className="transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-        <CardHeader>
-          <CardTitle>Validade do Plano</CardTitle>
-          <CardDescription>
-            Dias restantes da sua assinatura
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[250px] flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-6xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-                {stats?.days_remaining ?? '∞'}
+      {/* Grid de gráficos menores */}
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Gráfico de Rosca - Sucesso vs Falha */}
+        <Card className="transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-green-500/20">
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-1.5 sm:p-2 rounded-lg">
+                <PieChartIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
               </div>
-              <div className="text-muted-foreground mt-2">
-                {stats?.days_remaining !== null ? 'dias restantes' : 'Sem expiração'}
-              </div>
-              <div className="mt-4 text-sm">
-                Plano: <span className="font-semibold capitalize bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">{stats?.plan_tier || 'free'}</span>
+              <div>
+                <CardTitle className="text-sm sm:text-base">Taxa de Sucesso</CardTitle>
+                <CardDescription className="text-[10px] sm:text-xs">
+                  Enviados vs Falhas
+                </CardDescription>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent className="p-2 sm:p-4 pt-0">
+            <div className="h-[160px] sm:h-[180px] relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius="55%"
+                    outerRadius="80%"
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              {/* Porcentagem central */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-2xl sm:text-3xl font-bold text-green-500">{successRate}%</div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground">sucesso</div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Gráfico de Barras - Envios por Dia da Semana */}
+        <Card className="transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-purple-500/20">
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <div className="bg-gradient-to-br from-purple-500 to-violet-600 p-1.5 sm:p-2 rounded-lg">
+                <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-sm sm:text-base">Envios por Dia</CardTitle>
+                <CardDescription className="text-[10px] sm:text-xs">
+                  Distribuição semanal
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-2 sm:p-4 pt-0">
+            <div className="h-[160px] sm:h-[180px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={weekdayData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
+                  <XAxis
+                    dataKey="day"
+                    className="text-[9px] sm:text-[10px]"
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    className="text-[9px] sm:text-[10px]"
+                    tickLine={false}
+                    axisLine={false}
+                    width={30}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Bar
+                    dataKey="envios"
+                    fill={COLORS.primary}
+                    radius={[4, 4, 0, 0]}
+                    name="Envios"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Gráfico Radial - Consumo da Cota */}
+        <Card className="transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-orange-500/20">
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <div className="bg-gradient-to-br from-orange-500 to-amber-600 p-1.5 sm:p-2 rounded-lg">
+                <Gauge className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-sm sm:text-base">Consumo da Cota</CardTitle>
+                <CardDescription className="text-[10px] sm:text-xs">
+                  {quotaData[0].totalSent?.toLocaleString('pt-BR')} de {quotaData[0].totalCreditsEver?.toLocaleString('pt-BR')}
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-2 sm:p-4 pt-0">
+            <div className="h-[160px] sm:h-[180px] relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadialBarChart
+                  cx="50%"
+                  cy="50%"
+                  innerRadius="55%"
+                  outerRadius="80%"
+                  barSize={12}
+                  data={quotaData}
+                  startAngle={90}
+                  endAngle={-270}
+                >
+                  <RadialBar
+                    background={{ fill: 'hsl(var(--muted))' }}
+                    dataKey="value"
+                    cornerRadius={10}
+                  />
+                </RadialBarChart>
+              </ResponsiveContainer>
+              {/* Porcentagem central */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <div className={`text-2xl sm:text-3xl font-bold ${
+                    quotaData[0].value > 80 ? 'text-red-500' :
+                    quotaData[0].value > 50 ? 'text-yellow-500' :
+                    'text-primary'
+                  }`}>
+                    {quotaData[0].value}%
+                  </div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground">consumido</div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card de Validade do Plano */}
+        <Card className="transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-primary/20 bg-gradient-to-br from-primary/5 to-blue-600/5">
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <div className="bg-gradient-to-br from-primary to-blue-600 p-1.5 sm:p-2 rounded-lg">
+                <CalendarDays className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-sm sm:text-base">Validade do Plano</CardTitle>
+                <CardDescription className="text-[10px] sm:text-xs">
+                  Sua assinatura
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="h-[160px] sm:h-[180px] flex items-center justify-center">
+              <div className="text-center space-y-3">
+                <div className={`text-4xl sm:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent ${
+                  stats?.days_remaining && stats.days_remaining < 7 ? 'from-red-500 to-red-600' : ''
+                }`}>
+                  {stats?.days_remaining ?? '∞'}
+                </div>
+                <div className="text-xs sm:text-sm text-muted-foreground">
+                  {stats?.days_remaining !== null ? 'dias restantes' : 'Sem expiração'}
+                </div>
+                {stats?.plan_tier && (
+                  <Badge className={`${getPlanBadgeStyle(stats.plan_tier)} text-xs px-3 py-1`}>
+                    <Crown className="h-3 w-3 mr-1" />
+                    Plano {stats.plan_tier.charAt(0).toUpperCase() + stats.plan_tier.slice(1)}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
