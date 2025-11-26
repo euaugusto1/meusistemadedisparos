@@ -590,6 +590,25 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
                 )}
               </div>
 
+              {/* Info da Instância - Para instâncias de teste Evolution API */}
+              {instance.is_test && instance.instance_key && (
+                <div className="p-3 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg">
+                  <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
+                    <span className="text-muted-foreground">ID:</span>
+                    <code className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-700 dark:text-slate-300 text-[10px] truncate">
+                      {instance.instance_key}
+                    </code>
+
+                    <span className="text-muted-foreground">Número:</span>
+                    <span className={instance.phone_number ? "text-green-600 dark:text-green-400 font-medium" : "text-muted-foreground italic"}>
+                      {instance.phone_number
+                        ? `+${instance.phone_number.replace(/^(\d{2})(\d{2})(\d{4,5})(\d{4})$/, '$1 ($2) $3-$4')}`
+                        : 'Não disponível'}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Actions - Enhanced buttons */}
               <div className="flex gap-2">
                 {instance.status === 'connected' ? (

@@ -5,6 +5,31 @@ import { corsPreflightResponse, jsonResponseWithCors } from '@/lib/cors'
 export const dynamic = 'force-dynamic'
 
 const N8N_API_KEY = process.env.N8N_API_KEY || ''
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || ''
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || ''
+
+// Função auxiliar para buscar número de telefone da Evolution API
+async function fetchPhoneNumberFromEvolution(instanceName: string): Promise<string | null> {
+  try {
+    const response = await fetch(
+      `${EVOLUTION_API_URL}/instance/fetchInstances?instanceName=${instanceName}`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': EVOLUTION_API_KEY,
+        },
+      }
+    )
+    if (response.ok) {
+      const data = await response.json()
+      const instanceInfo = Array.isArray(data) ? data[0] : data
+      return instanceInfo?.instance?.owner || instanceInfo?.owner || null
+    }
+  } catch (e) {
+    console.error(`[N8N] Error fetching phone from Evolution API for ${instanceName}:`, e)
+  }
+  return null
+}
 
 // Handle CORS preflight
 export async function OPTIONS() {
@@ -69,6 +94,7 @@ export async function GET(request: NextRequest) {
         instance:whatsapp_instances!campaigns_instance_id_fkey(
           id,
           name,
+          instance_key,
           phone_number,
           api_token,
           status,
@@ -303,12 +329,15 @@ export async function GET(request: NextRequest) {
           recurrencePattern: campaign.recurrence_pattern,
 
           // WhatsApp Instance info
-          instance: (() => {
+          instance: await (async () => {
             const instData = campaign.instance as any
             const inst = Array.isArray(instData) ? instData[0] : instData
             if (!inst || !inst.id) return null
 
             const isTestInstance = inst.is_test === true
+
+            // instance_key é o nome real da instância na Evolution API (ex: test_6d983e3a_1764022014264)
+            const instanceKey = inst.instance_key || inst.name
 
             // Para Evolution API (teste): usa api_token da tabela e EVOLUTION_API_URL
             // Para UAZAPI (produção): usa UAZAPI_ADMIN_TOKEN do ambiente e UAZAPI_BASE_URL
@@ -320,21 +349,34 @@ export async function GET(request: NextRequest) {
               ? inst.api_token
               : (process.env.UAZAPI_ADMIN_TOKEN || '')
 
+            // Buscar número de telefone - se não estiver no banco, busca da Evolution API
+            let phoneNumber = inst.phone_number
+            if (!phoneNumber && isTestInstance && instanceKey) {
+              phoneNumber = await fetchPhoneNumberFromEvolution(instanceKey)
+              // Atualiza no banco para próximas consultas
+              if (phoneNumber) {
+                await supabase
+                  .from('whatsapp_instances')
+                  .update({ phone_number: phoneNumber })
+                  .eq('id', inst.id)
+              }
+            }
+
             return {
               id: inst.id,
               name: inst.name,
-              instanceKey: inst.name, // Nome da instância usado como instance_key
-              phoneNumber: inst.phone_number,
+              instanceKey: instanceKey, // Nome real da instância na Evolution API
+              phoneNumber: phoneNumber,
               apiToken,
               apiUrl,
               // Header name: Evolution usa 'apikey', UAZAPI usa 'token'
               apiHeaderName: isTestInstance ? 'apikey' : 'token',
-              // Endpoints para envio de mensagens
+              // Endpoints para envio de mensagens - usa instanceKey (nome na API)
               sendTextEndpoint: isTestInstance
-                ? `/message/sendText/${inst.name}` // Evolution API
+                ? `/message/sendText/${instanceKey}` // Evolution API
                 : '/send/text', // UAZAPI
               sendMediaEndpoint: isTestInstance
-                ? `/message/sendMedia/${inst.name}` // Evolution API
+                ? `/message/sendMedia/${instanceKey}` // Evolution API
                 : '/send/media', // UAZAPI
               status: inst.status,
               isTest: isTestInstance

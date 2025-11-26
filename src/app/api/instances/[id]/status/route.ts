@@ -89,9 +89,28 @@ export async function GET(
         status = 'disconnected'
       }
 
-      // Obter número de telefone se disponível
-      phoneNumber = statusData.instance?.profilePictureUrl ?
-        (statusData.instance.owner || null) : null
+      // Obter número de telefone - buscar do endpoint fetchInstances
+      if (status === 'connected') {
+        try {
+          const instancesResponse = await fetch(
+            `${EVOLUTION_API_URL}/instance/fetchInstances?instanceName=${instance.instance_key}`,
+            {
+              method: 'GET',
+              headers: {
+                'apikey': EVOLUTION_API_KEY,
+              },
+            }
+          )
+          if (instancesResponse.ok) {
+            const instancesData = await instancesResponse.json()
+            // Pode retornar array ou objeto
+            const instanceInfo = Array.isArray(instancesData) ? instancesData[0] : instancesData
+            phoneNumber = instanceInfo?.instance?.owner || instanceInfo?.owner || null
+          }
+        } catch (e) {
+          console.error('Erro ao buscar número:', e)
+        }
+      }
     } else {
       // Usar UAZAPI
       const { url: baseUrl, token: adminToken } = getServerForInstance(instance.instance_key)
