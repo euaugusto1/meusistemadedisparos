@@ -282,8 +282,8 @@ export function InstancesManager({ instances: initialInstances, users }: Instanc
       </div>
 
       {/* Search and Actions */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+        <div className="relative flex-1 w-full sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar instâncias..."
@@ -308,7 +308,7 @@ export function InstancesManager({ instances: initialInstances, users }: Instanc
 
       {/* Instances Table */}
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -355,7 +355,7 @@ export function InstancesManager({ instances: initialInstances, users }: Instanc
                   </TableCell>
                   <TableCell>{formatDate(instance.created_at)}</TableCell>
                   <TableCell>
-                    <div className="flex gap-1">
+                    <div className="flex gap-2">
                       <Button
                         size="icon"
                         variant="ghost"

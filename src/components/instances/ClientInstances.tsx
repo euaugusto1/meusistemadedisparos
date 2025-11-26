@@ -477,7 +477,7 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
       </div>
 
       {/* Instances Grid */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {instances.map(instance => (
           <Card key={instance.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${instance.is_test ? 'border-orange-300 dark:border-orange-700 bg-gradient-to-br from-orange-50/50 to-yellow-50/50 dark:from-orange-950/20 dark:to-yellow-950/20' : 'hover:border-primary/50'}`}>
             {/* Test Instance Badge - Enhanced with gradient */}
@@ -520,7 +520,7 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
                   {(isAdmin || instance.user_id === profile?.id) && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8">
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>

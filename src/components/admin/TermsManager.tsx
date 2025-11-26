@@ -135,7 +135,7 @@ export function TermsManager({ versions: initialVersions, acceptanceStats }: Ter
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -211,7 +211,7 @@ export function TermsManager({ versions: initialVersions, acceptanceStats }: Ter
                   Nova Versão
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="w-[95vw] sm:max-w-md md:max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>Criar Nova Versão</DialogTitle>
                   <DialogDescription>
@@ -261,7 +261,7 @@ export function TermsManager({ versions: initialVersions, acceptanceStats }: Ter
             </Dialog>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

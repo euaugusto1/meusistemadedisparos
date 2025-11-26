@@ -187,7 +187,7 @@ export function PlansManager({ plans: initialPlans }: PlansManagerProps) {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {plans.map(plan => (
           <Card key={plan.id}>
             <CardHeader className="pb-3">
@@ -196,7 +196,7 @@ export function PlansManager({ plans: initialPlans }: PlansManagerProps) {
                   <Crown className={`h-4 w-4 ${getPlanColor(plan.tier)}`} />
                   <CardTitle className="text-lg">{plan.name}</CardTitle>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-2">
                   <Button size="icon" variant="ghost" onClick={() => openDialog(plan)}>
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -237,7 +237,7 @@ export function PlansManager({ plans: initialPlans }: PlansManagerProps) {
 
       {/* Edit/Create Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-md md:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingPlan ? 'Editar Plano' : 'Novo Plano'}</DialogTitle>
             <DialogDescription>
@@ -246,7 +246,7 @@ export function PlansManager({ plans: initialPlans }: PlansManagerProps) {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Nome *</Label>
                 <Input value={name} onChange={(e) => setName(e.target.value)} />
@@ -272,7 +272,7 @@ export function PlansManager({ plans: initialPlans }: PlansManagerProps) {
               <Input value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Preço (R$) *</Label>
                 <Input type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} />
@@ -297,7 +297,7 @@ export function PlansManager({ plans: initialPlans }: PlansManagerProps) {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="flex items-center space-x-2">
                 <Switch checked={isActive} onCheckedChange={setIsActive} />
                 <Label>Plano Ativo</Label>

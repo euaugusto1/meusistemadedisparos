@@ -155,7 +155,7 @@ export function LogsViewer({ systemLogs, campaignLogs }: LogsViewerProps) {
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Logs</CardTitle>
@@ -218,7 +218,7 @@ export function LogsViewer({ systemLogs, campaignLogs }: LogsViewerProps) {
             </CardHeader>
             <CardContent>
               {/* Filters */}
-              <div className="flex gap-4 mb-4">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4">
                 <div className="flex-1">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -230,27 +230,30 @@ export function LogsViewer({ systemLogs, campaignLogs }: LogsViewerProps) {
                     />
                   </div>
                 </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[150px]">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="sent">Enviados</SelectItem>
-                    <SelectItem value="failed">Falhas</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  onClick={() => window.location.reload()}
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Atualizar
-                </Button>
+                <div className="flex gap-2">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full sm:w-[150px]">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="sent">Enviados</SelectItem>
+                      <SelectItem value="failed">Falhas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    onClick={() => window.location.reload()}
+                    className="shrink-0"
+                  >
+                    <RefreshCw className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Atualizar</span>
+                  </Button>
+                </div>
               </div>
 
               {/* Table */}
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -307,7 +310,7 @@ export function LogsViewer({ systemLogs, campaignLogs }: LogsViewerProps) {
             </CardHeader>
             <CardContent>
               {/* Filters */}
-              <div className="flex gap-4 mb-4">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4">
                 <div className="flex-1">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -319,29 +322,32 @@ export function LogsViewer({ systemLogs, campaignLogs }: LogsViewerProps) {
                     />
                   </div>
                 </div>
-                <Select value={levelFilter} onValueChange={setLevelFilter}>
-                  <SelectTrigger className="w-[150px]">
-                    <SelectValue placeholder="Nível" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="info">Info</SelectItem>
-                    <SelectItem value="success">Sucesso</SelectItem>
-                    <SelectItem value="warning">Aviso</SelectItem>
-                    <SelectItem value="error">Erro</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  onClick={() => window.location.reload()}
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Atualizar
-                </Button>
+                <div className="flex gap-2">
+                  <Select value={levelFilter} onValueChange={setLevelFilter}>
+                    <SelectTrigger className="w-full sm:w-[150px]">
+                      <SelectValue placeholder="Nível" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="info">Info</SelectItem>
+                      <SelectItem value="success">Sucesso</SelectItem>
+                      <SelectItem value="warning">Aviso</SelectItem>
+                      <SelectItem value="error">Erro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    onClick={() => window.location.reload()}
+                    className="shrink-0"
+                  >
+                    <RefreshCw className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Atualizar</span>
+                  </Button>
+                </div>
               </div>
 
               {/* Table */}
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>

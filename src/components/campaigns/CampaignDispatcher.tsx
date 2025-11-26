@@ -1146,7 +1146,7 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
                 <CardTitle className="text-sm">Resumo da Campanha</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-blue-400" />
                     <span className="text-sm text-slate-300">{recipientsList.length} destinatários</span>
@@ -1213,7 +1213,7 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
           </AlertDialogHeader>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-3 gap-3 my-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 my-4">
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-center">
               <FileText className="h-5 w-5 text-blue-400 mx-auto mb-1" />
               <p className="text-2xl font-bold text-blue-400">{selectedTemplates.length}</p>

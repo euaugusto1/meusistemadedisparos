@@ -205,7 +205,7 @@ export function ScheduledCampaignsDashboard({ campaigns, onCampaignUpdate }: Sch
               </CardHeader>
 
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground mb-1">Total de Destinatários</p>
                     <p className="font-semibold text-lg">{campaign.total_recipients}</p>

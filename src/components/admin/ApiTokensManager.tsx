@@ -253,6 +253,7 @@ export function ApiTokensManager({ tokens: initialTokens, adminEmail }: ApiToken
               </Button>
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -329,6 +330,7 @@ export function ApiTokensManager({ tokens: initialTokens, adminEmail }: ApiToken
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

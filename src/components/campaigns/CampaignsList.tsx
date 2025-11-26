@@ -520,7 +520,7 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
             )}
 
             {/* Stats - Premium Style */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* Total */}
               <div className="relative">
                 <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-xl"></div>
@@ -959,7 +959,7 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
               )}
 
               {/* Estatísticas */}
-              <div className="grid grid-cols-4 gap-3 text-center">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                 <div className="p-3 bg-muted rounded-lg">
                   <div className="text-2xl font-bold">{viewCampaign.total_recipients}</div>
                   <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
@@ -986,7 +986,7 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
               </div>
 
               {/* Datas */}
-              <div className="grid grid-cols-3 gap-4 text-sm pt-2 border-t">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm pt-2 border-t">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">Criada em</label>
                   <p className="font-medium">{formatDateTime(viewCampaign.created_at)}</p>
@@ -1011,7 +1011,7 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
 
       {/* Schedule Campaign Dialog */}
       <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-2xl lg:max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
