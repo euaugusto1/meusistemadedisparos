@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
           status,
           is_test
         ),
-        media:media_files(
+        media:media_files!campaigns_media_id_fkey(
           id,
           file_name,
           original_name,
