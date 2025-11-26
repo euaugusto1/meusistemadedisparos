@@ -63,6 +63,86 @@ export async function PUT(request: NextRequest) {
     const { userId, role, plan_tier, credits, plan_expires_at } = validation.data!
 
     const adminSupabase = createAdminClient()
+
+    // Buscar dados atuais do usuário alvo e do admin
+    const { data: targetUser } = await adminSupabase
+      .from('profiles')
+      .select('credits, email, full_name')
+      .eq('id', userId)
+      .single()
+
+    const { data: adminProfile } = await adminSupabase
+      .from('profiles')
+      .select('credits, email, full_name')
+      .eq('id', user.id)
+      .single()
+
+    // Calcular diferença de créditos (se houver alteração)
+    let creditsAdded = 0
+    if (credits !== undefined && targetUser) {
+      creditsAdded = credits - (targetUser.credits || 0)
+    }
+
+    // Se estiver adicionando créditos, verificar e descontar do admin
+    if (creditsAdded > 0) {
+      const adminCredits = adminProfile?.credits || 0
+
+      // Verificar se o admin tem créditos suficientes
+      if (adminCredits < creditsAdded) {
+        logger.warn('Admin has insufficient credits for transfer', {
+          ...context,
+          adminCredits,
+          creditsRequired: creditsAdded,
+        })
+        return NextResponse.json(
+          { error: `Créditos insuficientes. Você possui ${adminCredits} créditos e precisa de ${creditsAdded}.` },
+          { status: 400 }
+        )
+      }
+
+      // Descontar créditos do admin
+      const { error: adminUpdateError } = await adminSupabase
+        .from('profiles')
+        .update({
+          credits: adminCredits - creditsAdded,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id)
+
+      if (adminUpdateError) {
+        logger.error('Error deducting credits from admin', adminUpdateError, context)
+        return NextResponse.json({ error: 'Erro ao descontar créditos do administrador' }, { status: 500 })
+      }
+
+      // Registrar log de transferência de créditos
+      await adminSupabase
+        .from('system_logs')
+        .insert({
+          user_id: user.id,
+          action: 'credit_transfer',
+          level: 'info',
+          details: {
+            type: 'admin_to_user',
+            from_user_id: user.id,
+            from_user_email: adminProfile?.email,
+            to_user_id: userId,
+            to_user_email: targetUser?.email,
+            credits_transferred: creditsAdded,
+            admin_credits_before: adminCredits,
+            admin_credits_after: adminCredits - creditsAdded,
+            user_credits_before: targetUser?.credits || 0,
+            user_credits_after: credits,
+          },
+        })
+
+      logger.info('Credits transferred from admin to user', {
+        ...context,
+        creditsTransferred: creditsAdded,
+        toUserId: userId,
+      })
+    }
+
+    // Atualizar perfil do usuário
     const { data, error } = await adminSupabase
       .from('profiles')
       .update({
@@ -81,9 +161,30 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    // Registrar log de atualização de usuário
+    await adminSupabase
+      .from('system_logs')
+      .insert({
+        user_id: user.id,
+        action: 'user_profile_updated',
+        level: 'info',
+        details: {
+          updated_user_id: userId,
+          updated_user_email: targetUser?.email,
+          changes: {
+            ...(role && { role }),
+            ...(plan_tier && { plan_tier }),
+            ...(credits !== undefined && { credits_new: credits, credits_old: targetUser?.credits }),
+            ...(plan_expires_at && { plan_expires_at }),
+          },
+          credits_added: creditsAdded > 0 ? creditsAdded : undefined,
+        },
+      })
+
     logger.info('User profile updated successfully', {
       ...context,
       updatedUserId: userId,
+      creditsAdded: creditsAdded > 0 ? creditsAdded : undefined,
     })
 
     // Return com rate limit headers

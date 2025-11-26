@@ -71,14 +71,89 @@ export async function POST(request: NextRequest) {
       const expiresAt = new Date()
       expiresAt.setDate(expiresAt.getDate() + duration_days)
 
-      // Get current credits
+      // Get current credits of the user
       const { data: profile } = await supabase
         .from('profiles')
-        .select('credits')
+        .select('credits, email, full_name')
         .eq('id', user_id)
         .single()
 
       const newCredits = (profile?.credits || 0) + credits
+
+      // Buscar admin para descontar créditos
+      const { data: adminProfile } = await supabase
+        .from('profiles')
+        .select('id, credits, email')
+        .eq('role', 'admin')
+        .single()
+
+      if (adminProfile) {
+        const adminCredits = adminProfile.credits || 0
+
+        // Verificar se o admin tem créditos suficientes
+        if (adminCredits >= credits) {
+          // Descontar créditos do admin
+          const { error: adminUpdateError } = await supabase
+            .from('profiles')
+            .update({
+              credits: adminCredits - credits,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', adminProfile.id)
+
+          if (adminUpdateError) {
+            console.error('[WEBHOOK] Error deducting credits from admin:', adminUpdateError)
+          } else {
+            console.log(`[WEBHOOK] Deducted ${credits} credits from admin (${adminProfile.email})`)
+            console.log(`  - Admin credits before: ${adminCredits}`)
+            console.log(`  - Admin credits after: ${adminCredits - credits}`)
+
+            // Registrar log de transferência de créditos
+            await supabase
+              .from('system_logs')
+              .insert({
+                user_id: adminProfile.id,
+                action: 'credit_transfer',
+                level: 'info',
+                details: {
+                  type: 'payment_plan_upgrade',
+                  from_user_id: adminProfile.id,
+                  from_user_email: adminProfile.email,
+                  to_user_id: user_id,
+                  to_user_email: profile?.email,
+                  credits_transferred: credits,
+                  admin_credits_before: adminCredits,
+                  admin_credits_after: adminCredits - credits,
+                  user_credits_before: profile?.credits || 0,
+                  user_credits_after: newCredits,
+                  plan_tier,
+                  payment_id: paymentData.paymentId,
+                  payment_amount: paymentData.amount,
+                },
+              })
+          }
+        } else {
+          console.warn(`[WEBHOOK] Admin has insufficient credits (${adminCredits}) for transfer of ${credits}`)
+          // Registrar log de alerta
+          await supabase
+            .from('system_logs')
+            .insert({
+              user_id: adminProfile.id,
+              action: 'credit_transfer_failed',
+              level: 'warning',
+              details: {
+                type: 'insufficient_admin_credits',
+                admin_credits: adminCredits,
+                credits_required: credits,
+                to_user_id: user_id,
+                plan_tier,
+                payment_id: paymentData.paymentId,
+              },
+            })
+        }
+      } else {
+        console.warn('[WEBHOOK] No admin found to deduct credits from')
+      }
 
       // Update user profile with new plan
       const { error: updateError } = await supabase
@@ -121,6 +196,24 @@ export async function POST(request: NextRequest) {
         console.error('Error creating payment transaction record:', paymentError)
         // Don't fail the webhook, plan was already updated
       }
+
+      // Registrar log de upgrade de plano
+      await supabase
+        .from('system_logs')
+        .insert({
+          user_id: user_id,
+          action: 'plan_upgraded',
+          level: 'success',
+          details: {
+            plan_tier,
+            credits_added: credits,
+            total_credits: newCredits,
+            expires_at: expiresAt.toISOString(),
+            payment_id: paymentData.paymentId,
+            payment_amount: paymentData.amount,
+            payer_email: paymentData.payerEmail,
+          },
+        })
 
       console.log(`[WEBHOOK] Successfully processed payment for user ${user_id}:`)
       console.log(`  - Plan: ${plan_tier}`)
