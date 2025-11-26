@@ -288,32 +288,69 @@ export async function GET(request: NextRequest) {
           return null
         }
 
-        // Get media as base64 if exists
-        let mediaBase64 = null
+        // Get media info if exists
         let mediaInfo = null
+        const mediaData = campaign.media as any
+        const media = Array.isArray(mediaData) ? mediaData[0] : mediaData
 
-        if (campaign.media && campaign.media.length > 0 && campaign.media[0].storage_path) {
-          try {
-            const { data: fileData, error: fileError } = await supabase
+        if (media && media.id) {
+          // Determinar o tipo de mídia baseado no mime_type
+          let mediaType = 'document' // default
+          const mimeType = media.mime_type || ''
+
+          if (mimeType.startsWith('image/')) {
+            mediaType = 'image'
+          } else if (mimeType.startsWith('video/')) {
+            mediaType = 'video'
+          } else if (mimeType.startsWith('audio/')) {
+            mediaType = 'audio'
+          } else if (mimeType === 'application/pdf') {
+            mediaType = 'document'
+          }
+
+          // Usar public_url se disponível, senão gerar URL assinada
+          let mediaUrl = media.public_url
+
+          if (!mediaUrl && media.storage_path) {
+            // Gerar URL pública assinada (válida por 1 hora)
+            const { data: signedUrlData } = await supabase
               .storage
               .from('media')
-              .download(campaign.media[0].storage_path)
+              .createSignedUrl(media.storage_path, 3600)
 
-            if (!fileError && fileData) {
-              const arrayBuffer = await fileData.arrayBuffer()
-              const buffer = Buffer.from(arrayBuffer)
-              mediaBase64 = buffer.toString('base64')
-
-              mediaInfo = {
-                fileName: campaign.media[0].original_name,
-                mimeType: campaign.media[0].mime_type,
-                fileSize: campaign.media[0].size_bytes,
-                base64: mediaBase64
-              }
-            }
-          } catch (error) {
-            console.error(`Error downloading media for campaign ${campaign.id}:`, error)
+            mediaUrl = signedUrlData?.signedUrl || null
           }
+
+          // Também baixar como base64 para compatibilidade com Evolution API
+          let base64 = null
+          if (media.storage_path) {
+            try {
+              const { data: fileData, error: fileError } = await supabase
+                .storage
+                .from('media')
+                .download(media.storage_path)
+
+              if (!fileError && fileData) {
+                const arrayBuffer = await fileData.arrayBuffer()
+                const buffer = Buffer.from(arrayBuffer)
+                base64 = buffer.toString('base64')
+              }
+            } catch (error) {
+              console.error(`Error downloading media for campaign ${campaign.id}:`, error)
+            }
+          }
+
+          mediaInfo = {
+            id: media.id,
+            fileName: media.original_name || media.file_name,
+            mimeType: mimeType,
+            mediaType: mediaType, // image, video, audio, document
+            fileSize: media.size_bytes,
+            url: mediaUrl,
+            base64: base64
+          }
+
+          console.log(`[N8N] Campaign ${campaign.id} has media: ${mediaType} - ${media.original_name}`)
         }
 
         return {

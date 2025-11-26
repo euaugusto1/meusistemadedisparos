@@ -24,7 +24,8 @@
       "Bash(powershell:*)",
       "Bash(Get-Date -Format \"yyyyMMddHHmmss\")",
       "Bash(npm run build:*)",
-      "Bash(set NODE_OPTIONS=--max-old-space-size=4096)"
+      "Bash(set NODE_OPTIONS=--max-old-space-size=4096)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
