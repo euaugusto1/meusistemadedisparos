@@ -169,14 +169,8 @@ export function PlansManager({ plans: initialPlans }: PlansManagerProps) {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Gerenciar Planos</h1>
-          <p className="text-muted-foreground">
-            Administre os planos e preços do sistema
-          </p>
-        </div>
+      {/* Botão Novo Plano */}
+      <div className="flex justify-end">
         <Button onClick={() => openDialog()}>
           <Plus className="mr-2 h-4 w-4" />
           Novo Plano
