@@ -151,9 +151,10 @@ Alterna o status de um agente de disparo.
         {
           name: 'id',
           in: 'path',
-          description: 'ID do agente',
+          description: 'ID do agente (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       responses: {
@@ -204,9 +205,10 @@ Retorna os itens (destinatários) de uma campanha para envio de mensagens.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da campanha',
+          description: 'ID da campanha (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         },
         {
           name: 'status',
@@ -281,9 +283,10 @@ Atualiza o status de uma campanha durante o processamento.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da campanha',
+          description: 'ID da campanha (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       requestBody: {
@@ -356,9 +359,10 @@ Atualiza os contadores de uma campanha durante o processamento.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da campanha',
+          description: 'ID da campanha (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       requestBody: {
@@ -428,9 +432,10 @@ Marca uma campanha como concluída após processamento.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da campanha',
+          description: 'ID da campanha (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       requestBody: {
@@ -501,9 +506,10 @@ Atualiza o status de um item específico da campanha (destinatário).
         {
           name: 'id',
           in: 'path',
-          description: 'ID do item da campanha',
+          description: 'ID do item da campanha (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       requestBody: {

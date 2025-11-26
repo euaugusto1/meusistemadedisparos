@@ -200,9 +200,10 @@ Cria um novo template de mensagem.
         {
           name: 'id',
           in: 'path',
-          description: 'ID do template',
+          description: 'ID do template (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       responses: {
@@ -235,9 +236,10 @@ Cria um novo template de mensagem.
         {
           name: 'id',
           in: 'path',
-          description: 'ID do template',
+          description: 'ID do template (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       requestBody: {
@@ -295,9 +297,10 @@ Remove um template permanentemente.
         {
           name: 'id',
           in: 'path',
-          description: 'ID do template',
+          description: 'ID do template (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       responses: {
@@ -341,9 +344,10 @@ Remove um template permanentemente.
         {
           name: 'id',
           in: 'path',
-          description: 'ID do template a duplicar',
+          description: 'ID do template a duplicar (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       requestBody: {

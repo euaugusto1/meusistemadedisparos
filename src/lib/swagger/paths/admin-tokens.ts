@@ -298,12 +298,13 @@ Remove permanentemente um token de API.
         {
           name: 'id',
           in: 'path',
-          description: 'ID do token a ser deletado',
+          description: 'ID do token a ser deletado (UUID)',
           required: true,
           schema: {
             type: 'string',
             format: 'uuid'
-          }
+          },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       responses: {
@@ -374,12 +375,13 @@ Atualiza informações de um token de API existente.
         {
           name: 'id',
           in: 'path',
-          description: 'ID do token a ser atualizado',
+          description: 'ID do token a ser atualizado (UUID)',
           required: true,
           schema: {
             type: 'string',
             format: 'uuid'
-          }
+          },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       requestBody: {

@@ -25,9 +25,10 @@ Retorna informações detalhadas de uma instância WhatsApp.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da instância',
+          description: 'ID da instância (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       responses: {
@@ -74,9 +75,10 @@ Gera um QR Code para conectar o WhatsApp na instância.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da instância',
+          description: 'ID da instância (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       responses: {
@@ -138,9 +140,10 @@ Verifica o status atual de conexão da instância WhatsApp.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da instância',
+          description: 'ID da instância (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       responses: {
@@ -200,9 +203,10 @@ Lista todos os grupos do WhatsApp conectados à instância.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da instância',
+          description: 'ID da instância (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       responses: {
@@ -266,9 +270,10 @@ Desconecta o WhatsApp da instância.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da instância',
+          description: 'ID da instância (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       responses: {

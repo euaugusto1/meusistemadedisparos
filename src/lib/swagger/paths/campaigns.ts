@@ -260,9 +260,10 @@ Retorna todos os detalhes de uma campanha específica.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da campanha',
+          description: 'ID da campanha (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       responses: {
@@ -308,9 +309,10 @@ Pausa uma campanha em execução.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da campanha',
+          description: 'ID da campanha (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       responses: {
@@ -365,9 +367,10 @@ Retoma uma campanha que foi pausada.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da campanha',
+          description: 'ID da campanha (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       responses: {
@@ -426,9 +429,10 @@ Cancela uma campanha permanentemente.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da campanha',
+          description: 'ID da campanha (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       responses: {
@@ -486,9 +490,10 @@ Usa IA para sugerir o melhor horário de envio da campanha.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da campanha',
+          description: 'ID da campanha (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       requestBody: {

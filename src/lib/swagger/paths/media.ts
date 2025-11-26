@@ -185,9 +185,10 @@ Faz upload de um novo arquivo de mídia.
         {
           name: 'id',
           in: 'path',
-          description: 'ID do arquivo',
+          description: 'ID do arquivo (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       responses: {
@@ -220,9 +221,10 @@ Faz upload de um novo arquivo de mídia.
         {
           name: 'id',
           in: 'path',
-          description: 'ID do arquivo',
+          description: 'ID do arquivo (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       requestBody: {
@@ -285,9 +287,10 @@ Remove um arquivo de mídia permanentemente.
         {
           name: 'id',
           in: 'path',
-          description: 'ID do arquivo',
+          description: 'ID do arquivo (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       responses: {
@@ -439,7 +442,8 @@ Remove uma pasta e move os arquivos para a raiz.
           in: 'path',
           description: 'Nome da pasta',
           required: true,
-          schema: { type: 'string' }
+          schema: { type: 'string' },
+          example: 'promocoes-2024'
         }
       ],
       responses: {

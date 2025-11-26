@@ -144,9 +144,10 @@ Defina campos adicionais para armazenar dados específicos dos contatos (ex: emp
         {
           name: 'id',
           in: 'path',
-          description: 'ID da lista',
+          description: 'ID da lista (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       responses: {
@@ -179,9 +180,10 @@ Defina campos adicionais para armazenar dados específicos dos contatos (ex: emp
         {
           name: 'id',
           in: 'path',
-          description: 'ID da lista',
+          description: 'ID da lista (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       requestBody: {
@@ -237,9 +239,10 @@ Remove uma lista de contatos permanentemente.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da lista',
+          description: 'ID da lista (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       responses: {
@@ -283,9 +286,10 @@ Remove uma lista de contatos permanentemente.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da lista',
+          description: 'ID da lista (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         },
         {
           name: 'search',
@@ -347,9 +351,10 @@ O sistema normaliza automaticamente para o formato internacional.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da lista',
+          description: 'ID da lista (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       requestBody: {
@@ -431,16 +436,18 @@ O sistema normaliza automaticamente para o formato internacional.
         {
           name: 'listId',
           in: 'path',
-          description: 'ID da lista',
+          description: 'ID da lista (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         },
         {
           name: 'contactId',
           in: 'path',
-          description: 'ID do contato',
+          description: 'ID do contato (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '660e8400-e29b-41d4-a716-446655440001'
         }
       ],
       requestBody: {
@@ -492,16 +499,18 @@ O sistema normaliza automaticamente para o formato internacional.
         {
           name: 'listId',
           in: 'path',
-          description: 'ID da lista',
+          description: 'ID da lista (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         },
         {
           name: 'contactId',
           in: 'path',
-          description: 'ID do contato',
+          description: 'ID do contato (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '660e8400-e29b-41d4-a716-446655440001'
         }
       ],
       responses: {
@@ -554,9 +563,10 @@ Importa contatos de um arquivo CSV ou Excel.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da lista',
+          description: 'ID da lista (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         }
       ],
       requestBody: {
@@ -651,9 +661,10 @@ Importa contatos de um arquivo CSV ou Excel.
         {
           name: 'id',
           in: 'path',
-          description: 'ID da lista',
+          description: 'ID da lista (UUID)',
           required: true,
-          schema: { type: 'string', format: 'uuid' }
+          schema: { type: 'string', format: 'uuid' },
+          example: '550e8400-e29b-41d4-a716-446655440000'
         },
         {
           name: 'format',
