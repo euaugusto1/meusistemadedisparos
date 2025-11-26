@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Sparkles, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { sendSystemLog } from '@/hooks/useSystemLog'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -35,8 +36,13 @@ export default function LoginPage() {
     if (error) {
       setError(error.message)
       setLoading(false)
+      // Log login failure
+      sendSystemLog('user_login', 'error', { email, error: error.message })
       return
     }
+
+    // Log successful login
+    sendSystemLog('user_login', 'success', { email })
 
     router.push('/dashboard')
     router.refresh()
@@ -70,6 +76,9 @@ export default function LoginPage() {
 
     // Se usuário foi criado, registrar aceite dos termos
     if (data.user) {
+      // Log user registration
+      sendSystemLog('user_register', 'success', { email, userId: data.user.id })
+
       try {
         const response = await fetch('/api/terms/accept', {
           method: 'POST',

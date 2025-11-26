@@ -48,6 +48,7 @@ import { SmartScheduler, ScheduleData } from './SmartScheduler'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { CalendarClock } from 'lucide-react'
+import { sendSystemLog } from '@/hooks/useSystemLog'
 
 interface CampaignDispatcherProps {
   instances: WhatsAppInstance[]
@@ -392,6 +393,14 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
         }
       }
 
+      // Log campaign creation
+      sendSystemLog('campaign_created', 'success', {
+        templatesCount: selectedTemplates.length,
+        recipientsCount: totalRecipients,
+        scheduleType: scheduleData.schedule_type,
+        scheduledAt: scheduleData.scheduled_at,
+      })
+
       setSuccess(`${selectedTemplates.length} campanha(s) agendada(s) com sucesso!`)
 
       // Redirecionar para a página de campanhas agendadas
@@ -400,6 +409,11 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
       }, 2000)
 
     } catch (err) {
+      // Log campaign creation failure
+      sendSystemLog('campaign_created', 'error', {
+        error: err instanceof Error ? err.message : 'Erro desconhecido',
+        templatesCount: selectedTemplates.length,
+      })
       setError(err instanceof Error ? err.message : 'Erro ao agendar campanha')
     }
   }

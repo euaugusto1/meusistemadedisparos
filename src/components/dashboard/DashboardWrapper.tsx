@@ -6,6 +6,7 @@ import { useTheme } from '@/hooks/useTheme'
 import type { Profile } from '@/types'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
+import { Footer } from './Footer'
 import { ThemeProvider } from './ThemeProvider'
 
 interface DashboardWrapperProps {
@@ -55,6 +56,7 @@ export function DashboardWrapper({ profile, children }: DashboardWrapperProps) {
           <main className="flex-1 overflow-y-auto p-6 bg-background">
             {children}
           </main>
+          <Footer />
         </div>
       </div>
     </>

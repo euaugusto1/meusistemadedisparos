@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { getServerForInstance } from '@/services/uazapi'
+import { createSystemLog, extractRequestInfo } from '@/lib/system-logger'
 
 // Helper function to make UAZAPI requests
 async function uazapiPostRequest(baseUrl: string, endpoint: string, token: string, body: Record<string, unknown>) {
@@ -66,6 +67,21 @@ export async function POST(
         phone_number: null,
       })
       .eq('id', id)
+
+    // Log instance disconnection
+    const { ipAddress, userAgent } = extractRequestInfo(request)
+    await createSystemLog({
+      userId: user.id,
+      action: 'instance_disconnected',
+      level: 'info',
+      details: {
+        instanceId: id,
+        instanceName: instance.name,
+        instanceKey: instance.instance_key,
+      },
+      ipAddress,
+      userAgent,
+    })
 
     return NextResponse.json({
       success: true,

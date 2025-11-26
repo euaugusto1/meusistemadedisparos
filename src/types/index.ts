@@ -14,6 +14,9 @@ export type ButtonType = 'button' | 'list' | 'poll' | 'carousel'
 export type ScheduleType = 'immediate' | 'scheduled' | 'recurring' | 'smart'
 export type RecurrenceType = 'daily' | 'weekly' | 'monthly'
 
+// User Status
+export type UserStatus = 'active' | 'blocked' | 'suspended'
+
 // Profile
 export interface Profile {
   id: string
@@ -24,8 +27,61 @@ export interface Profile {
   plan_tier: PlanTier
   plan_expires_at: string | null
   credits: number
+  status?: UserStatus
+  blocked_at?: string | null
+  blocked_reason?: string | null
+  last_login_at?: string | null
   created_at: string
   updated_at: string
+}
+
+// User Activity Log
+export interface UserActivityLog {
+  id: string
+  user_id: string
+  action: string
+  description: string
+  metadata?: Record<string, unknown>
+  ip_address?: string | null
+  user_agent?: string | null
+  created_at: string
+}
+
+// User Note (Admin notes about users)
+export interface UserNote {
+  id: string
+  user_id: string
+  admin_id: string
+  note: string
+  created_at: string
+  updated_at: string
+  admin?: Profile
+}
+
+// Credit History
+export interface CreditHistory {
+  id: string
+  user_id: string
+  amount: number
+  type: 'add' | 'deduct' | 'purchase' | 'refund' | 'bonus'
+  description: string
+  reference_id?: string | null
+  admin_id?: string | null
+  created_at: string
+}
+
+// User Stats (for admin dashboard)
+export interface UserStats {
+  user_id: string
+  total_campaigns: number
+  total_messages_sent: number
+  total_messages_failed: number
+  success_rate: number
+  active_instances: number
+  total_lists: number
+  total_contacts: number
+  total_credits_used: number
+  last_campaign_at: string | null
 }
 
 // Plan

@@ -19,30 +19,53 @@ export default async function LogsPage() {
     redirect('/dashboard')
   }
 
-  // Buscar logs do sistema
-  const { data: logs } = await supabase
-    .from('system_logs')
-    .select(`
-      *,
-      user:profiles(id, email, full_name)
-    `)
-    .order('created_at', { ascending: false })
-    .limit(500)
+  // Buscar dados em paralelo
+  const [
+    { data: logs },
+    { data: campaignLogsRaw },
+    { data: users },
+    { data: instances }
+  ] = await Promise.all([
+    // Logs do sistema
+    supabase
+      .from('system_logs')
+      .select(`
+        *,
+        user:profiles!user_id(id, email, full_name)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(500),
 
-  // Buscar logs de campanhas
-  const { data: campaignLogsRaw } = await supabase
-    .from('campaign_items')
-    .select(`
-      id,
-      recipient,
-      status,
-      error_message,
-      sent_at,
-      campaign:campaigns(id, title, user_id)
-    `)
-    .order('sent_at', { ascending: false })
-    .not('sent_at', 'is', null)
-    .limit(200)
+    // Logs de campanhas
+    supabase
+      .from('campaign_items')
+      .select(`
+        id,
+        campaign_id,
+        recipient,
+        recipient_name,
+        status,
+        error_message,
+        sent_at,
+        response_data,
+        campaign:campaigns(id, title, user_id, instance_id, message)
+      `)
+      .order('sent_at', { ascending: false })
+      .not('sent_at', 'is', null)
+      .limit(500),
+
+    // Usuários para filtro
+    supabase
+      .from('profiles')
+      .select('id, email, full_name')
+      .order('email'),
+
+    // Instâncias para filtro
+    supabase
+      .from('whatsapp_instances')
+      .select('id, name, phone_number')
+      .order('name')
+  ])
 
   // Transform array to single object
   const campaignLogs = campaignLogsRaw?.map(log => ({
@@ -65,6 +88,8 @@ export default async function LogsPage() {
       <LogsViewer
         systemLogs={logs || []}
         campaignLogs={campaignLogs as any}
+        users={users || []}
+        instances={instances || []}
       />
     </div>
   )

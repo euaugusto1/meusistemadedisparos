@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { getServerForInstance } from '@/services/uazapi'
+import { createSystemLog, extractRequestInfo } from '@/lib/system-logger'
 
 // Helper function to make UAZAPI requests
 async function uazapiRequest(baseUrl: string, endpoint: string, token: string) {
@@ -92,6 +93,20 @@ export async function GET(
       .from('whatsapp_instances')
       .update({ status: 'qr_code' })
       .eq('id', id)
+
+    // Log QR code generation
+    const { ipAddress, userAgent } = extractRequestInfo(request)
+    await createSystemLog({
+      userId: user.id,
+      action: 'instance_qr_generated',
+      level: 'info',
+      details: {
+        instanceId: id,
+        instanceName: instance.name,
+      },
+      ipAddress,
+      userAgent,
+    })
 
     return NextResponse.json({
       qr_code: qrData.qr_code,
