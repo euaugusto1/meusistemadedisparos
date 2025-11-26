@@ -38,6 +38,11 @@ import {
   MoreVertical,
   Server,
   Globe,
+  ShieldAlert,
+  Ban,
+  MessageSquareWarning,
+  Building2,
+  Info,
 } from 'lucide-react'
 import { formatDate, getStatusColor } from '@/lib/utils'
 import type { WhatsAppInstance, Profile, InstanceStatus } from '@/types'
@@ -928,6 +933,70 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
           <Button onClick={() => setError(null)}>Fechar</Button>
         </DialogContent>
       </Dialog>
+
+      {/* Guia de Orientações - Rodapé */}
+      <Card className="mt-8 border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-orange-500/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm sm:text-base flex items-center gap-2 text-amber-600 dark:text-amber-400">
+            <Info className="h-4 w-4 sm:h-5 sm:w-5" />
+            Orientações Importantes
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            {/* WhatsApp Business */}
+            <div className="flex gap-2 sm:gap-3 p-2 sm:p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+              <Building2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs sm:text-sm font-semibold text-green-700 dark:text-green-300">Use WhatsApp Business</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
+                  Conecte apenas contas do WhatsApp Business para maior segurança e recursos profissionais.
+                </p>
+              </div>
+            </div>
+
+            {/* Regras de Uso */}
+            <div className="flex gap-2 sm:gap-3 p-2 sm:p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+              <MessageSquareWarning className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs sm:text-sm font-semibold text-blue-700 dark:text-blue-300">Regras de Uso</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
+                  Envie apenas para contatos que autorizaram. Evite spam e conteúdo proibido.
+                </p>
+              </div>
+            </div>
+
+            {/* Risco de Banimento */}
+            <div className="flex gap-2 sm:gap-3 p-2 sm:p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+              <Ban className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs sm:text-sm font-semibold text-red-700 dark:text-red-300">Risco de Banimento</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
+                  O uso indevido pode resultar em banimento permanente do número pelo WhatsApp.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Dicas adicionais - compactas */}
+          <div className="pt-2 sm:pt-3 border-t border-border/50">
+            <p className="text-[10px] sm:text-xs text-muted-foreground flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1">
+              <span className="flex items-center gap-1">
+                <ShieldAlert className="h-3 w-3 text-amber-500" />
+                Não compartilhe seu QR Code
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock className="h-3 w-3 text-amber-500" />
+                Respeite intervalos entre mensagens
+              </span>
+              <span className="flex items-center gap-1">
+                <CheckCircle className="h-3 w-3 text-amber-500" />
+                Mantenha a instância conectada
+              </span>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
