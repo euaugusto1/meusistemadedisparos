@@ -1,9 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { corsPreflightResponse, jsonResponseWithCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 
 const N8N_API_KEY = process.env.N8N_API_KEY || ''
+
+// Handle CORS preflight
+export async function OPTIONS() {
+  return corsPreflightResponse()
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +18,7 @@ export async function GET(request: NextRequest) {
     const apiKey = authHeader?.replace('Bearer ', '')
 
     if (!apiKey || apiKey !== N8N_API_KEY) {
-      return NextResponse.json(
+      return jsonResponseWithCors(
         { error: 'Não autorizado' },
         { status: 401 }
       )
@@ -50,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Error fetching campaigns:', error)
-      return NextResponse.json(
+      return jsonResponseWithCors(
         { error: 'Erro ao buscar campanhas', details: error.message },
         { status: 500 }
       )
@@ -88,7 +94,7 @@ export async function GET(request: NextRequest) {
       return isTest && hasEvolutionToken && notExpired && isReadyToSend
     }) || []
 
-    return NextResponse.json({
+    return jsonResponseWithCors({
       success: true,
       campaigns: testCampaigns,
       count: testCampaigns.length,
@@ -97,7 +103,7 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error in test-campaigns route:', error)
-    return NextResponse.json(
+    return jsonResponseWithCors(
       {
         error: 'Erro interno do servidor',
         details: error instanceof Error ? error.message : 'Erro desconhecido'
