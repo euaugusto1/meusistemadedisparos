@@ -23,7 +23,7 @@ Lista todas as campanhas do usuário autenticado.
 **Ordenação**:
 - Por padrão, ordena por data de criação (mais recente primeiro)
       `,
-      security: [{ SupabaseAuth: [] }, { AdminToken: [] }],
+      security: [{ SupabaseAuth: [] }, { AdminToken: [] }, { N8nAuth: [] }],
       parameters: [
         {
           name: 'status',
@@ -116,7 +116,7 @@ Lista todas as campanhas com status \`scheduled\` que estão prontas para proces
 - Endpoint usado pelo N8N para buscar campanhas prontas para disparo
 - Verifica se a instância está conectada e com token válido
       `,
-      security: [{ SupabaseAuth: [] }, { AdminToken: [] }],
+      security: [{ SupabaseAuth: [] }, { AdminToken: [] }, { N8nAuth: [] }],
       responses: {
         '200': {
           description: 'Lista de campanhas agendadas',
@@ -255,7 +255,7 @@ Retorna todos os detalhes de uma campanha específica.
 - Configurações de agendamento
 - Informações da instância associada
       `,
-      security: [{ SupabaseAuth: [] }, { AdminToken: [] }],
+      security: [{ SupabaseAuth: [] }, { AdminToken: [] }, { N8nAuth: [] }],
       parameters: [
         {
           name: 'id',

@@ -95,17 +95,17 @@ Lista todos os arquivos de mídia do usuário.
       description: `
 Faz upload de um novo arquivo de mídia.
 
-**Limites por tipo**:
-| Tipo | Tamanho Máximo | Formatos |
-|------|----------------|----------|
-| Imagem | 5 MB | JPG, PNG, GIF, WebP |
-| Vídeo | 16 MB | MP4, WebM |
-| Áudio | 16 MB | MP3, OGG, WAV |
-| Documento | 100 MB | PDF, DOC, DOCX, XLS, XLSX |
+**Limite de tamanho**: 50 MB (todos os tipos)
 
-**Otimização automática**:
-- Imagens são redimensionadas se maiores que 1920px
-- Thumbnails são gerados automaticamente
+**Formatos suportados**:
+| Tipo | Formatos |
+|------|----------|
+| Imagem | JPG, PNG, GIF, WebP |
+| Vídeo | MP4, WebM |
+| Áudio | MP3, OGG, WAV |
+| Documento | PDF, DOC, DOCX, XLS, XLSX |
+
+**Observação**: Apenas o proprietário do arquivo ou admin podem renomear/excluir
       `,
       security: [{ SupabaseAuth: [] }, { AdminToken: [] }],
       requestBody: {
@@ -163,7 +163,7 @@ Faz upload de um novo arquivo de mídia.
               schema: { $ref: '#/components/schemas/Error' },
               examples: {
                 'Formato inválido': { value: { error: 'Invalid file format' } },
-                'Muito grande': { value: { error: 'File too large. Maximum 5MB for images' } },
+                'Muito grande': { value: { error: 'File too large. Maximum 50MB' } },
                 'Sem espaço': { value: { error: 'Storage limit exceeded' } }
               }
             }
