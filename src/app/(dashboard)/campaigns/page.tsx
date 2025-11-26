@@ -71,10 +71,13 @@ export default function CampaignsPage() {
     return (
       <>
         <CampaignNavigation />
-        <div className="container mx-auto px-4 py-8 space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold">Histórico</h1>
-            <p className="text-muted-foreground">
+        <div className="container mx-auto px-4 py-8 space-y-8">
+          {/* Header - Premium Style */}
+          <div className="text-center space-y-3">
+            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary via-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Histórico
+            </h1>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               Acompanhe o histórico e status das suas campanhas
             </p>
           </div>
@@ -87,10 +90,13 @@ export default function CampaignsPage() {
   return (
     <>
       <CampaignNavigation />
-      <div className="container mx-auto px-4 py-8 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Histórico</h1>
-          <p className="text-muted-foreground">
+      <div className="container mx-auto px-4 py-8 space-y-8">
+        {/* Header - Premium Style */}
+        <div className="text-center space-y-3">
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary via-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Histórico
+          </h1>
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
             Acompanhe o histórico e status das suas campanhas
           </p>
         </div>
