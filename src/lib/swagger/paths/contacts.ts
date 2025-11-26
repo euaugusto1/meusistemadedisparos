@@ -262,7 +262,7 @@ Remove uma lista de contatos permanentemente.
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' },
-              example: { error: 'List is being used by active campaigns' }
+              example: { error: 'Lista em uso', message: 'Esta lista está sendo usada por campanhas ativas e não pode ser deletada' }
             }
           }
         },
@@ -408,8 +408,8 @@ O sistema normaliza automaticamente para o formato internacional.
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' },
               examples: {
-                'Duplicado': { value: { error: 'Contact already exists in this list' } },
-                'Telefone inválido': { value: { error: 'Invalid phone number format' } }
+                'Duplicado': { value: { error: 'Contato duplicado', message: 'Este contato já existe nesta lista' } },
+                'Telefone inválido': { value: { error: 'Telefone inválido', message: 'O formato do número de telefone é inválido. Use: +5511999999999' } }
               }
             }
           }
@@ -627,9 +627,9 @@ Importa contatos de um arquivo CSV ou Excel.
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' },
               examples: {
-                'Formato inválido': { value: { error: 'Invalid file format. Use CSV or XLSX' } },
-                'Arquivo muito grande': { value: { error: 'File too large. Maximum 5MB' } },
-                'Coluna obrigatória ausente': { value: { error: 'Required column "telefone" not found' } }
+                'Formato inválido': { value: { error: 'Formato inválido', message: 'Use arquivos CSV ou XLSX' } },
+                'Arquivo muito grande': { value: { error: 'Arquivo muito grande', message: 'O tamanho máximo permitido é 5MB' } },
+                'Coluna obrigatória ausente': { value: { error: 'Coluna ausente', message: 'A coluna obrigatória "telefone" não foi encontrada no arquivo' } }
               }
             }
           }

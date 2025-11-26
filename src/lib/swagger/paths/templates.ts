@@ -309,7 +309,7 @@ Remove um template permanentemente.
                 type: 'object',
                 properties: {
                   success: { type: 'boolean', example: true },
-                  message: { type: 'string', example: 'Template deleted successfully' }
+                  message: { type: 'string', example: 'Template deletado com sucesso' }
                 }
               }
             }
@@ -320,7 +320,7 @@ Remove um template permanentemente.
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' },
-              example: { error: 'Template is being used by active campaigns' }
+              example: { error: 'Template em uso', message: 'Este template está sendo usado por campanhas ativas e não pode ser deletado' }
             }
           }
         },

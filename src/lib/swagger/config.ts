@@ -160,12 +160,17 @@ Authorization: Bearer <N8N_API_KEY>
           error: {
             type: 'string',
             description: 'Mensagem de erro',
-            example: 'Unauthorized'
+            example: 'Não autorizado'
           },
-          details: {
+          message: {
             type: 'string',
-            description: 'Detalhes adicionais do erro',
-            example: 'Invalid API token'
+            description: 'Descrição do erro',
+            example: 'Token de API inválido ou ausente'
+          },
+          hint: {
+            type: 'string',
+            description: 'Dica para resolver o problema',
+            example: 'Use Bearer token no header Authorization'
           }
         }
       },
@@ -179,7 +184,7 @@ Authorization: Bearer <N8N_API_KEY>
           },
           message: {
             type: 'string',
-            example: 'Operation completed successfully'
+            example: 'Operação realizada com sucesso'
           }
         }
       },
@@ -237,8 +242,9 @@ Authorization: Bearer <N8N_API_KEY>
               $ref: '#/components/schemas/Error'
             },
             example: {
-              error: 'Unauthorized',
-              details: 'Invalid or missing API token'
+              error: 'Não autorizado',
+              message: 'Token de API inválido ou ausente',
+              hint: 'Use Bearer token (N8N_API_KEY), API token (wpp_xxx), ou faça login na aplicação'
             }
           }
         }
@@ -251,8 +257,9 @@ Authorization: Bearer <N8N_API_KEY>
               $ref: '#/components/schemas/Error'
             },
             example: {
-              error: 'Forbidden',
-              details: 'Admin access required'
+              error: 'Acesso negado',
+              message: 'Você não tem permissão para acessar este recurso',
+              hint: 'Esta operação requer permissão de administrador'
             }
           }
         }
@@ -265,8 +272,8 @@ Authorization: Bearer <N8N_API_KEY>
               $ref: '#/components/schemas/Error'
             },
             example: {
-              error: 'Not Found',
-              details: 'Resource not found'
+              error: 'Não encontrado',
+              message: 'O recurso solicitado não existe ou foi removido'
             }
           }
         }
@@ -280,7 +287,11 @@ Authorization: Bearer <N8N_API_KEY>
               properties: {
                 error: {
                   type: 'string',
-                  example: 'Validation error'
+                  example: 'Erro de validação'
+                },
+                message: {
+                  type: 'string',
+                  example: 'Os dados enviados são inválidos'
                 },
                 details: {
                   type: 'array',
@@ -293,7 +304,7 @@ Authorization: Bearer <N8N_API_KEY>
                       },
                       message: {
                         type: 'string',
-                        example: 'Invalid email format'
+                        example: 'Formato de email inválido'
                       }
                     }
                   }
@@ -311,8 +322,9 @@ Authorization: Bearer <N8N_API_KEY>
               $ref: '#/components/schemas/Error'
             },
             example: {
-              error: 'Too many requests',
-              details: 'Rate limit exceeded. Try again later.'
+              error: 'Limite excedido',
+              message: 'Você excedeu o limite de requisições permitidas',
+              hint: 'Aguarde alguns minutos antes de tentar novamente'
             }
           }
         },
@@ -345,8 +357,9 @@ Authorization: Bearer <N8N_API_KEY>
               $ref: '#/components/schemas/Error'
             },
             example: {
-              error: 'Internal server error',
-              details: 'An unexpected error occurred'
+              error: 'Erro interno',
+              message: 'Ocorreu um erro inesperado no servidor',
+              hint: 'Tente novamente em alguns instantes. Se o problema persistir, entre em contato com o suporte.'
             }
           }
         }

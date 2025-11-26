@@ -108,7 +108,7 @@ Gera um QR Code para conectar o WhatsApp na instância.
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' },
-              example: { error: 'Instance already connected' }
+              example: { error: 'Instância já conectada', message: 'Esta instância já está conectada. Desconecte primeiro se desejar gerar novo QR Code.' }
             }
           }
         },
@@ -238,7 +238,7 @@ Lista todos os grupos do WhatsApp conectados à instância.
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' },
-              example: { error: 'Instance not connected' }
+              example: { error: 'Instância não conectada', message: 'Conecte o WhatsApp primeiro para listar os grupos' }
             }
           }
         },
@@ -280,7 +280,7 @@ Desconecta o WhatsApp da instância.
                 type: 'object',
                 properties: {
                   success: { type: 'boolean', example: true },
-                  message: { type: 'string', example: 'Instance disconnected successfully' }
+                  message: { type: 'string', example: 'Instância desconectada com sucesso' }
                 }
               }
             }
@@ -291,7 +291,7 @@ Desconecta o WhatsApp da instância.
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' },
-              example: { error: 'Instance already disconnected' }
+              example: { error: 'Instância já desconectada', message: 'Esta instância já está desconectada' }
             }
           }
         },

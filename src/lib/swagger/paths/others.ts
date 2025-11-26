@@ -473,10 +473,10 @@ Envia uma mensagem individual para um número específico.
               schema: { $ref: '#/components/schemas/Error' },
               examples: {
                 'Instância desconectada': {
-                  value: { error: 'Instance not connected' }
+                  value: { error: 'Instância não conectada', message: 'Conecte o WhatsApp primeiro para enviar mensagens' }
                 },
                 'Número inválido': {
-                  value: { error: 'Invalid phone number format' }
+                  value: { error: 'Número inválido', message: 'O formato do número de telefone é inválido. Use: +5511999999999' }
                 }
               }
             }

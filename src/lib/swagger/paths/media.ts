@@ -162,9 +162,9 @@ Faz upload de um novo arquivo de mídia.
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' },
               examples: {
-                'Formato inválido': { value: { error: 'Invalid file format' } },
-                'Muito grande': { value: { error: 'File too large. Maximum 50MB' } },
-                'Sem espaço': { value: { error: 'Storage limit exceeded' } }
+                'Formato inválido': { value: { error: 'Formato de arquivo inválido', message: 'Apenas JPG, PNG, GIF, WebP, MP4, WebM, MP3, OGG, WAV, PDF, DOC, DOCX, XLS, XLSX são permitidos' } },
+                'Muito grande': { value: { error: 'Arquivo muito grande', message: 'O tamanho máximo permitido é 50MB' } },
+                'Sem espaço': { value: { error: 'Limite de armazenamento', message: 'Você atingiu o limite de armazenamento do seu plano' } }
               }
             }
           }
@@ -310,7 +310,7 @@ Remove um arquivo de mídia permanentemente.
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' },
-              example: { error: 'File is being used by templates' }
+              example: { error: 'Arquivo em uso', message: 'Este arquivo está sendo usado por templates ou campanhas e não pode ser deletado' }
             }
           }
         },
@@ -411,8 +411,8 @@ Remove um arquivo de mídia permanentemente.
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' },
               examples: {
-                'Já existe': { value: { error: 'Folder already exists' } },
-                'Nome inválido': { value: { error: 'Invalid folder name. Use only lowercase letters, numbers and hyphens' } }
+                'Já existe': { value: { error: 'Pasta já existe', message: 'Já existe uma pasta com este nome' } },
+                'Nome inválido': { value: { error: 'Nome inválido', message: 'Use apenas letras minúsculas, números e hífens no nome da pasta' } }
               }
             }
           }
@@ -532,7 +532,7 @@ Remove múltiplos arquivos de uma vez.
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' },
-              example: { error: 'Maximum 100 files per request' }
+              example: { error: 'Limite excedido', message: 'Máximo de 100 arquivos por requisição' }
             }
           }
         },
