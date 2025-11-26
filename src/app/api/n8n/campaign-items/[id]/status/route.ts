@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { corsPreflightResponse, jsonResponseWithCors } from '@/lib/cors'
 import type { CampaignItemStatus } from '@/types'
 
 export const dynamic = 'force-dynamic'
+
+// Handle CORS preflight
+export async function OPTIONS() {
+  return corsPreflightResponse()
+}
 
 const N8N_API_KEY = process.env.N8N_API_KEY || ''
 
@@ -18,7 +24,7 @@ export async function PATCH(
     const apiKey = authHeader?.replace('Bearer ', '')
 
     if (!apiKey || apiKey !== N8N_API_KEY) {
-      return NextResponse.json(
+      return jsonResponseWithCors(
         { error: 'Não autorizado' },
         { status: 401 }
       )
@@ -30,7 +36,7 @@ export async function PATCH(
 
     // Validar status
     if (!status || !VALID_STATUSES.includes(status)) {
-      return NextResponse.json(
+      return jsonResponseWithCors(
         { error: 'Status inválido', validStatuses: VALID_STATUSES },
         { status: 400 }
       )
@@ -69,14 +75,14 @@ export async function PATCH(
 
     if (error) {
       console.error('Error updating campaign item:', error)
-      return NextResponse.json(
+      return jsonResponseWithCors(
         { error: 'Erro ao atualizar item', details: error.message },
         { status: 500 }
       )
     }
 
     if (!item) {
-      return NextResponse.json(
+      return jsonResponseWithCors(
         { error: 'Item não encontrado' },
         { status: 404 }
       )
@@ -101,7 +107,7 @@ export async function PATCH(
     }
 
     // Padronizado: itemId e campaignId sempre no nível raiz para consistência no N8N
-    return NextResponse.json({
+    return jsonResponseWithCors({
       success: true,
       itemId: item.id,
       campaignId: item.campaign_id,
@@ -115,7 +121,7 @@ export async function PATCH(
 
   } catch (error) {
     console.error('Error in campaign item status route:', error)
-    return NextResponse.json(
+    return jsonResponseWithCors(
       {
         error: 'Erro interno do servidor',
         details: error instanceof Error ? error.message : 'Erro desconhecido'

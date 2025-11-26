@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { corsPreflightResponse, jsonResponseWithCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
+
+// Handle CORS preflight
+export async function OPTIONS() {
+  return corsPreflightResponse()
+}
 
 const N8N_API_KEY = process.env.N8N_API_KEY || ''
 
@@ -15,7 +21,7 @@ export async function GET(
     const apiKey = authHeader?.replace('Bearer ', '')
 
     if (!apiKey || apiKey !== N8N_API_KEY) {
-      return NextResponse.json(
+      return jsonResponseWithCors(
         { error: 'Não autorizado' },
         { status: 401 }
       )
@@ -32,7 +38,7 @@ export async function GET(
       .single()
 
     if (campaignError || !campaign) {
-      return NextResponse.json(
+      return jsonResponseWithCors(
         { error: 'Campanha não encontrada' },
         { status: 404 }
       )
@@ -48,13 +54,13 @@ export async function GET(
 
     if (itemsError) {
       console.error('Error fetching campaign items:', itemsError)
-      return NextResponse.json(
+      return jsonResponseWithCors(
         { error: 'Erro ao buscar destinatários', details: itemsError.message },
         { status: 500 }
       )
     }
 
-    return NextResponse.json({
+    return jsonResponseWithCors({
       success: true,
       campaign: {
         id: campaign.id,
@@ -67,7 +73,7 @@ export async function GET(
 
   } catch (error) {
     console.error('Error in campaign items route:', error)
-    return NextResponse.json(
+    return jsonResponseWithCors(
       {
         error: 'Erro interno do servidor',
         details: error instanceof Error ? error.message : 'Erro desconhecido'

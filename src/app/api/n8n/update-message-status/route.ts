@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { corsPreflightResponse, jsonResponseWithCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
+
+// Handle CORS preflight
+export async function OPTIONS() {
+  return corsPreflightResponse()
+}
 
 const N8N_API_KEY = process.env.N8N_API_KEY || ''
 
@@ -19,7 +25,7 @@ export async function POST(request: NextRequest) {
     const apiKey = authHeader?.replace('Bearer ', '')
 
     if (!apiKey || apiKey !== N8N_API_KEY) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+      return jsonResponseWithCors({ error: 'Não autorizado' }, { status: 401 })
     }
 
     const supabase = createAdminClient()
@@ -28,7 +34,7 @@ export async function POST(request: NextRequest) {
     const { campaignItemId, status, errorMessage, sentAt } = body
 
     if (!campaignItemId || !status) {
-      return NextResponse.json(
+      return jsonResponseWithCors(
         { error: 'Missing required fields: campaignItemId, status' },
         { status: 400 }
       )
@@ -55,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       console.error('Error updating campaign item:', updateError)
-      return NextResponse.json({ error: updateError.message }, { status: 500 })
+      return jsonResponseWithCors({ error: updateError.message }, { status: 500 })
     }
 
     // Get campaign to update counters
@@ -95,7 +101,7 @@ export async function POST(request: NextRequest) {
         .eq('id', campaign.campaign_id)
     }
 
-    return NextResponse.json({
+    return jsonResponseWithCors({
       success: true,
       item: updatedItem,
       message: `Message marked as ${status}`
@@ -103,7 +109,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error in /api/n8n/update-message-status:', error)
-    return NextResponse.json(
+    return jsonResponseWithCors(
       { error: 'Internal server error' },
       { status: 500 }
     )

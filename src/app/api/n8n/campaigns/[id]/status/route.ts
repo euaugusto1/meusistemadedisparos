@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { corsPreflightResponse, jsonResponseWithCors } from '@/lib/cors'
 import type { CampaignStatus } from '@/types'
 
 export const dynamic = 'force-dynamic'
+
+// Handle CORS preflight
+export async function OPTIONS() {
+  return corsPreflightResponse()
+}
 
 const N8N_API_KEY = process.env.N8N_API_KEY || ''
 
@@ -18,7 +24,7 @@ export async function PATCH(
     const apiKey = authHeader?.replace('Bearer ', '')
 
     if (!apiKey || apiKey !== N8N_API_KEY) {
-      return NextResponse.json(
+      return jsonResponseWithCors(
         { error: 'Não autorizado' },
         { status: 401 }
       )
@@ -30,7 +36,7 @@ export async function PATCH(
 
     // Validar status
     if (!status || !VALID_STATUSES.includes(status)) {
-      return NextResponse.json(
+      return jsonResponseWithCors(
         { error: 'Status inválido', validStatuses: VALID_STATUSES },
         { status: 400 }
       )
@@ -61,21 +67,21 @@ export async function PATCH(
 
     if (error) {
       console.error('Error updating campaign status:', error)
-      return NextResponse.json(
+      return jsonResponseWithCors(
         { error: 'Erro ao atualizar status', details: error.message },
         { status: 500 }
       )
     }
 
     if (!campaign) {
-      return NextResponse.json(
+      return jsonResponseWithCors(
         { error: 'Campanha não encontrada' },
         { status: 404 }
       )
     }
 
     // Padronizado: campaignId sempre no nível raiz para consistência no N8N
-    return NextResponse.json({
+    return jsonResponseWithCors({
       success: true,
       campaignId: campaign.id,
       title: campaign.title,
@@ -88,7 +94,7 @@ export async function PATCH(
 
   } catch (error) {
     console.error('Error in campaign status route:', error)
-    return NextResponse.json(
+    return jsonResponseWithCors(
       {
         error: 'Erro interno do servidor',
         details: error instanceof Error ? error.message : 'Erro desconhecido'

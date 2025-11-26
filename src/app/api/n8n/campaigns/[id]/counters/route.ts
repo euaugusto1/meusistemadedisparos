@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { corsPreflightResponse, jsonResponseWithCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
+
+// Handle CORS preflight
+export async function OPTIONS() {
+  return corsPreflightResponse()
+}
 
 const N8N_API_KEY = process.env.N8N_API_KEY || ''
 
@@ -15,7 +21,7 @@ export async function PATCH(
     const apiKey = authHeader?.replace('Bearer ', '')
 
     if (!apiKey || apiKey !== N8N_API_KEY) {
-      return NextResponse.json(
+      return jsonResponseWithCors(
         { error: 'Não autorizado' },
         { status: 401 }
       )
@@ -35,7 +41,7 @@ export async function PATCH(
       .single()
 
     if (fetchError || !campaign) {
-      return NextResponse.json(
+      return jsonResponseWithCors(
         { error: 'Campanha não encontrada' },
         { status: 404 }
       )
@@ -59,14 +65,14 @@ export async function PATCH(
 
     if (updateError) {
       console.error('Error updating campaign counters:', updateError)
-      return NextResponse.json(
+      return jsonResponseWithCors(
         { error: 'Erro ao atualizar contadores', details: updateError.message },
         { status: 500 }
       )
     }
 
     // Padronizado: campaignId sempre no nível raiz para consistência no N8N
-    return NextResponse.json({
+    return jsonResponseWithCors({
       success: true,
       campaignId: updated.id,
       title: updated.title,
@@ -85,7 +91,7 @@ export async function PATCH(
 
   } catch (error) {
     console.error('Error in campaign counters route:', error)
-    return NextResponse.json(
+    return jsonResponseWithCors(
       {
         error: 'Erro interno do servidor',
         details: error instanceof Error ? error.message : 'Erro desconhecido'
