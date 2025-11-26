@@ -695,36 +695,15 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
                   {/* Botão Agendar Campanha */}
                   <Button
                     type="button"
-                    variant="outline"
-                    className="flex-1 relative overflow-hidden border-2 border-blue-500/50 hover:border-blue-500 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 font-semibold text-base py-6 shadow-lg shadow-blue-500/10 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none group"
+                    className="flex-1 relative overflow-hidden bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 hover:from-blue-600 hover:via-blue-700 hover:to-blue-800 text-white font-semibold text-base py-6 shadow-lg shadow-blue-500/25 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/40 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none group"
                     disabled={!isValid || planExpired}
                     onClick={() => setShowScheduleModal(true)}
-                  >
-                    <CalendarClock className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform duration-300" />
-                    <span className="relative">Agendar Campanha</span>
-                  </Button>
-
-                  {/* Botão Iniciar Envios */}
-                  <Button
-                    type="submit"
-                    className="flex-1 relative overflow-hidden bg-gradient-to-r from-primary via-primary/90 to-primary hover:from-primary/90 hover:via-primary hover:to-primary/90 text-white font-semibold text-base py-6 shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none group"
-                    disabled={!isValid || planExpired}
                   >
                     {/* Shine effect */}
                     <div className="absolute inset-0 -top-full group-hover:top-full transition-all duration-700 ease-out bg-gradient-to-b from-transparent via-white/20 to-transparent" />
 
-                    {/* Icon with animation */}
-                    <div className="relative mr-2">
-                      <Rocket className="h-5 w-5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-300" />
-                      {isValid && !planExpired && (
-                        <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                        </span>
-                      )}
-                    </div>
-
-                    <span className="relative">Iniciar Envios</span>
+                    <CalendarClock className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform duration-300" />
+                    <span className="relative">Agendar Campanha</span>
                   </Button>
                 </>
               ) : (
