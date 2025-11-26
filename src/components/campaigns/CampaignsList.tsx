@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -50,6 +50,10 @@ import {
   Smartphone,
   Link,
   FileText,
+  Zap,
+  Repeat,
+  Brain,
+  Timer,
 } from 'lucide-react'
 import { formatDateTime, formatNumber, getStatusColor } from '@/lib/utils'
 import { dispatchCampaign } from '@/services/campaigns'
@@ -83,6 +87,14 @@ const STATUS_ICONS: Record<CampaignStatus, typeof Send> = {
   paused: Clock,
 }
 
+// Labels e cores para tipos de agendamento
+const SCHEDULE_TYPE_CONFIG: Record<string, { label: string; icon: typeof Zap; color: string }> = {
+  immediate: { label: 'Imediato', icon: Zap, color: 'bg-yellow-500/20 text-yellow-600 border-yellow-500/30' },
+  scheduled: { label: 'Agendado', icon: Timer, color: 'bg-blue-500/20 text-blue-600 border-blue-500/30' },
+  recurring: { label: 'Recorrente', icon: Repeat, color: 'bg-purple-500/20 text-purple-600 border-purple-500/30' },
+  smart: { label: 'Inteligente', icon: Brain, color: 'bg-green-500/20 text-green-600 border-green-500/30' },
+}
+
 export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProps) {
   const [campaigns, setCampaigns] = useState(initialCampaigns)
   const [cancelConfirm, setCancelConfirm] = useState<Campaign | null>(null)
@@ -104,6 +116,57 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
   const [throttleDelay, setThrottleDelay] = useState(2)
   const [smartTiming, setSmartTiming] = useState(false)
   const [suggestedSendTime, setSuggestedSendTime] = useState<string | null>(null)
+
+  const pollingRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Atualização em tempo real quando modal estiver aberta ou campanha em andamento
+  useEffect(() => {
+    const supabase = createClient()
+
+    // Função para buscar dados atualizados de uma campanha
+    const fetchCampaignUpdate = async (campaignId: string) => {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select(`
+          *,
+          instance:whatsapp_instances!campaigns_instance_id_fkey(id, name, status),
+          media:media_files!campaigns_media_id_fkey(id, original_name, mime_type)
+        `)
+        .eq('id', campaignId)
+        .single()
+
+      if (!error && data) {
+        // Atualiza a campanha na lista
+        setCampaigns(prev => prev.map(c => c.id === campaignId ? { ...c, ...data } : c))
+        // Se modal estiver aberta com essa campanha, atualiza também
+        if (viewCampaign?.id === campaignId) {
+          setViewCampaign(prev => prev ? { ...prev, ...data } : null)
+        }
+      }
+    }
+
+    // Polling para campanhas em andamento (processing)
+    const processingCampaigns = campaigns.filter(c => c.status === 'processing')
+
+    if (processingCampaigns.length > 0 || viewCampaign?.status === 'processing') {
+      pollingRef.current = setInterval(() => {
+        // Atualiza todas em andamento
+        processingCampaigns.forEach(c => fetchCampaignUpdate(c.id))
+        // Se modal aberta com campanha em andamento
+        if (viewCampaign?.status === 'processing') {
+          fetchCampaignUpdate(viewCampaign.id)
+        }
+      }, 3000) // Atualiza a cada 3 segundos
+    }
+
+    // Cleanup
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+    }
+  }, [campaigns.filter(c => c.status === 'processing').length, viewCampaign?.id, viewCampaign?.status])
 
   const pendingCampaigns = campaigns.filter(c =>
     ['draft', 'scheduled', 'processing'].includes(c.status)
@@ -698,6 +761,22 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
 
           {viewCampaign && (
             <div className="space-y-6">
+              {/* Tipo de Execução - Badge Proeminente */}
+              {viewCampaign.schedule_type && (
+                <div className="flex justify-center">
+                  {(() => {
+                    const config = SCHEDULE_TYPE_CONFIG[viewCampaign.schedule_type] || SCHEDULE_TYPE_CONFIG.immediate
+                    const ScheduleIcon = config.icon
+                    return (
+                      <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border-2 ${config.color} font-semibold`}>
+                        <ScheduleIcon className="h-5 w-5" />
+                        <span className="text-base">Execução: {config.label}</span>
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
+
               {/* Status e Instância */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-3 bg-muted/50 rounded-lg">
@@ -706,6 +785,11 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
                     <Badge className={getStatusColor(viewCampaign.status)}>
                       {STATUS_LABELS[viewCampaign.status]}
                     </Badge>
+                    {viewCampaign.status === 'processing' && (
+                      <span className="text-xs text-muted-foreground animate-pulse">
+                        (atualizando em tempo real...)
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="p-3 bg-muted/50 rounded-lg">
@@ -719,26 +803,46 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
 
               {/* Agendamento - Se existir */}
               {(viewCampaign.scheduled_at || viewCampaign.schedule_type) && (
-                <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                  <label className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide flex items-center gap-1">
+                <div className={`p-4 rounded-lg border ${
+                  viewCampaign.schedule_type === 'recurring' ? 'bg-purple-500/10 border-purple-500/20' :
+                  viewCampaign.schedule_type === 'smart' ? 'bg-green-500/10 border-green-500/20' :
+                  viewCampaign.schedule_type === 'immediate' ? 'bg-yellow-500/10 border-yellow-500/20' :
+                  'bg-blue-500/10 border-blue-500/20'
+                }`}>
+                  <label className={`text-xs font-medium uppercase tracking-wide flex items-center gap-1 ${
+                    viewCampaign.schedule_type === 'recurring' ? 'text-purple-600 dark:text-purple-400' :
+                    viewCampaign.schedule_type === 'smart' ? 'text-green-600 dark:text-green-400' :
+                    viewCampaign.schedule_type === 'immediate' ? 'text-yellow-600 dark:text-yellow-400' :
+                    'text-blue-600 dark:text-blue-400'
+                  }`}>
                     <Calendar className="h-3 w-3" />
-                    Agendamento
+                    Detalhes do Agendamento
                   </label>
                   <div className="grid grid-cols-2 gap-4 mt-2">
                     <div>
-                      <span className="text-xs text-muted-foreground">Tipo:</span>
-                      <p className="font-medium">
-                        {viewCampaign.schedule_type === 'immediate' && 'Imediato'}
-                        {viewCampaign.schedule_type === 'scheduled' && 'Agendado'}
-                        {viewCampaign.schedule_type === 'recurring' && 'Recorrente'}
-                        {viewCampaign.schedule_type === 'smart' && 'Inteligente'}
-                        {!viewCampaign.schedule_type && 'Não definido'}
-                      </p>
+                      <span className="text-xs text-muted-foreground">Tipo de Execução:</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        {(() => {
+                          const config = SCHEDULE_TYPE_CONFIG[viewCampaign.schedule_type || 'scheduled']
+                          const ScheduleIcon = config.icon
+                          return (
+                            <Badge className={config.color}>
+                              <ScheduleIcon className="h-3 w-3 mr-1" />
+                              {config.label}
+                            </Badge>
+                          )
+                        })()}
+                      </div>
                     </div>
                     {viewCampaign.scheduled_at && (
                       <div>
                         <span className="text-xs text-muted-foreground">Data/Hora:</span>
-                        <p className="font-medium text-blue-600 dark:text-blue-400">
+                        <p className={`font-medium ${
+                          viewCampaign.schedule_type === 'recurring' ? 'text-purple-600 dark:text-purple-400' :
+                          viewCampaign.schedule_type === 'smart' ? 'text-green-600 dark:text-green-400' :
+                          viewCampaign.schedule_type === 'immediate' ? 'text-yellow-600 dark:text-yellow-400' :
+                          'text-blue-600 dark:text-blue-400'
+                        }`}>
                           {(() => {
                             // Parse the scheduled_at without timezone conversion
                             const dateStr = viewCampaign.scheduled_at
@@ -821,6 +925,39 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
                 </div>
               )}
 
+              {/* Progresso em tempo real - Se campanha em andamento */}
+              {viewCampaign.status === 'processing' && (
+                <div className="p-4 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-lg border border-blue-500/20">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                      <span className="text-sm font-medium">Campanha em andamento</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      Atualizando a cada 3s
+                    </div>
+                  </div>
+                  <Progress
+                    value={viewCampaign.total_recipients > 0
+                      ? Math.min(100, Math.round(((viewCampaign.sent_count + viewCampaign.failed_count) / viewCampaign.total_recipients) * 100))
+                      : 0
+                    }
+                    className="h-3"
+                  />
+                  <div className="flex justify-between mt-2 text-sm">
+                    <span className="text-muted-foreground">
+                      {viewCampaign.sent_count + viewCampaign.failed_count} de {viewCampaign.total_recipients} processados
+                    </span>
+                    <span className="font-bold text-blue-500">
+                      {viewCampaign.total_recipients > 0
+                        ? Math.min(100, Math.round(((viewCampaign.sent_count + viewCampaign.failed_count) / viewCampaign.total_recipients) * 100))
+                        : 0}%
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Estatísticas */}
               <div className="grid grid-cols-4 gap-3 text-center">
                 <div className="p-3 bg-muted rounded-lg">
@@ -830,11 +967,11 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
                     Total
                   </div>
                 </div>
-                <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                <div className={`p-3 bg-green-500/10 rounded-lg border border-green-500/20 ${viewCampaign.status === 'processing' ? 'animate-pulse' : ''}`}>
                   <div className="text-2xl font-bold text-green-500">{viewCampaign.sent_count}</div>
                   <div className="text-xs text-green-600 dark:text-green-400">Enviados</div>
                 </div>
-                <div className="p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+                <div className={`p-3 bg-red-500/10 rounded-lg border border-red-500/20 ${viewCampaign.status === 'processing' ? 'animate-pulse' : ''}`}>
                   <div className="text-2xl font-bold text-red-500">{viewCampaign.failed_count}</div>
                   <div className="text-xs text-red-600 dark:text-red-400">Falhas</div>
                 </div>
