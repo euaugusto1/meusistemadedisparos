@@ -1,33 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireApiToken } from '@/lib/api-token-auth'
 
 export const dynamic = 'force-dynamic'
 
+const N8N_API_KEY = process.env.N8N_API_KEY || ''
+
 export async function GET(request: NextRequest) {
   try {
-    // Try API token auth first, then fall back to Supabase auth
-    const tokenAuth = await requireApiToken(request)
+    let userId: string | null = null
+    let isAdmin = false
 
-    let userId: string
+    // 1. Try N8N API Key (Bearer token from environment)
+    const authHeader = request.headers.get('authorization')
+    const bearerToken = authHeader?.replace('Bearer ', '')
 
-    if (tokenAuth.isValid && tokenAuth.userId) {
-      userId = tokenAuth.userId
+    if (bearerToken && N8N_API_KEY && bearerToken === N8N_API_KEY) {
+      // N8N authentication - admin access (can see all campaigns)
+      isAdmin = true
     } else {
-      // Fall back to Supabase session auth
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      // 2. Try API token auth (wpp_xxx tokens)
+      const tokenAuth = await requireApiToken(request)
 
-      if (!user) {
-        return NextResponse.json(
-          { error: 'Não autorizado' },
-          { status: 401 }
-        )
+      if (tokenAuth.isValid && tokenAuth.userId) {
+        userId = tokenAuth.userId
+        // Check if user is admin
+        const supabase = createAdminClient()
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single()
+        isAdmin = profile?.role === 'admin'
+      } else {
+        // 3. Fall back to Supabase session auth
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (!user) {
+          return NextResponse.json(
+            {
+              error: 'Não autorizado',
+              message: 'Use Bearer token (N8N_API_KEY), API token (wpp_xxx), ou sessão autenticada.',
+              hint: 'No Swagger, clique em "Authorize" e insira seu token'
+            },
+            { status: 401 }
+          )
+        }
+        userId = user.id
+
+        // Check if user is admin
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single()
+        isAdmin = profile?.role === 'admin'
       }
-      userId = user.id
     }
 
-    const supabase = createClient()
+    const supabase = createAdminClient()
 
     // Get query parameters
     const searchParams = request.nextUrl.searchParams
@@ -56,9 +88,13 @@ export async function GET(request: NextRequest) {
         updated_at,
         instance:whatsapp_instances(id, name, status)
       `, { count: 'exact' })
-      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
+
+    // If not admin, only show user's own campaigns
+    if (!isAdmin && userId) {
+      query = query.eq('user_id', userId)
+    }
 
     // Apply filters
     if (status) {

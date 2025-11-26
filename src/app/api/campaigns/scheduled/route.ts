@@ -4,44 +4,62 @@ import { requireApiToken } from '@/lib/api-token-auth'
 
 export const dynamic = 'force-dynamic'
 
+const N8N_API_KEY = process.env.N8N_API_KEY || ''
+
 export async function GET(request: NextRequest) {
   try {
-    // Try API token auth first, then fall back to Supabase auth
-    const tokenAuth = await requireApiToken(request)
-
-    let userId: string
+    let userId: string | null = null
     let isAdmin = false
 
-    if (tokenAuth.isValid && tokenAuth.userId) {
-      userId = tokenAuth.userId
-      // Check if user is admin
-      const supabase = createAdminClient()
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .single()
-      isAdmin = profile?.role === 'admin'
+    // 1. Try N8N API Key (Bearer token from environment)
+    const authHeader = request.headers.get('authorization')
+    const bearerToken = authHeader?.replace('Bearer ', '')
+
+    if (bearerToken && N8N_API_KEY && bearerToken === N8N_API_KEY) {
+      // N8N authentication - admin access (can see all campaigns)
+      isAdmin = true
+      console.log('[API] /api/campaigns/scheduled - Authenticated via N8N_API_KEY')
     } else {
-      // Fall back to Supabase session auth
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      // 2. Try API token auth (wpp_xxx tokens)
+      const tokenAuth = await requireApiToken(request)
 
-      if (!user) {
-        return NextResponse.json(
-          { error: 'Não autorizado' },
-          { status: 401 }
-        )
+      if (tokenAuth.isValid && tokenAuth.userId) {
+        userId = tokenAuth.userId
+        // Check if user is admin
+        const supabase = createAdminClient()
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single()
+        isAdmin = profile?.role === 'admin'
+        console.log('[API] /api/campaigns/scheduled - Authenticated via API token')
+      } else {
+        // 3. Fall back to Supabase session auth
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (!user) {
+          return NextResponse.json(
+            {
+              error: 'Não autorizado',
+              message: 'Use Bearer token (N8N_API_KEY), API token (wpp_xxx), ou sessão autenticada.',
+              hint: 'No Swagger, clique em "Authorize" e insira seu token'
+            },
+            { status: 401 }
+          )
+        }
+        userId = user.id
+
+        // Check if user is admin
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single()
+        isAdmin = profile?.role === 'admin'
+        console.log('[API] /api/campaigns/scheduled - Authenticated via Supabase session')
       }
-      userId = user.id
-
-      // Check if user is admin
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .single()
-      isAdmin = profile?.role === 'admin'
     }
 
     const supabase = createAdminClient()
@@ -96,7 +114,7 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: true })
 
     // If not admin, only show user's own campaigns
-    if (!isAdmin) {
+    if (!isAdmin && userId) {
       query = query.eq('user_id', userId)
     }
 
