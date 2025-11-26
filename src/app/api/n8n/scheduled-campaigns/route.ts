@@ -288,6 +288,11 @@ export async function GET(request: NextRequest) {
           return null
         }
 
+        // Get instance info first to determine API type
+        const instData = campaign.instance as any
+        const inst = Array.isArray(instData) ? instData[0] : instData
+        const isTestInstance = inst?.is_test === true
+
         // Get media info if exists
         let mediaInfo = null
         const mediaData = campaign.media as any
@@ -321,7 +326,7 @@ export async function GET(request: NextRequest) {
             mediaUrl = signedUrlData?.signedUrl || null
           }
 
-          // Também baixar como base64 para compatibilidade com Evolution API
+          // Baixar como base64 para Evolution API
           let base64 = null
           if (media.storage_path) {
             try {
@@ -340,17 +345,38 @@ export async function GET(request: NextRequest) {
             }
           }
 
-          mediaInfo = {
+          // Dados comuns
+          const commonMediaInfo = {
             id: media.id,
             fileName: media.original_name || media.file_name,
             mimeType: mimeType,
             mediaType: mediaType, // image, video, audio, document
             fileSize: media.size_bytes,
-            url: mediaUrl,
-            base64: base64
           }
 
-          console.log(`[N8N] Campaign ${campaign.id} has media: ${mediaType} - ${media.original_name}`)
+          // Dados específicos para cada API
+          if (isTestInstance) {
+            // Evolution API - usa base64
+            mediaInfo = {
+              ...commonMediaInfo,
+              // Dados para Evolution API
+              base64: base64,
+              // Formato pronto para envio: data:mime;base64,content
+              mediaBase64: base64 ? `data:${mimeType};base64,${base64}` : null,
+            }
+          } else {
+            // UAZAPI - usa URL
+            mediaInfo = {
+              ...commonMediaInfo,
+              // Dados para UAZAPI
+              url: mediaUrl,
+              file: mediaUrl, // Campo que UAZAPI espera
+              type: mediaType, // Campo que UAZAPI espera
+              caption: campaign.message, // Caption para UAZAPI
+            }
+          }
+
+          console.log(`[N8N] Campaign ${campaign.id} has media: ${mediaType} - ${media.original_name} (${isTestInstance ? 'Evolution' : 'UAZAPI'})`)
         }
 
         return {
@@ -367,11 +393,8 @@ export async function GET(request: NextRequest) {
 
           // WhatsApp Instance info
           instance: await (async () => {
-            const instData = campaign.instance as any
-            const inst = Array.isArray(instData) ? instData[0] : instData
+            // inst já foi definido acima para determinar o tipo de API
             if (!inst || !inst.id) return null
-
-            const isTestInstance = inst.is_test === true
 
             // instance_key é o nome real da instância na Evolution API (ex: test_6d983e3a_1764022014264)
             const instanceKey = inst.instance_key || inst.name
