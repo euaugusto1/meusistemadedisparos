@@ -22,6 +22,7 @@ import {
   Sparkles,
   BarChart3,
   Bot,
+  RefreshCw,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -63,6 +64,13 @@ const menuItems = [
     title: 'Campanhas',
     href: '/instances',
     icon: Send,
+  },
+  {
+    title: 'Follow-Up',
+    href: '/follow-up',
+    icon: RefreshCw,
+    badge: 'Em breve',
+    comingSoon: true,
   },
   {
     title: 'Planos',
@@ -154,6 +162,7 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
               const showNewBadge = item.badge === 'Novo'
               const showExclusiveBadge = item.badge === 'Exclusivo'
               const showPremiumBadge = item.badge === 'Prata+'
+              const showComingSoonBadge = item.badge === 'Em breve'
               const isHighlighted = item.highlight
 
               return (
@@ -207,6 +216,14 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
                       className="ml-auto h-5 px-2 text-xs bg-gradient-to-r from-slate-400 to-slate-500 text-white font-semibold"
                     >
                       Prata+
+                    </Badge>
+                  )}
+                  {showComingSoonBadge && (
+                    <Badge
+                      variant="default"
+                      className="ml-auto h-5 px-2 text-xs bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold"
+                    >
+                      Em breve
                     </Badge>
                   )}
                 </Link>
