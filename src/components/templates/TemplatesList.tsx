@@ -50,7 +50,10 @@ import {
   File,
   MessageSquare,
   MousePointerClick,
+  Copy,
+  CheckCircle,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { formatDate } from '@/lib/utils'
 import type { MessageTemplate, MediaFile, ButtonType, ButtonConfig } from '@/types'
 
@@ -260,33 +263,59 @@ export function TemplatesList({ templates: initialTemplates, media }: TemplatesL
           .from('message_templates')
           .update(updateData)
           .eq('id', editingTemplate.id)
-          .select()
+          .select(`
+            *,
+            media:media_files(id, public_url, original_name, type)
+          `)
           .single()
 
         if (error) {
           console.error('Update error:', error)
-          alert(`Erro ao atualizar: ${error.message}`)
+          toast.error('Erro ao atualizar template', {
+            description: error.message
+          })
           throw error
         }
         setTemplates(prev => prev.map(t => t.id === editingTemplate.id ? data : t))
+
+        // Fechar modal e mostrar sucesso
+        setIsDialogOpen(false)
+        resetForm()
+
+        toast.success('Template atualizado!', {
+          description: `"${data.name}" foi salvo com sucesso.`,
+          icon: <CheckCircle className="h-5 w-5 text-green-500" />
+        })
       } else {
         const { data, error } = await supabase
           .from('message_templates')
           .insert(templateData)
-          .select()
+          .select(`
+            *,
+            media:media_files(id, public_url, original_name, type)
+          `)
           .single()
 
         if (error) {
           console.error('Insert error:', error)
-          alert(`Erro ao criar: ${error.message}`)
+          toast.error('Erro ao criar template', {
+            description: error.message
+          })
           throw error
         }
-        console.log('Template created:', data)
-        setTemplates(prev => [data, ...prev])
-      }
 
-      setIsDialogOpen(false)
-      resetForm()
+        // Adicionar à lista
+        setTemplates(prev => [data, ...prev])
+
+        // Fechar modal e mostrar sucesso
+        setIsDialogOpen(false)
+        resetForm()
+
+        toast.success('Template criado!', {
+          description: `"${data.name}" está pronto para uso nas suas campanhas.`,
+          icon: <CheckCircle className="h-5 w-5 text-green-500" />
+        })
+      }
     } catch (error) {
       console.error('Error saving template:', error)
     } finally {
@@ -305,9 +334,15 @@ export function TemplatesList({ templates: initialTemplates, media }: TemplatesL
         .eq('id', template.id)
 
       if (error) throw error
+
       setTemplates(prev => prev.filter(t => t.id !== template.id))
+
+      toast.success('Template excluído', {
+        description: `"${template.name}" foi removido.`
+      })
     } catch (error) {
       console.error('Error deleting template:', error)
+      toast.error('Erro ao excluir template')
     } finally {
       setLoading(false)
       setDeleteConfirm(null)
@@ -329,9 +364,60 @@ export function TemplatesList({ templates: initialTemplates, media }: TemplatesL
       setTemplates(prev =>
         prev.map(t => t.id === template.id ? { ...t, is_favorite: !t.is_favorite } : t)
       )
+
+      toast.success(template.is_favorite ? 'Removido dos favoritos' : 'Adicionado aos favoritos')
     } catch (error) {
       console.error('Error toggling favorite:', error)
-      alert('Erro ao favoritar template')
+      toast.error('Erro ao favoritar template')
+    }
+  }
+
+  const handleDuplicate = async (template: MessageTemplate) => {
+    setLoading(true)
+    const supabase = createClient()
+
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error('Você precisa estar logado para duplicar templates')
+        setLoading(false)
+        return
+      }
+
+      const duplicateData = {
+        name: `${template.name} (Cópia)`,
+        message: template.message,
+        media_id: template.media_id || null,
+        link_url: template.link_url || null,
+        button_type: template.button_type || null,
+        buttons: template.buttons || [],
+        user_id: user.id,
+        is_favorite: false,
+      }
+
+      const { data, error } = await supabase
+        .from('message_templates')
+        .insert(duplicateData)
+        .select(`
+          *,
+          media:media_files(id, public_url, original_name, type)
+        `)
+        .single()
+
+      if (error) throw error
+
+      // Adicionar à lista
+      setTemplates(prev => [data, ...prev])
+
+      toast.success('Template duplicado com sucesso!', {
+        description: `"${data.name}" foi criado.`
+      })
+    } catch (error) {
+      console.error('Error duplicating template:', error)
+      toast.error('Erro ao duplicar template')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -669,7 +755,17 @@ export function TemplatesList({ templates: initialTemplates, media }: TemplatesL
                     <Button
                       size="icon"
                       variant="ghost"
+                      onClick={() => handleDuplicate(template)}
+                      title="Duplicar template"
+                      disabled={loading}
+                    >
+                      <Copy className="h-4 w-4 text-blue-500" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
                       onClick={() => openDialog(template)}
+                      title="Editar template"
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -677,6 +773,7 @@ export function TemplatesList({ templates: initialTemplates, media }: TemplatesL
                       size="icon"
                       variant="ghost"
                       onClick={() => setDeleteConfirm(template)}
+                      title="Excluir template"
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
