@@ -36,6 +36,8 @@ import {
   Trash2,
   Edit,
   MoreVertical,
+  Server,
+  Globe,
 } from 'lucide-react'
 import { formatDate, getStatusColor } from '@/lib/utils'
 import type { WhatsAppInstance, Profile, InstanceStatus } from '@/types'
@@ -590,24 +592,76 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
                 )}
               </div>
 
-              {/* Info da Instância - Para instâncias de teste Evolution API */}
-              {instance.is_test && instance.instance_key && (
-                <div className="p-3 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg">
-                  <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
-                    <span className="text-muted-foreground">ID:</span>
-                    <code className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-700 dark:text-slate-300 text-[10px] truncate">
-                      {instance.instance_key}
-                    </code>
-
-                    <span className="text-muted-foreground">Número:</span>
-                    <span className={instance.phone_number ? "text-green-600 dark:text-green-400 font-medium" : "text-muted-foreground italic"}>
-                      {instance.phone_number
-                        ? `+${instance.phone_number.replace(/^(\d{2})(\d{2})(\d{4,5})(\d{4})$/, '$1 ($2) $3-$4')}`
-                        : 'Não disponível'}
-                    </span>
-                  </div>
+              {/* Info da Instância - Para todas as instâncias */}
+              <div className={`p-3 rounded-lg border ${
+                instance.is_test
+                  ? 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
+                  : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+              }`}>
+                {/* Header com tipo de API */}
+                <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200 dark:border-slate-700">
+                  <Server className={`h-3.5 w-3.5 ${instance.is_test ? 'text-orange-500' : 'text-blue-500'}`} />
+                  <span className={`text-xs font-semibold ${instance.is_test ? 'text-orange-600 dark:text-orange-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                    {instance.is_test ? 'Evolution API' : 'UAZAPI'}
+                  </span>
+                  {!instance.is_test && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700">
+                      Produção
+                    </Badge>
+                  )}
                 </div>
-              )}
+
+                <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-xs">
+                  {/* ID da Instância */}
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Globe className="h-3 w-3" />
+                    ID:
+                  </span>
+                  <code className={`px-1.5 py-0.5 rounded text-[10px] truncate ${
+                    instance.is_test
+                      ? 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                      : 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                  }`}>
+                    {instance.instance_key || instance.name}
+                  </code>
+
+                  {/* Número de Telefone */}
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Smartphone className="h-3 w-3" />
+                    Número:
+                  </span>
+                  <span className={instance.phone_number ? "text-green-600 dark:text-green-400 font-medium" : "text-muted-foreground italic"}>
+                    {instance.phone_number
+                      ? `+${instance.phone_number.replace(/^(\d{2})(\d{2})(\d{4,5})(\d{4})$/, '$1 ($2) $3-$4')}`
+                      : 'Aguardando conexão'}
+                  </span>
+
+                  {/* Status da Conexão - Apenas UAZAPI */}
+                  {!instance.is_test && (
+                    <>
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Wifi className="h-3 w-3" />
+                        Status:
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`relative flex h-2 w-2 ${instance.status === 'connected' ? 'text-green-500' : 'text-gray-400'}`}>
+                          {instance.status === 'connected' && (
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                          )}
+                          <span className={`relative inline-flex rounded-full h-2 w-2 ${instance.status === 'connected' ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+                        </span>
+                        <span className={`font-medium ${
+                          instance.status === 'connected'
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-gray-500 dark:text-gray-400'
+                        }`}>
+                          {STATUS_LABELS[instance.status]}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
 
               {/* Actions - Enhanced buttons */}
               <div className="flex gap-2">
