@@ -403,7 +403,7 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
   const CampaignCard = ({ campaign }: { campaign: Campaign & { instance?: WhatsAppInstance | null } }) => {
     const Icon = STATUS_ICONS[campaign.status]
     const progress = campaign.total_recipients > 0
-      ? Math.round(((campaign.sent_count + campaign.failed_count) / campaign.total_recipients) * 100)
+      ? Math.min(100, Math.round(((campaign.sent_count + campaign.failed_count) / campaign.total_recipients) * 100))
       : 0
 
     return (
@@ -841,7 +841,7 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
                 <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
                   <div className="text-2xl font-bold text-blue-500">
                     {viewCampaign.total_recipients > 0
-                      ? Math.round((viewCampaign.sent_count / viewCampaign.total_recipients) * 100)
+                      ? Math.min(100, Math.round((viewCampaign.sent_count / viewCampaign.total_recipients) * 100))
                       : 0}%
                   </div>
                   <div className="text-xs text-blue-600 dark:text-blue-400">Taxa</div>

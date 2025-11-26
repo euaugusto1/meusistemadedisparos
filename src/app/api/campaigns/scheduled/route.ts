@@ -95,6 +95,7 @@ export async function GET(request: NextRequest) {
         instance:whatsapp_instances!campaigns_instance_id_fkey(
           id,
           name,
+          instance_key,
           phone_number,
           api_token,
           status,
@@ -144,10 +145,14 @@ export async function GET(request: NextRequest) {
         const isTestInstance = inst?.is_test === true
 
         // Prepare instance info with correct API details
+        // For Evolution API: use instance_key (e.g., test_6d983e3a_1764022014264)
+        // For UAZAPI: use name as instanceKey
+        const instanceKey = isTestInstance ? (inst?.instance_key || inst?.name) : inst?.name
         const instanceInfo = inst ? {
           id: inst.id,
           name: inst.name,
-          instanceKey: inst.name,
+          instanceName: instanceKey, // Nome da instância na API (Evolution/UAZAPI)
+          instanceKey: instanceKey,
           phoneNumber: inst.phone_number,
           apiToken: isTestInstance
             ? inst.api_token
@@ -157,10 +162,10 @@ export async function GET(request: NextRequest) {
             : (process.env.UAZAPI_BASE_URL || 'https://monitor-grupo.uazapi.com'),
           apiHeaderName: isTestInstance ? 'apikey' : 'token',
           sendTextEndpoint: isTestInstance
-            ? `/message/sendText/${inst.name}`
+            ? `/message/sendText/${instanceKey}`
             : '/send/text',
           sendMediaEndpoint: isTestInstance
-            ? `/message/sendMedia/${inst.name}`
+            ? `/message/sendMedia/${instanceKey}`
             : '/send/media',
           status: inst.status,
           isTest: isTestInstance

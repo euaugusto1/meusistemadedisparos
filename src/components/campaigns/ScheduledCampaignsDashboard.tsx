@@ -226,7 +226,7 @@ export function ScheduledCampaignsDashboard({ campaigns, onCampaignUpdate }: Sch
                     <p className="text-muted-foreground mb-1">Progresso</p>
                     <p className="font-semibold text-lg">
                       {campaign.total_recipients > 0
-                        ? Math.round((campaign.sent_count / campaign.total_recipients) * 100)
+                        ? Math.min(100, Math.round((campaign.sent_count / campaign.total_recipients) * 100))
                         : 0}%
                     </p>
                   </div>
