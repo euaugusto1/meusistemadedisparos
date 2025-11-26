@@ -8,6 +8,15 @@ export default async function TemplatesPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
+  // Obter perfil do usuário para verificar se é admin
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const isAdmin = profile?.role === 'admin'
+
   // Obter templates do usuário
   const { data: templates } = await supabase
     .from('message_templates')
@@ -42,6 +51,7 @@ export default async function TemplatesPage() {
         <TemplatesList
           templates={templates || []}
           media={media || []}
+          isAdmin={isAdmin}
         />
       </div>
     </>

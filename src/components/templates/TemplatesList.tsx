@@ -60,6 +60,7 @@ import type { MessageTemplate, MediaFile, ButtonType, ButtonConfig } from '@/typ
 interface TemplatesListProps {
   templates: (MessageTemplate & { media?: MediaFile | null })[]
   media: MediaFile[]
+  isAdmin?: boolean
 }
 
 // Componente de Preview de Mídia
@@ -145,7 +146,7 @@ function MediaPreview({ media, onRemove, size = 'md' }: MediaPreviewProps) {
   )
 }
 
-export function TemplatesList({ templates: initialTemplates, media }: TemplatesListProps) {
+export function TemplatesList({ templates: initialTemplates, media, isAdmin = false }: TemplatesListProps) {
   const [templates, setTemplates] = useState(initialTemplates)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null)
@@ -474,17 +475,32 @@ export function TemplatesList({ templates: initialTemplates, media }: TemplatesL
                   <MousePointerClick className="h-4 w-4 text-primary" />
                   Tipo de Template
                 </Label>
-                <Select value={buttonType || 'none'} onValueChange={(v) => setButtonType(v === 'none' ? '' : v as ButtonType)}>
-                  <SelectTrigger className="transition-all duration-200 focus:ring-2 focus:ring-primary/20">
-                    <SelectValue placeholder="Mensagem Simples" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Mensagem Simples</SelectItem>
-                    <SelectItem value="button">Botões (Carousel)</SelectItem>
-                    <SelectItem value="list">Lista</SelectItem>
-                    <SelectItem value="poll">Enquete</SelectItem>
-                  </SelectContent>
-                </Select>
+                {isAdmin ? (
+                  <Select value={buttonType || 'none'} onValueChange={(v) => setButtonType(v === 'none' ? '' : v as ButtonType)}>
+                    <SelectTrigger className="transition-all duration-200 focus:ring-2 focus:ring-primary/20">
+                      <SelectValue placeholder="Mensagem Simples" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Mensagem Simples</SelectItem>
+                      <SelectItem value="button">Botões (Carousel)</SelectItem>
+                      <SelectItem value="list">Lista</SelectItem>
+                      <SelectItem value="poll">Enquete</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="flex items-center gap-2 h-10 px-3 rounded-md border bg-muted/50">
+                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">Mensagem Simples</span>
+                    <Badge variant="secondary" className="ml-auto text-xs">
+                      Disponível
+                    </Badge>
+                  </div>
+                )}
+                {!isAdmin && (
+                  <p className="text-xs text-muted-foreground">
+                    Outros tipos de template (Botões, Lista, Enquete) estarão disponíveis em breve.
+                  </p>
+                )}
               </div>
 
               {/* Mensagem - sempre visível */}
