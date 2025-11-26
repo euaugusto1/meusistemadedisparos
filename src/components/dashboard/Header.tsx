@@ -53,33 +53,39 @@ export function Header({ profile }: HeaderProps) {
   const isAdmin = profile?.role === 'admin'
 
   return (
-    <header className="h-16 border-b bg-card flex items-center justify-between px-6">
-      <div className="flex items-center gap-4">
+    <header className="h-14 sm:h-16 border-b bg-card flex items-center justify-between px-3 sm:px-6">
+      <div className="flex items-center gap-2 sm:gap-4 min-w-0">
         {/* Mobile Menu Button */}
         <MobileSidebar profile={profile} />
-        <div>
-          <h2 className="text-lg font-semibold">
+
+        {/* Nome do usuário - oculto em mobile (aparece no título da página) */}
+        <div className="hidden md:block min-w-0">
+          <h2 className="text-lg font-semibold truncate">
             Olá, {displayName}
           </h2>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground truncate">
             {profile?.email}
           </p>
         </div>
-        {profile?.plan_tier && (
-          <Badge variant="outline" className={`${getPlanColor(profile.plan_tier)} text-white border-none shadow-md`}>
-            <Crown className="h-3 w-3 mr-1" />
-            {profile.plan_tier.charAt(0).toUpperCase() + profile.plan_tier.slice(1)}
-          </Badge>
-        )}
-        {isAdmin && (
-          <Badge className="gap-1 bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-md border-none">
-            <Shield className="h-3 w-3" />
-            Admin
-          </Badge>
-        )}
+
+        {/* Badges - compactos em mobile */}
+        <div className="flex items-center gap-1 sm:gap-2">
+          {profile?.plan_tier && (
+            <Badge variant="outline" className={`${getPlanColor(profile.plan_tier)} text-white border-none shadow-md px-1.5 sm:px-2.5 py-0.5`}>
+              <Crown className="h-2.5 w-2.5 sm:h-3 sm:w-3 sm:mr-1" />
+              <span className="hidden sm:inline">{profile.plan_tier.charAt(0).toUpperCase() + profile.plan_tier.slice(1)}</span>
+            </Badge>
+          )}
+          {isAdmin && (
+            <Badge className="gap-0.5 sm:gap-1 bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-md border-none px-1.5 sm:px-2.5 py-0.5">
+              <Shield className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+              <span className="hidden sm:inline">Admin</span>
+            </Badge>
+          )}
+        </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3">
         {/* Admin Quick Actions */}
         {isAdmin && (
           <div className="hidden md:flex items-center gap-2">
@@ -106,13 +112,13 @@ export function Header({ profile }: HeaderProps) {
           </div>
         )}
 
-        {/* Créditos disponíveis */}
+        {/* Créditos disponíveis - compacto em mobile */}
         {profile && (
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-primary/10 to-blue-600/10 border border-primary/20 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-105">
-            <CreditCard className="h-4 w-4 text-primary" />
-            <div className="text-sm">
+          <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-gradient-to-r from-primary/10 to-blue-600/10 border border-primary/20 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-105">
+            <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+            <div className="text-xs sm:text-sm">
               <span className="font-semibold text-primary">{profile.credits.toLocaleString('pt-BR')}</span>
-              <span className="text-muted-foreground ml-1">créditos</span>
+              <span className="text-muted-foreground ml-1 hidden sm:inline">créditos</span>
             </div>
           </div>
         )}
@@ -120,10 +126,10 @@ export function Header({ profile }: HeaderProps) {
         {/* Menu do usuário */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-              <Avatar className="h-10 w-10">
+            <Button variant="ghost" className="relative h-8 w-8 sm:h-10 sm:w-10 rounded-full p-0">
+              <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
                 <AvatarImage src={profile?.avatar_url || undefined} alt={displayName} />
-                <AvatarFallback className="bg-primary text-primary-foreground">
+                <AvatarFallback className="bg-primary text-primary-foreground text-xs sm:text-sm">
                   {initials}
                 </AvatarFallback>
               </Avatar>

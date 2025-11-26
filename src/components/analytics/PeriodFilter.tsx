@@ -123,35 +123,37 @@ export function PeriodFilter({ onPeriodChange }: PeriodFilterProps) {
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <Filter className="h-4 w-4 text-muted-foreground" />
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+      <div className="flex items-center gap-2">
+        <Filter className="h-4 w-4 text-muted-foreground" />
 
-      <Select value={selectedPreset} onValueChange={handlePresetChange}>
-        <SelectTrigger className="w-[200px]">
-          <SelectValue placeholder="Período" />
-        </SelectTrigger>
-        <SelectContent>
-          {presets.map(preset => (
-            <SelectItem key={preset.value} value={preset.value}>
-              {preset.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        <Select value={selectedPreset} onValueChange={handlePresetChange}>
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectValue placeholder="Período" />
+          </SelectTrigger>
+          <SelectContent>
+            {presets.map(preset => (
+              <SelectItem key={preset.value} value={preset.value}>
+                {preset.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {selectedPreset === 'custom' && (
         <Popover open={isOpen} onOpenChange={setIsOpen}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className="w-[280px] justify-start text-left font-normal"
+              className="w-full sm:w-auto justify-start text-left font-normal text-xs sm:text-sm"
             >
-              <CalendarIcon className="mr-2 h-4 w-4" />
+              <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
               {dateRange?.from ? (
                 dateRange.to ? (
                   <>
-                    {format(dateRange.from, 'dd/MM/yyyy', { locale: ptBR })} -{' '}
-                    {format(dateRange.to, 'dd/MM/yyyy', { locale: ptBR })}
+                    {format(dateRange.from, 'dd/MM', { locale: ptBR })} -{' '}
+                    {format(dateRange.to, 'dd/MM/yy', { locale: ptBR })}
                   </>
                 ) : (
                   format(dateRange.from, 'dd/MM/yyyy', { locale: ptBR })
@@ -168,15 +170,27 @@ export function PeriodFilter({ onPeriodChange }: PeriodFilterProps) {
               defaultMonth={dateRange?.from}
               selected={dateRange}
               onSelect={handleCustomDateChange}
+              numberOfMonths={1}
+              locale={ptBR}
+              className="sm:hidden"
+            />
+            <Calendar
+              initialFocus
+              mode="range"
+              defaultMonth={dateRange?.from}
+              selected={dateRange}
+              onSelect={handleCustomDateChange}
               numberOfMonths={2}
               locale={ptBR}
+              className="hidden sm:block"
             />
           </PopoverContent>
         </Popover>
       )}
 
-      <div className="text-sm text-muted-foreground">
-        Período: <span className="font-medium">{getCurrentLabel()}</span>
+      <div className="text-xs sm:text-sm text-muted-foreground bg-muted/50 px-2 py-1 rounded">
+        <span className="hidden sm:inline">Período: </span>
+        <span className="font-medium">{getCurrentLabel()}</span>
       </div>
     </div>
   )

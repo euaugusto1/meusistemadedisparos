@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -48,7 +49,8 @@ const menuItems = [
     title: 'Analytics',
     href: '/dashboard/analytics',
     icon: BarChart3,
-    badge: 'Novo',
+    badge: 'Prata+',
+    premium: true,
   },
   {
     title: 'Agentes IA',
@@ -106,13 +108,19 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
   const pathname = usePathname()
   const isAdmin = profile?.role === 'admin'
   const unreadCount = useUnreadSupport(profile)
+  const [open, setOpen] = useState(false)
 
   // Rotas de campanhas
   const campaignRoutes = ['/instances', '/lists', '/media', '/templates', '/dispatch', '/campaigns']
   const isInCampaignRoute = campaignRoutes.some(route => pathname.startsWith(route))
 
+  // Função para fechar o sidebar ao clicar em um link
+  const handleLinkClick = () => {
+    setOpen(false)
+  }
+
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="md:hidden">
           <Menu className="h-5 w-5" />
@@ -145,12 +153,14 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
               const showUnreadBadge = isSupportItem && unreadCount > 0
               const showNewBadge = item.badge === 'Novo'
               const showExclusiveBadge = item.badge === 'Exclusivo'
+              const showPremiumBadge = item.badge === 'Prata+'
               const isHighlighted = item.highlight
 
               return (
                 <Link
                   key={item.href}
                   href={item.href!}
+                  onClick={handleLinkClick}
                   className={cn(
                     'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors relative',
                     isActive
@@ -191,6 +201,14 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
                       Gold
                     </Badge>
                   )}
+                  {showPremiumBadge && (
+                    <Badge
+                      variant="default"
+                      className="ml-auto h-5 px-2 text-xs bg-gradient-to-r from-slate-400 to-slate-500 text-white font-semibold"
+                    >
+                      Prata+
+                    </Badge>
+                  )}
                 </Link>
               )
             })}
@@ -211,6 +229,7 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={handleLinkClick}
                       className={cn(
                         'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
                         isActive

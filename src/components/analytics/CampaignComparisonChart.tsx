@@ -29,27 +29,29 @@ export function CampaignComparisonChart({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+      <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
+        <CardTitle className="text-base sm:text-lg">{title}</CardTitle>
+        <CardDescription className="text-xs sm:text-sm">{description}</CardDescription>
       </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={350}>
+      <CardContent className="p-2 sm:p-6 pt-0">
+        <ResponsiveContainer width="100%" height={280} className="sm:!h-[350px]">
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis
               dataKey="name"
-              className="text-xs text-muted-foreground"
+              className="text-[10px] sm:text-xs text-muted-foreground"
               angle={-45}
               textAnchor="end"
-              height={100}
+              height={80}
+              tick={{ fontSize: 10 }}
             />
-            <YAxis className="text-xs text-muted-foreground" />
+            <YAxis className="text-[10px] sm:text-xs text-muted-foreground" tick={{ fontSize: 10 }} />
             <Tooltip
               contentStyle={{
                 backgroundColor: 'hsl(var(--card))',
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '6px',
+                fontSize: '12px',
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
               formatter={(value: any, name: string) => {
@@ -57,10 +59,10 @@ export function CampaignComparisonChart({
                 return [`${value}%`, name.charAt(0).toUpperCase() + name.slice(1)]
               }}
             />
-            <Legend />
-            <Bar dataKey="entrega" fill="#10b981" name="Taxa Entrega (%)" />
-            <Bar dataKey="leitura" fill="#a855f7" name="Taxa Leitura (%)" />
-            <Bar dataKey="resposta" fill="#f59e0b" name="Taxa Resposta (%)" />
+            <Legend wrapperStyle={{ fontSize: '10px' }} />
+            <Bar dataKey="entrega" fill="#10b981" name="Entrega (%)" />
+            <Bar dataKey="leitura" fill="#a855f7" name="Leitura (%)" />
+            <Bar dataKey="resposta" fill="#f59e0b" name="Resposta (%)" />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

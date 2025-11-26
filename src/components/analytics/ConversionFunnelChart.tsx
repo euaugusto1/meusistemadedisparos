@@ -60,46 +60,46 @@ export function ConversionFunnelChart({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+      <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
+        <CardTitle className="text-base sm:text-lg">{title}</CardTitle>
+        <CardDescription className="text-xs sm:text-sm">{description}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="p-4 sm:p-6 pt-0 space-y-4 sm:space-y-6">
         {stages.map((stage, index) => {
           const width = stage.percentage
           const dropoff = index > 0 ? stages[index - 1].percentage - stage.percentage : 0
 
           return (
-            <div key={stage.name} className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <div className={`${stage.color} p-2 rounded-lg`}>
-                    <stage.icon className="h-4 w-4 text-white" />
+            <div key={stage.name} className="space-y-1.5 sm:space-y-2">
+              <div className="flex items-center justify-between text-xs sm:text-sm">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <div className={`${stage.color} p-1.5 sm:p-2 rounded-lg`}>
+                    <stage.icon className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                   </div>
                   <span className="font-medium">{stage.name}</span>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 sm:gap-4">
                   {dropoff > 0 && (
-                    <span className="text-xs text-red-500">
+                    <span className="text-[10px] sm:text-xs text-red-500">
                       -{dropoff.toFixed(1)}%
                     </span>
                   )}
                   <span className={`font-bold ${stage.textColor}`}>
                     {stage.value.toLocaleString('pt-BR')}
                   </span>
-                  <span className="text-muted-foreground min-w-[60px] text-right">
+                  <span className="text-muted-foreground min-w-[40px] sm:min-w-[60px] text-right text-[10px] sm:text-sm">
                     {stage.percentage.toFixed(1)}%
                   </span>
                 </div>
               </div>
 
-              <div className="relative h-8 bg-muted rounded-lg overflow-hidden">
+              <div className="relative h-6 sm:h-8 bg-muted rounded-lg overflow-hidden">
                 <div
                   className={`h-full ${stage.color} transition-all duration-500 ease-out flex items-center justify-center`}
                   style={{ width: `${width}%` }}
                 >
-                  {width > 15 && (
-                    <span className="text-xs font-medium text-white">
+                  {width > 20 && (
+                    <span className="text-[10px] sm:text-xs font-medium text-white">
                       {stage.percentage.toFixed(1)}%
                     </span>
                   )}
@@ -110,19 +110,19 @@ export function ConversionFunnelChart({
         })}
 
         {/* Summary */}
-        <div className="pt-4 border-t">
-          <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="pt-3 sm:pt-4 border-t">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
             <div>
-              <div className="text-muted-foreground">Taxa de Conversão</div>
-              <div className="text-2xl font-bold text-pink-500">
+              <div className="text-muted-foreground text-[10px] sm:text-sm">Taxa de Conversão</div>
+              <div className="text-xl sm:text-2xl font-bold text-pink-500">
                 {data.total_sent > 0
                   ? ((data.total_converted / data.total_sent) * 100).toFixed(1)
                   : 0}%
               </div>
             </div>
             <div>
-              <div className="text-muted-foreground">Taxa de Engajamento</div>
-              <div className="text-2xl font-bold text-purple-500">
+              <div className="text-muted-foreground text-[10px] sm:text-sm">Taxa de Engajamento</div>
+              <div className="text-xl sm:text-2xl font-bold text-purple-500">
                 {data.total_sent > 0
                   ? ((data.total_read / data.total_sent) * 100).toFixed(1)
                   : 0}%

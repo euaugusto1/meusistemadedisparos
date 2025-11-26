@@ -28,12 +28,12 @@ export function CampaignPerformanceChart({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+      <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
+        <CardTitle className="text-base sm:text-lg">{title}</CardTitle>
+        <CardDescription className="text-xs sm:text-sm">{description}</CardDescription>
       </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={350}>
+      <CardContent className="p-2 sm:p-6 pt-0">
+        <ResponsiveContainer width="100%" height={280} className="sm:!h-[350px]">
           <AreaChart data={chartData}>
             <defs>
               <linearGradient id="colorSent" x1="0" y1="0" x2="0" y2="1">

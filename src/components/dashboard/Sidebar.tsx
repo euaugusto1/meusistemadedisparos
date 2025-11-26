@@ -40,7 +40,8 @@ const menuItems = [
     title: 'Analytics',
     href: '/dashboard/analytics',
     icon: BarChart3,
-    badge: 'Novo',
+    badge: 'Prata+',
+    premium: true,
   },
   {
     title: 'Agentes IA',
@@ -133,6 +134,7 @@ export function Sidebar({ profile }: SidebarProps) {
             const showUnreadBadge = isSupportItem && unreadCount > 0
             const showNewBadge = item.badge === 'Novo'
             const showExclusiveBadge = item.badge === 'Exclusivo'
+            const showPremiumBadge = item.badge === 'Prata+'
             const isHighlighted = item.highlight
 
             return (
@@ -177,6 +179,14 @@ export function Sidebar({ profile }: SidebarProps) {
                     className="ml-auto h-5 px-2 text-xs bg-gradient-to-r from-yellow-500 to-orange-600 text-white font-semibold shadow-lg"
                   >
                     Gold
+                  </Badge>
+                )}
+                {showPremiumBadge && (
+                  <Badge
+                    variant="default"
+                    className="ml-auto h-5 px-2 text-xs bg-gradient-to-r from-slate-400 to-slate-500 text-white font-semibold shadow-md"
+                  >
+                    Prata+
                   </Badge>
                 )}
               </Link>

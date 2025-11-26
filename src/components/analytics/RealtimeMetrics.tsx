@@ -55,31 +55,32 @@ export function RealtimeMetrics({ metrics }: RealtimeMetricsProps) {
   ]
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Métricas em Tempo Real</h2>
-          <p className="text-sm text-muted-foreground">Acompanhe o desempenho ao vivo</p>
+    <div className="space-y-3 sm:space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="text-lg sm:text-2xl font-bold tracking-tight truncate">Métricas em Tempo Real</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground">Acompanhe o desempenho ao vivo</p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground flex-shrink-0">
           <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
-          Atualizado agora
+          <span className="hidden sm:inline">Atualizado agora</span>
+          <span className="sm:hidden">Ao vivo</span>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-2 sm:gap-4 grid-cols-2 lg:grid-cols-3">
         {metricsData.map((metric, index) => (
           <Card key={index} className="relative overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
+              <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground">
                 {metric.title}
               </CardTitle>
-              <div className={`${metric.bg} p-2 rounded-lg`}>
-                <metric.icon className={`h-4 w-4 ${metric.color}`} />
+              <div className={`${metric.bg} p-1.5 sm:p-2 rounded-lg`}>
+                <metric.icon className={`h-3 w-3 sm:h-4 sm:w-4 ${metric.color}`} />
               </div>
             </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${metric.color}`}>
+            <CardContent className="p-3 sm:p-6 pt-0">
+              <div className={`text-xl sm:text-2xl font-bold ${metric.color}`}>
                 {metric.value}
               </div>
             </CardContent>

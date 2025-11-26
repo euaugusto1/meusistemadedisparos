@@ -77,26 +77,28 @@ export function AnalyticsClient({ initialData, userName }: AnalyticsClientProps)
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Header with filters and export - Premium Style */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:gap-4">
         <Link href="/dashboard">
-          <Button variant="ghost" size="sm" className="transition-all duration-300 hover:scale-105">
+          <Button variant="ghost" size="sm" className="transition-all duration-300 hover:scale-105 -ml-2">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar ao Painel
+            Voltar
           </Button>
         </Link>
 
-        <div className="text-center space-y-3">
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary via-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Analytics
+        <div className="text-center space-y-2 sm:space-y-3">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary via-blue-600 to-purple-600 bg-clip-text text-transparent">
+            {/* Mobile: mostra saudação com nome | Desktop: mostra Analytics */}
+            <span className="md:hidden">Olá, {userName}</span>
+            <span className="hidden md:inline">Analytics</span>
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Análise detalhada de performance e métricas das suas campanhas
+          <p className="text-muted-foreground text-sm sm:text-lg max-w-2xl mx-auto px-2">
+            Análise detalhada de performance e métricas
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t pt-4">
+        <div className="flex flex-col gap-3 border-t pt-4">
           <PeriodFilter onPeriodChange={handlePeriodChange} />
           <ExportButtons data={exportData} />
         </div>

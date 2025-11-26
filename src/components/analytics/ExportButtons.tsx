@@ -36,32 +36,34 @@ export function ExportButtons({ data }: ExportButtonsProps) {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-lg border">
+      <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-lg border">
         <FileDown className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium">Exportar:</span>
       </div>
 
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleExportPDF}
-        disabled={isExporting}
-        className="gap-2"
-      >
-        <FileText className="h-4 w-4" />
-        PDF
-      </Button>
+      <div className="flex items-center gap-2 flex-1 sm:flex-none">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportPDF}
+          disabled={isExporting}
+          className="gap-1.5 sm:gap-2 flex-1 sm:flex-none text-xs sm:text-sm"
+        >
+          <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+          PDF
+        </Button>
 
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleExportExcel}
-        disabled={isExporting}
-        className="gap-2"
-      >
-        <FileSpreadsheet className="h-4 w-4" />
-        Excel
-      </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportExcel}
+          disabled={isExporting}
+          className="gap-1.5 sm:gap-2 flex-1 sm:flex-none text-xs sm:text-sm"
+        >
+          <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+          Excel
+        </Button>
+      </div>
     </div>
   )
 }
