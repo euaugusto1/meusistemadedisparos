@@ -365,14 +365,24 @@ export async function GET(request: NextRequest) {
               mediaBase64: base64 ? `data:${mimeType};base64,${base64}` : null,
             }
           } else {
-            // UAZAPI - usa URL
+            // UAZAPI - POST /send/media
+            // Tipos suportados: image, video, document, audio, myaudio, ptt, sticker
+            let uazapiType = mediaType
+            // Mapear tipos específicos do UAZAPI
+            if (mimeType.startsWith('audio/')) {
+              uazapiType = 'audio' // ou 'ptt' para mensagem de voz
+            }
+
             mediaInfo = {
               ...commonMediaInfo,
-              // Dados para UAZAPI
-              url: mediaUrl,
-              file: mediaUrl, // Campo que UAZAPI espera
-              type: mediaType, // Campo que UAZAPI espera
-              caption: campaign.message, // Caption para UAZAPI
+              // Campos para UAZAPI /send/media
+              file: mediaUrl, // URL ou base64 da mídia
+              type: uazapiType, // image, video, document, audio, myaudio, ptt, sticker
+              caption: campaign.message, // Legenda opcional
+              docName: media.original_name || media.file_name, // Nome para documentos
+              // Campos adicionais úteis
+              url: mediaUrl, // URL alternativa
+              base64: base64 ? `data:${mimeType};base64,${base64}` : null, // Base64 alternativo
             }
           }
 
