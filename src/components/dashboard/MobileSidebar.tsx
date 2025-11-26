@@ -23,6 +23,7 @@ import {
   BarChart3,
   Bot,
   RefreshCw,
+  Users2,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -69,6 +70,13 @@ const menuItems = [
     title: 'Follow-Up',
     href: '/follow-up',
     icon: RefreshCw,
+    badge: 'Em breve',
+    comingSoon: true,
+  },
+  {
+    title: 'CRM AraujoIA',
+    href: '/crm',
+    icon: Users2,
     badge: 'Em breve',
     comingSoon: true,
   },
