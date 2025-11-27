@@ -2,7 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { getServerForInstance } from '@/services/uazapi'
 
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || ''
+// Fallback para instâncias sem api_url configurada
+const EVOLUTION_API_URL_FALLBACK = process.env.EVOLUTION_API_URL || ''
 
 export async function GET(
   request: Request,
@@ -45,14 +46,18 @@ export async function GET(
       isEvolutionApi,
       instanceKey: instance.instance_key,
       hasApiToken: !!instance.api_token,
-      hasToken: !!instance.token
+      hasToken: !!instance.token,
+      instanceApiUrl: instance.api_url
     })
 
     if (isEvolutionApi) {
       // ========== EVOLUTION API ==========
-      if (!EVOLUTION_API_URL) {
+      // Usar api_url da instância com fallback para variável de ambiente
+      const evolutionApiUrl = instance.api_url || EVOLUTION_API_URL_FALLBACK
+
+      if (!evolutionApiUrl) {
         return NextResponse.json(
-          { error: 'Evolution API URL não configurada' },
+          { error: 'Evolution API URL não configurada para esta instância' },
           { status: 500 }
         )
       }
@@ -66,7 +71,7 @@ export async function GET(
       const getParticipants = getParticipantsParam === 'true' || noParticipantsParam === 'false'
 
       // fetchAllGroups é GET e lista todos os grupos
-      const apiUrl = `${EVOLUTION_API_URL}/group/fetchAllGroups/${instance.instance_key}?getParticipants=${getParticipants}`
+      const apiUrl = `${evolutionApiUrl}/group/fetchAllGroups/${instance.instance_key}?getParticipants=${getParticipants}`
 
       console.log('Fetching groups from Evolution API:', apiUrl)
 

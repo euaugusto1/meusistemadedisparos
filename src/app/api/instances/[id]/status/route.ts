@@ -2,7 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { getServerForInstance } from '@/services/uazapi'
 
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || ''
+// Fallback para instâncias sem api_url configurada
+const EVOLUTION_API_URL_FALLBACK = process.env.EVOLUTION_API_URL || ''
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || ''
 
 // Helper function to make UAZAPI requests
@@ -24,13 +25,13 @@ async function uazapiRequest(baseUrl: string, endpoint: string, token: string) {
 }
 
 // Helper function to make Evolution API requests
-async function evolutionApiRequest(instanceName: string) {
+async function evolutionApiRequest(baseUrl: string, instanceName: string, apiKey: string) {
   const response = await fetch(
-    `${EVOLUTION_API_URL}/instance/connectionState/${instanceName}`,
+    `${baseUrl}/instance/connectionState/${instanceName}`,
     {
       method: 'GET',
       headers: {
-        'apikey': EVOLUTION_API_KEY,
+        'apikey': apiKey,
       },
     }
   )
@@ -76,8 +77,18 @@ export async function GET(
     const isEvolutionApi = !!instance.api_token
 
     if (isEvolutionApi) {
-      // Usar Evolution API
-      const statusData = await evolutionApiRequest(instance.instance_key)
+      // Usar Evolution API - Usar api_url da instância com fallback
+      const evolutionApiUrl = instance.api_url || EVOLUTION_API_URL_FALLBACK
+      const apiKey = instance.api_token || EVOLUTION_API_KEY
+
+      if (!evolutionApiUrl) {
+        return NextResponse.json(
+          { error: 'Evolution API URL não configurada para esta instância' },
+          { status: 500 }
+        )
+      }
+
+      const statusData = await evolutionApiRequest(evolutionApiUrl, instance.instance_key, apiKey)
 
       // Normalizar status da Evolution API
       const state = statusData.state || statusData.instance?.state || 'close'
@@ -93,11 +104,11 @@ export async function GET(
       if (status === 'connected') {
         try {
           const instancesResponse = await fetch(
-            `${EVOLUTION_API_URL}/instance/fetchInstances?instanceName=${instance.instance_key}`,
+            `${evolutionApiUrl}/instance/fetchInstances?instanceName=${instance.instance_key}`,
             {
               method: 'GET',
               headers: {
-                'apikey': EVOLUTION_API_KEY,
+                'apikey': apiKey,
               },
             }
           )

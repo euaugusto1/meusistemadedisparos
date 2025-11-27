@@ -189,6 +189,7 @@ export interface WhatsAppInstance {
   is_test: boolean
   expires_at: string | null
   server_url: string | null
+  api_url: string | null
   created_at: string
   updated_at: string
 }

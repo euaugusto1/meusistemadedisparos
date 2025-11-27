@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
             ? inst.api_token
             : (process.env.UAZAPI_ADMIN_TOKEN || ''),
           apiUrl: isTestInstance
-            ? (process.env.EVOLUTION_API_URL || 'https://dev.evo.sistemabrasil.online')
+            ? (inst.api_url || process.env.EVOLUTION_API_URL || 'https://dev.evo.sistemabrasil.online')
             : (process.env.UAZAPI_BASE_URL || 'https://monitor-grupo.uazapi.com'),
           apiHeaderName: isTestInstance ? 'apikey' : 'token',
           sendTextEndpoint: isTestInstance

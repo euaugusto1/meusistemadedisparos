@@ -5,18 +5,19 @@ import { corsPreflightResponse, jsonResponseWithCors } from '@/lib/cors'
 export const dynamic = 'force-dynamic'
 
 const N8N_API_KEY = process.env.N8N_API_KEY || ''
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || ''
+// Fallback para instâncias sem api_url configurada
+const EVOLUTION_API_URL_FALLBACK = process.env.EVOLUTION_API_URL || ''
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || ''
 
 // Função auxiliar para buscar número de telefone da Evolution API
-async function fetchPhoneNumberFromEvolution(instanceName: string): Promise<string | null> {
+async function fetchPhoneNumberFromEvolution(instanceName: string, apiUrl: string, apiKey: string): Promise<string | null> {
   try {
     const response = await fetch(
-      `${EVOLUTION_API_URL}/instance/fetchInstances?instanceName=${instanceName}`,
+      `${apiUrl}/instance/fetchInstances?instanceName=${instanceName}`,
       {
         method: 'GET',
         headers: {
-          'apikey': EVOLUTION_API_KEY,
+          'apikey': apiKey,
         },
       }
     )
@@ -388,10 +389,10 @@ export async function GET(request: NextRequest) {
             // instance_key é o nome real da instância na Evolution API (ex: test_6d983e3a_1764022014264)
             const instanceKey = inst.instance_key || inst.name
 
-            // Para Evolution API (teste): usa api_token da tabela e EVOLUTION_API_URL
+            // Para Evolution API (teste): usa api_url da instância (com fallback) e api_token da tabela
             // Para UAZAPI (produção): usa UAZAPI_ADMIN_TOKEN do ambiente e UAZAPI_BASE_URL
             const apiUrl = isTestInstance
-              ? (process.env.EVOLUTION_API_URL || 'https://dev.evo.sistemabrasil.online')
+              ? (inst.api_url || EVOLUTION_API_URL_FALLBACK || 'https://dev.evo.sistemabrasil.online')
               : (process.env.UAZAPI_BASE_URL || 'https://monitor-grupo.uazapi.com')
 
             const apiToken = isTestInstance
@@ -401,7 +402,7 @@ export async function GET(request: NextRequest) {
             // Buscar número de telefone - se não estiver no banco, busca da Evolution API
             let phoneNumber = inst.phone_number
             if (!phoneNumber && isTestInstance && instanceKey) {
-              phoneNumber = await fetchPhoneNumberFromEvolution(instanceKey)
+              phoneNumber = await fetchPhoneNumberFromEvolution(instanceKey, apiUrl, apiToken)
               // Atualiza no banco para próximas consultas
               if (phoneNumber) {
                 await supabase

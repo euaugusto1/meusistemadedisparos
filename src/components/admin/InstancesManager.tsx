@@ -355,7 +355,7 @@ export function InstancesManager({ instances: initialInstances, users }: Instanc
       setInstances(prev =>
         prev.map(i =>
           i.id === instance.id
-            ? { ...i, user_id: null, user: undefined }
+            ? { ...i, user_id: null as string | null, user: undefined }
             : i
         )
       )
