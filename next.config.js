@@ -13,9 +13,8 @@ const nextConfig = {
       bodySizeLimit: '10mb',
     },
   },
-  // Completely disable static page generation
-  // This prevents the prerendering errors on /404 and /500
-  output: undefined,
+  // Enable standalone mode for optimized Docker builds
+  output: 'standalone',
   distDir: '.next',
 }
 
