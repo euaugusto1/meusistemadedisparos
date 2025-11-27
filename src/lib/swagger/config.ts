@@ -6,7 +6,7 @@
 
 import { OpenAPIObject } from 'openapi3-ts/oas30'
 
-const NEXT_PUBLIC_APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+const NEXT_PUBLIC_APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://dev.wpp.sistemabrasil.online'
 
 export const openApiConfig: OpenAPIObject = {
   openapi: '3.0.0',
