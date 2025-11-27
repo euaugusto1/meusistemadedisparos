@@ -58,8 +58,10 @@ export async function GET(
       }
 
       // Construir URL da Evolution API
-      // Evolution API requer o parâmetro getParticipants
-      const apiUrl = `${EVOLUTION_API_URL}/group/fetchAllGroups/${instance.instance_key}?getParticipants=false`
+      // Evolution API v2 usa findGroupInfos ao invés de fetchAllGroups
+      const url = new URL(request.url)
+      const getParticipants = url.searchParams.get('getParticipants') === 'true'
+      const apiUrl = `${EVOLUTION_API_URL}/group/findGroupInfos/${instance.instance_key}?getParticipants=${getParticipants}`
 
       console.log('Fetching groups from Evolution API:', apiUrl)
 
@@ -88,12 +90,15 @@ export async function GET(
       console.log('Groups fetched from Evolution API:', rawGroups.length)
 
       // Mapear campos da Evolution API para nosso formato
-      // Evolution API retorna: id, subject, subjectOwner, subjectTime, pictureUrl, size, creation, owner, desc, descId, restrict, announce
+      // Evolution API v2 findGroupInfos retorna: id, subject, subjectOwner, subjectTime, pictureUrl, size, creation, owner, desc, descId, restrict, announce, participants (se getParticipants=true)
       const groups = rawGroups.map((g: any) => ({
         id: g.id,
         name: g.subject || 'Grupo sem nome',
         subject: g.desc || '',
-        participants: [], // Evolution API não retorna participantes por padrão neste endpoint
+        participants: (g.participants || []).map((p: any) => ({
+          id: p.id || p,
+          admin: p.admin === 'admin' || p.admin === 'superadmin' || p.admin === true
+        })),
         size: g.size || 0,
         pictureUrl: g.pictureUrl,
         owner: g.owner,
