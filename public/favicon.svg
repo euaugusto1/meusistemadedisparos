@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a855f7;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#grad)"/>
+  <g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Cérebro estilizado / IA -->
+    <path d="M32 14c-8 0-14 6-14 14 0 5 2.5 9.5 6.5 12.5V48a2 2 0 002 2h11a2 2 0 002-2v-7.5c4-3 6.5-7.5 6.5-12.5 0-8-6-14-14-14z"/>
+    <!-- Conexões neurais -->
+    <circle cx="26" cy="26" r="2" fill="#fff"/>
+    <circle cx="38" cy="26" r="2" fill="#fff"/>
+    <circle cx="32" cy="34" r="2" fill="#fff"/>
+    <line x1="26" y1="26" x2="32" y2="34"/>
+    <line x1="38" y1="26" x2="32" y2="34"/>
+    <line x1="26" y1="26" x2="38" y2="26"/>
+    <!-- Linhas de energia/processamento -->
+    <line x1="28" y1="48" x2="28" y2="52"/>
+    <line x1="32" y1="48" x2="32" y2="54"/>
+    <line x1="36" y1="48" x2="36" y2="52"/>
+  </g>
+</svg>

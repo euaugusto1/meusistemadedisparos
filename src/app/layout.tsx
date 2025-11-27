@@ -13,6 +13,11 @@ export const metadata: Metadata = {
   keywords: ['automação whatsapp', 'disparo em massa', 'whatsapp marketing', 'crm whatsapp', 'chatbot', 'inteligência artificial', 'atendimento automatizado', 'campanhas whatsapp', 'araujo ia'],
   authors: [{ name: 'Araujo IA Solutions' }],
   robots: 'index, follow',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
   openGraph: {
     title: 'Araujo IA Solutions - Automação para seu atendimento',
     description: 'Plataforma completa de automação WhatsApp com inteligência artificial. Disparo em massa, agendamento de campanhas e gestão de atendimento.',
