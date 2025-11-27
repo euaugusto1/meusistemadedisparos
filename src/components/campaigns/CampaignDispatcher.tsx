@@ -396,7 +396,7 @@ export function CampaignDispatcher({ instances = [], lists = [], templates = [],
       // Log campaign creation
       sendSystemLog('campaign_created', 'success', {
         templatesCount: selectedTemplates.length,
-        recipientsCount: totalRecipients,
+        recipientsCount: recipientsList.length,
         scheduleType: scheduleData.schedule_type,
         scheduledAt: scheduleData.scheduled_at,
       })

@@ -156,7 +156,7 @@ export function InstancesManager({ instances: initialInstances, users }: Instanc
   const [editWebhook, setEditWebhook] = useState('')
 
   // Modal de transferência
-  const [transferringInstance, setTransferringInstance] = useState<WhatsAppInstance | null>(null)
+  const [transferringInstance, setTransferringInstance] = useState<(WhatsAppInstance & { user?: Profile }) | null>(null)
   const [transferUserId, setTransferUserId] = useState('')
 
   // Criar instância

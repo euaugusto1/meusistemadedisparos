@@ -218,7 +218,7 @@ export function LogsViewer({ systemLogs: initialSystemLogs, campaignLogs: initia
         .limit(500)
 
       if (newCampaignLogs) {
-        setCampaignLogs(newCampaignLogs as CampaignLog[])
+        setCampaignLogs(newCampaignLogs as unknown as CampaignLog[])
       }
 
       // Refresh system logs

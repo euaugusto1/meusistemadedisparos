@@ -178,7 +178,7 @@ export interface PaymentTransaction {
 // WhatsApp Instance
 export interface WhatsAppInstance {
   id: string
-  user_id: string
+  user_id: string | null
   name: string
   instance_key: string
   token: string
