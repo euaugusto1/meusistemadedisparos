@@ -88,6 +88,41 @@ export async function PATCH(
       )
     }
 
+    // Atualizar contadores da campanha
+    // Contar items por status
+    const { count: sentCount } = await supabase
+      .from('campaign_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('campaign_id', item.campaign_id)
+      .eq('status', 'sent')
+
+    const { count: failedCount } = await supabase
+      .from('campaign_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('campaign_id', item.campaign_id)
+      .eq('status', 'failed')
+
+    const { count: totalCount } = await supabase
+      .from('campaign_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('campaign_id', item.campaign_id)
+
+    // Determinar se campanha foi concluída
+    const processedCount = (sentCount || 0) + (failedCount || 0)
+    const isCompleted = processedCount >= (totalCount || 0)
+
+    // Atualizar contadores da campanha
+    await supabase
+      .from('campaigns')
+      .update({
+        sent_count: sentCount || 0,
+        failed_count: failedCount || 0,
+        status: isCompleted ? 'completed' : 'processing',
+        ...(isCompleted ? { completed_at: new Date().toISOString() } : {}),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', item.campaign_id)
+
     // Se foi enviado com sucesso, decrementar créditos do usuário
     if (status === 'sent') {
       // Buscar user_id da campanha
@@ -116,6 +151,15 @@ export async function PATCH(
       sentAt: item.sent_at,
       errorMessage: item.error_message,
       message: `Status atualizado para: ${status}`,
+      // Progresso da campanha
+      campaignProgress: {
+        total: totalCount || 0,
+        sent: sentCount || 0,
+        failed: failedCount || 0,
+        processed: processedCount,
+        remaining: (totalCount || 0) - processedCount,
+        isCompleted
+      },
       timestamp: new Date().toISOString()
     })
 
