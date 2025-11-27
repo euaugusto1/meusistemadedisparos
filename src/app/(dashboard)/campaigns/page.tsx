@@ -68,17 +68,19 @@ export default function CampaignsPage() {
     }
   }, [fetchCampaigns])
 
-  // Polling agressivo para campanhas em processamento
-  const hasProcessing = campaigns.some(c => c.status === 'processing')
+  // Polling agressivo para campanhas em processamento ou agendadas
+  const hasActiveOrScheduled = campaigns.some(c =>
+    c.status === 'processing' || c.status === 'scheduled'
+  )
 
   useEffect(() => {
-    if (hasProcessing) {
-      // Polling a cada 2 segundos quando há campanhas em processamento
+    if (hasActiveOrScheduled) {
+      // Polling a cada 2 segundos quando há campanhas em processamento ou agendadas
       pollingRef.current = setInterval(() => {
         fetchCampaigns()
       }, 2000)
     } else {
-      // Limpar polling quando não há campanhas em processamento
+      // Limpar polling quando não há campanhas ativas
       if (pollingRef.current) {
         clearInterval(pollingRef.current)
         pollingRef.current = null
@@ -91,7 +93,7 @@ export default function CampaignsPage() {
         pollingRef.current = null
       }
     }
-  }, [hasProcessing, fetchCampaigns])
+  }, [hasActiveOrScheduled, fetchCampaigns])
 
   if (loading) {
     return (

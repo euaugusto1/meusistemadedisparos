@@ -1,5 +1,5 @@
 {
-  "name": "Campaign Dispatcher v4.3",
+  "name": "Campaign Dispatcher v4.4",
   "nodes": [
     {
       "parameters": {
@@ -185,7 +185,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Preparar lista de recipients para envio\nconst campaign = $input.first().json;\nconst recipients = campaign.recipients || [];\n\nconsole.log('\\n📋 Preparando', recipients.length, 'recipients para campanha', campaign.campaignId);\nconsole.log('   Campanha:', campaign.title);\nconsole.log('   Mensagem:', campaign.message?.substring(0, 50) + '...');\nconsole.log('   Instance:', campaign.instance?.name);\nconsole.log('   API URL:', campaign.instance?.apiUrl);\n\nif (recipients.length === 0) {\n  console.log('❌ ERRO: Nenhum recipient encontrado!');\n  return [];\n}\n\nconst items = recipients.map((recipient, index) => {\n  console.log(`   [${index + 1}/${recipients.length}] ${recipient.phoneNumber}`);\n  \n  return {\n    json: {\n      // IDs\n      campaignId: campaign.campaignId,\n      recipientId: recipient.id,\n      \n      // Dados do recipient\n      phoneNumber: recipient.phoneNumber,\n      \n      // Dados da campanha\n      campaignTitle: campaign.title,\n      campaignMessage: campaign.message,\n      \n      // Instância WhatsApp\n      instanceName: campaign.instance?.name,\n      apiUrl: campaign.instance?.apiUrl,\n      apiToken: campaign.instance?.apiToken,\n      isTestInstance: campaign.instance?.isTest,\n      \n      // Mídia\n      media: campaign.media,\n      \n      // Throttling\n      minDelay: campaign.throttling?.minDelay || 1000,\n      maxDelay: campaign.throttling?.maxDelay || 3000,\n      \n      // Controle\n      index: index + 1,\n      total: recipients.length\n    }\n  };\n});\n\nconsole.log('\\n✅ Items preparados:', items.length);\nreturn items;"
+        "jsCode": "// Preparar lista de recipients para envio\nconst campaign = $input.first().json;\nconst recipients = campaign.recipients || [];\n\nconsole.log('\\n📋 Preparando', recipients.length, 'recipients para campanha', campaign.campaignId);\nconsole.log('   Campanha:', campaign.title);\nconsole.log('   Mensagem:', campaign.message?.substring(0, 50) + '...');\nconsole.log('   Instance:', campaign.instance?.name);\nconsole.log('   API URL:', campaign.instance?.apiUrl);\n\nif (recipients.length === 0) {\n  console.log('❌ ERRO: Nenhum recipient encontrado!');\n  return [];\n}\n\nconst items = recipients.map((recipient, index) => {\n  console.log(`   [${index + 1}/${recipients.length}] ${recipient.phoneNumber}`);\n  \n  return {\n    json: {\n      // IDs\n      campaignId: campaign.campaignId,\n      recipientId: recipient.id,\n      \n      // Dados do recipient\n      phoneNumber: recipient.phoneNumber,\n      \n      // Dados da campanha\n      campaignTitle: campaign.title,\n      campaignMessage: campaign.message,\n      \n      // Instância WhatsApp\n      instanceName: campaign.instance?.instanceKey || campaign.instance?.name,\n      apiUrl: campaign.instance?.apiUrl,\n      apiToken: campaign.instance?.apiToken,\n      isTestInstance: campaign.instance?.isTest,\n      \n      // Mídia\n      media: campaign.media,\n      \n      // Throttling\n      minDelay: campaign.throttling?.minDelay || 1000,\n      maxDelay: campaign.throttling?.maxDelay || 3000,\n      \n      // Controle\n      index: index + 1,\n      total: recipients.length\n    }\n  };\n});\n\nconsole.log('\\n✅ Items preparados:', items.length);\nreturn items;"
       },
       "id": "prepare-recipients",
       "name": "Preparar Recipients",
@@ -328,7 +328,7 @@
         "options": {}
       },
       "id": "update-item",
-      "name": "Atualizar Item",
+      "name": "Atualizar Item (+ Contadores)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [2640, 100],
@@ -336,110 +336,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Restaurar dados do loop para incrementar contadores\nconst analyzeData = $('Analisar Resultado').first().json;\n\nreturn [{\n  json: {\n    campaignId: analyzeData.campaignId,\n    recipientId: analyzeData.recipientId,\n    phoneNumber: analyzeData.phoneNumber,\n    sendStatus: analyzeData.sendStatus,\n    sendError: analyzeData.sendError,\n    index: analyzeData.index,\n    total: analyzeData.total,\n    minDelay: analyzeData.minDelay,\n    maxDelay: analyzeData.maxDelay\n  }\n}];"
-      },
-      "id": "restore-for-counter",
-      "name": "Restaurar para Contador",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2860, 100]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "is-sent",
-              "leftValue": "={{ $json.sendStatus }}",
-              "rightValue": "sent",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "check-sent",
-      "name": "Enviou?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [3080, 100]
-    },
-    {
-      "parameters": {
-        "method": "PATCH",
-        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{ $json.campaignId }}/counters",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTYxNDJhMi1kMDIzLTQ1OTYtYWZkMy0xMTI5NTY4MzcyYTAiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYzOTI1OTIyfQ.FccQV_2o06C-xdI6cKC-hqksLbIfOpvC3-5rsVqXsvA"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{ \"increment_sent\": 1 }",
-        "options": {}
-      },
-      "id": "inc-sent",
-      "name": "+1 Enviado",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [3300, 0],
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "method": "PATCH",
-        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{ $json.campaignId }}/counters",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTYxNDJhMi1kMDIzLTQ1OTYtYWZkMy0xMTI5NTY4MzcyYTAiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYzOTI1OTIyfQ.FccQV_2o06C-xdI6cKC-hqksLbIfOpvC3-5rsVqXsvA"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{ \"increment_failed\": 1 }",
-        "options": {}
-      },
-      "id": "inc-failed",
-      "name": "+1 Falha",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [3300, 200],
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Preparar delay e voltar para o loop\nconst data = $input.first().json;\nconst minDelay = data.minDelay || 1000;\nconst maxDelay = data.maxDelay || 3000;\nconst delay = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;\n\nconsole.log(`⏱️ Delay: ${delay}ms antes do próximo envio`);\n\nreturn [{\n  json: {\n    ...data,\n    delay: delay\n  }\n}];"
+        "jsCode": "// Preparar delay e voltar para o loop\n// O endpoint /api/n8n/campaign-items/{id}/status já atualiza os contadores automaticamente\nconst data = $input.first().json;\nconst loopData = $('Loop Recipients').first().json;\n\nconst minDelay = loopData.minDelay || 1000;\nconst maxDelay = loopData.maxDelay || 3000;\nconst delay = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;\n\nconsole.log(`⏱️ Delay: ${delay}ms antes do próximo envio`);\n\nreturn [{\n  json: {\n    ...loopData,\n    delay: delay\n  }\n}];"
       },
       "id": "calc-delay",
       "name": "Calcular Delay",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3520, 100]
+      "position": [2860, 100]
     },
     {
       "parameters": {
@@ -450,7 +353,7 @@
       "name": "Aguardar",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [3740, 100],
+      "position": [3080, 100],
       "webhookId": "wait-id"
     },
     {
@@ -459,45 +362,17 @@
       "name": "Próximo",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [3960, 100]
+      "position": [3300, 100]
     },
     {
       "parameters": {
-        "method": "PATCH",
-        "url": "=https://dev.wpp.sistemabrasil.online/api/n8n/campaigns/{{ $('Preparar Recipients').first().json.campaignId }}/status",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTYxNDJhMi1kMDIzLTQ1OTYtYWZkMy0xMTI5NTY4MzcyYTAiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYzOTI1OTIyfQ.FccQV_2o06C-xdI6cKC-hqksLbIfOpvC3-5rsVqXsvA"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{ \"status\": \"completed\" }",
-        "options": {}
-      },
-      "id": "complete-campaign",
-      "name": "Completar Campanha",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1980, -100]
-    },
-    {
-      "parameters": {
-        "jsCode": "console.log('\\n✅ Campanha finalizada com sucesso!');\nreturn $input.all();"
+        "jsCode": "// Log de conclusão - Os contadores já foram atualizados pelo endpoint /api/n8n/campaign-items/{id}/status\n// e o status da campanha já foi marcado como 'completed' automaticamente quando todos os itens foram processados\nconsole.log('\\n✅ Todos os recipients processados!');\nconsole.log('   Os contadores foram atualizados automaticamente pelo endpoint de status do item.');\nreturn $input.all();"
       },
       "id": "log-done",
       "name": "Log Fim",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2200, -100]
+      "position": [1980, -100]
     }
   ],
   "connections": {
@@ -614,7 +489,7 @@
         ],
         [
           {
-            "node": "Completar Campanha",
+            "node": "Log Fim",
             "type": "main",
             "index": 0
           }
@@ -665,65 +540,14 @@
       "main": [
         [
           {
-            "node": "Atualizar Item",
+            "node": "Atualizar Item (+ Contadores)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Atualizar Item": {
-      "main": [
-        [
-          {
-            "node": "Restaurar para Contador",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Restaurar para Contador": {
-      "main": [
-        [
-          {
-            "node": "Enviou?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Enviou?": {
-      "main": [
-        [
-          {
-            "node": "+1 Enviado",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "+1 Falha",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "+1 Enviado": {
-      "main": [
-        [
-          {
-            "node": "Calcular Delay",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "+1 Falha": {
+    "Atualizar Item (+ Contadores)": {
       "main": [
         [
           {
@@ -766,17 +590,6 @@
           }
         ]
       ]
-    },
-    "Completar Campanha": {
-      "main": [
-        [
-          {
-            "node": "Log Fim",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
     }
   },
   "settings": {
@@ -785,9 +598,9 @@
   "staticData": null,
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "campaign-dispatcher-v4.3"
+    "instanceId": "campaign-dispatcher-v4.4"
   },
   "pinData": {},
-  "versionId": "4.3.0",
+  "versionId": "4.4.0",
   "triggerCount": 1
 }

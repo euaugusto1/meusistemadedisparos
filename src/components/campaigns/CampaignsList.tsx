@@ -97,6 +97,11 @@ const SCHEDULE_TYPE_CONFIG: Record<string, { label: string; icon: typeof Zap; co
 
 export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProps) {
   const [campaigns, setCampaigns] = useState(initialCampaigns)
+
+  // Sincronizar com props quando mudar
+  useEffect(() => {
+    setCampaigns(initialCampaigns)
+  }, [initialCampaigns])
   const [cancelConfirm, setCancelConfirm] = useState<Campaign | null>(null)
   const [resendConfirm, setResendConfirm] = useState<Campaign | null>(null)
   const [startConfirm, setStartConfirm] = useState<Campaign | null>(null)
@@ -119,9 +124,11 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Atualização em tempo real quando modal estiver aberta ou campanha em andamento
-  const processingCampaigns = campaigns.filter(c => c.status === 'processing')
-  const hasProcessing = processingCampaigns.length > 0 || viewCampaign?.status === 'processing'
+  // Atualização em tempo real quando modal estiver aberta ou campanha em andamento/agendada
+  const activeCampaigns = campaigns.filter(c => c.status === 'processing' || c.status === 'scheduled')
+  const hasActiveCampaigns = activeCampaigns.length > 0 ||
+    viewCampaign?.status === 'processing' ||
+    viewCampaign?.status === 'scheduled'
 
   useEffect(() => {
     const supabase = createClient()
@@ -148,13 +155,13 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
       }
     }
 
-    // Polling para campanhas em andamento (processing)
-    if (hasProcessing) {
+    // Polling para campanhas em andamento ou agendadas
+    if (hasActiveCampaigns) {
       pollingRef.current = setInterval(() => {
-        // Atualiza todas em andamento
-        processingCampaigns.forEach(c => fetchCampaignUpdate(c.id))
-        // Se modal aberta com campanha em andamento
-        if (viewCampaign?.status === 'processing') {
+        // Atualiza todas ativas (processing e scheduled)
+        activeCampaigns.forEach(c => fetchCampaignUpdate(c.id))
+        // Se modal aberta com campanha ativa
+        if (viewCampaign?.status === 'processing' || viewCampaign?.status === 'scheduled') {
           fetchCampaignUpdate(viewCampaign.id)
         }
       }, 2000) // Atualiza a cada 2 segundos
@@ -167,7 +174,7 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
         pollingRef.current = null
       }
     }
-  }, [hasProcessing, viewCampaign?.id, viewCampaign?.status, campaigns])
+  }, [hasActiveCampaigns, viewCampaign?.id, viewCampaign?.status, campaigns])
 
   const pendingCampaigns = campaigns.filter(c =>
     ['draft', 'scheduled', 'processing'].includes(c.status)
