@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { CampaignsList } from '@/components/campaigns/CampaignsList'
 import { ScheduledCampaignsDashboard } from '@/components/campaigns/ScheduledCampaignsDashboard'
@@ -11,6 +11,7 @@ import type { Campaign, WhatsAppInstance, MediaFile } from '@/types'
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<(Campaign & { instance?: WhatsAppInstance | null; media?: MediaFile | null })[]>([])
   const [loading, setLoading] = useState(true)
+  const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
   const fetchCampaigns = useCallback(async () => {
     const supabase = createClient()
@@ -66,6 +67,31 @@ export default function CampaignsPage() {
       supabase.removeChannel(channel)
     }
   }, [fetchCampaigns])
+
+  // Polling agressivo para campanhas em processamento
+  const hasProcessing = campaigns.some(c => c.status === 'processing')
+
+  useEffect(() => {
+    if (hasProcessing) {
+      // Polling a cada 2 segundos quando há campanhas em processamento
+      pollingRef.current = setInterval(() => {
+        fetchCampaigns()
+      }, 2000)
+    } else {
+      // Limpar polling quando não há campanhas em processamento
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+    }
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+    }
+  }, [hasProcessing, fetchCampaigns])
 
   if (loading) {
     return (

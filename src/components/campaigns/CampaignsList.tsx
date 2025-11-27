@@ -120,6 +120,9 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
   // Atualização em tempo real quando modal estiver aberta ou campanha em andamento
+  const processingCampaigns = campaigns.filter(c => c.status === 'processing')
+  const hasProcessing = processingCampaigns.length > 0 || viewCampaign?.status === 'processing'
+
   useEffect(() => {
     const supabase = createClient()
 
@@ -146,9 +149,7 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
     }
 
     // Polling para campanhas em andamento (processing)
-    const processingCampaigns = campaigns.filter(c => c.status === 'processing')
-
-    if (processingCampaigns.length > 0 || viewCampaign?.status === 'processing') {
+    if (hasProcessing) {
       pollingRef.current = setInterval(() => {
         // Atualiza todas em andamento
         processingCampaigns.forEach(c => fetchCampaignUpdate(c.id))
@@ -156,7 +157,7 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
         if (viewCampaign?.status === 'processing') {
           fetchCampaignUpdate(viewCampaign.id)
         }
-      }, 3000) // Atualiza a cada 3 segundos
+      }, 2000) // Atualiza a cada 2 segundos
     }
 
     // Cleanup
@@ -166,7 +167,7 @@ export function CampaignsList({ campaigns: initialCampaigns }: CampaignsListProp
         pollingRef.current = null
       }
     }
-  }, [campaigns.filter(c => c.status === 'processing').length, viewCampaign?.id, viewCampaign?.status])
+  }, [hasProcessing, viewCampaign?.id, viewCampaign?.status, campaigns])
 
   const pendingCampaigns = campaigns.filter(c =>
     ['draft', 'scheduled', 'processing'].includes(c.status)

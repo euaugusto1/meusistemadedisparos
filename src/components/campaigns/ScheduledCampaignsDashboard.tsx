@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,6 +21,7 @@ import {
   Repeat,
   Sparkles,
   Zap,
+  RefreshCw,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -53,12 +55,64 @@ const SCHEDULE_TYPE_ICONS = {
   smart: Sparkles,
 }
 
-export function ScheduledCampaignsDashboard({ campaigns, onCampaignUpdate }: ScheduledCampaignsDashboardProps) {
+export function ScheduledCampaignsDashboard({ campaigns: initialCampaigns, onCampaignUpdate }: ScheduledCampaignsDashboardProps) {
+  const [campaigns, setCampaigns] = useState<Campaign[]>(initialCampaigns)
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
   const [actionType, setActionType] = useState<'pause' | 'resume' | 'cancel' | null>(null)
   const [reason, setReason] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const pollingRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Sync with parent campaigns when they change
+  useEffect(() => {
+    setCampaigns(initialCampaigns)
+  }, [initialCampaigns])
+
+  // Atualização em tempo real para campanhas em andamento (processing)
+  const processingCampaigns = campaigns.filter(c => c.status === 'processing')
+  const hasProcessing = processingCampaigns.length > 0
+
+  useEffect(() => {
+    const supabase = createClient()
+
+    // Função para buscar dados atualizados
+    const fetchUpdates = async () => {
+      const processingIds = campaigns
+        .filter(c => c.status === 'processing')
+        .map(c => c.id)
+
+      if (processingIds.length === 0) return
+
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('id, sent_count, failed_count, status, total_recipients')
+        .in('id', processingIds)
+
+      if (!error && data) {
+        setCampaigns(prev => prev.map(campaign => {
+          const updated = data.find(d => d.id === campaign.id)
+          if (updated) {
+            return { ...campaign, ...updated }
+          }
+          return campaign
+        }))
+      }
+    }
+
+    // Polling a cada 2 segundos para campanhas em processing
+    if (hasProcessing) {
+      pollingRef.current = setInterval(fetchUpdates, 2000)
+    }
+
+    // Cleanup
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+    }
+  }, [hasProcessing, campaigns])
 
   // Filter scheduled and paused campaigns
   const activeCampaigns = campaigns.filter(c =>
@@ -205,28 +259,36 @@ export function ScheduledCampaignsDashboard({ campaigns, onCampaignUpdate }: Sch
               </CardHeader>
 
               <CardContent>
+                {/* Indicador de atualização em tempo real */}
+                {campaign.status === 'processing' && (
+                  <div className="mb-4 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <span>Atualizando em tempo real...</span>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
+                  <div className={campaign.status === 'processing' ? 'p-3 bg-muted/50 rounded-lg border border-primary/20' : ''}>
                     <p className="text-muted-foreground mb-1">Total de Destinatários</p>
                     <p className="font-semibold text-lg">{campaign.total_recipients}</p>
                   </div>
-                  <div>
+                  <div className={campaign.status === 'processing' ? 'p-3 bg-green-500/10 rounded-lg border border-green-500/20 transition-all' : ''}>
                     <p className="text-muted-foreground mb-1">Enviadas</p>
-                    <p className="font-semibold text-lg text-green-600 dark:text-green-400">
+                    <p className={`font-semibold text-lg text-green-600 dark:text-green-400 ${campaign.status === 'processing' ? 'animate-pulse' : ''}`}>
                       {campaign.sent_count}
                     </p>
                   </div>
-                  <div>
+                  <div className={campaign.status === 'processing' ? 'p-3 bg-red-500/10 rounded-lg border border-red-500/20 transition-all' : ''}>
                     <p className="text-muted-foreground mb-1">Falhas</p>
-                    <p className="font-semibold text-lg text-red-600 dark:text-red-400">
+                    <p className={`font-semibold text-lg text-red-600 dark:text-red-400 ${campaign.status === 'processing' ? 'animate-pulse' : ''}`}>
                       {campaign.failed_count}
                     </p>
                   </div>
-                  <div>
+                  <div className={campaign.status === 'processing' ? 'p-3 bg-blue-500/10 rounded-lg border border-blue-500/20 transition-all' : ''}>
                     <p className="text-muted-foreground mb-1">Progresso</p>
-                    <p className="font-semibold text-lg">
+                    <p className={`font-semibold text-lg ${campaign.status === 'processing' ? 'text-blue-600 dark:text-blue-400 animate-pulse' : ''}`}>
                       {campaign.total_recipients > 0
-                        ? Math.min(100, Math.round((campaign.sent_count / campaign.total_recipients) * 100))
+                        ? Math.min(100, Math.round(((campaign.sent_count + campaign.failed_count) / campaign.total_recipients) * 100))
                         : 0}%
                     </p>
                   </div>
