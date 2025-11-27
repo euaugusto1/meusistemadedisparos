@@ -58,10 +58,15 @@ export async function GET(
       }
 
       // Construir URL da Evolution API
-      // Evolution API v2 usa findGroupInfos ao invés de fetchAllGroups
+      // Evolution API v2 - fetchAllGroups para listar todos os grupos
       const url = new URL(request.url)
-      const getParticipants = url.searchParams.get('getParticipants') === 'true'
-      const apiUrl = `${EVOLUTION_API_URL}/group/findGroupInfos/${instance.instance_key}?getParticipants=${getParticipants}`
+      // Aceita tanto 'getParticipants' quanto 'noparticipants' (invertido) para compatibilidade
+      const getParticipantsParam = url.searchParams.get('getParticipants')
+      const noParticipantsParam = url.searchParams.get('noparticipants')
+      const getParticipants = getParticipantsParam === 'true' || noParticipantsParam === 'false'
+
+      // fetchAllGroups é GET e lista todos os grupos
+      const apiUrl = `${EVOLUTION_API_URL}/group/fetchAllGroups/${instance.instance_key}?getParticipants=${getParticipants}`
 
       console.log('Fetching groups from Evolution API:', apiUrl)
 
@@ -70,22 +75,36 @@ export async function GET(
         method: 'GET',
         headers: {
           'Accept': 'application/json',
+          'Content-Type': 'application/json',
           'apikey': instance.api_token,
         },
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        console.error('Error fetching groups from Evolution API:', errorData)
+        const errorText = await response.text()
+        let errorData: any = {}
+        try {
+          errorData = JSON.parse(errorText)
+        } catch {
+          errorData = { message: errorText }
+        }
+        console.error('Error fetching groups from Evolution API:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData,
+          url: apiUrl
+        })
         return NextResponse.json(
-          { error: errorData.message || 'Erro ao buscar grupos' },
+          { error: errorData.message || errorData.error || `Erro ao buscar grupos: ${response.status}` },
           { status: response.status }
         )
       }
 
       const data = await response.json()
-      // Evolution API retorna array direto
-      const rawGroups = Array.isArray(data) ? data : []
+      console.log('Evolution API response:', JSON.stringify(data).substring(0, 500))
+
+      // Evolution API retorna array direto ou objeto com array
+      const rawGroups = Array.isArray(data) ? data : (data.groups || data.data || [])
 
       console.log('Groups fetched from Evolution API:', rawGroups.length)
 

@@ -60,11 +60,14 @@ export default function LoginPage() {
 
     const supabase = createClient()
 
+    // Usar URL de produção para o redirect (não window.location.origin)
+    const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://dev.wpp.sistemabrasil.online'
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${siteUrl}/auth/callback`,
       },
     })
 

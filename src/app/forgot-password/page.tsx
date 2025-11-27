@@ -25,8 +25,11 @@ export default function ForgotPasswordPage() {
 
     const supabase = createClient()
 
+    // Usar URL de produção para o redirect (não window.location.origin)
+    const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://dev.wpp.sistemabrasil.online'
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+      redirectTo: `${siteUrl}/auth/callback?next=/reset-password`,
     })
 
     if (error) {

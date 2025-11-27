@@ -326,26 +326,7 @@ export async function GET(request: NextRequest) {
             mediaUrl = signedUrlData?.signedUrl || null
           }
 
-          // Baixar como base64 para Evolution API
-          let base64 = null
-          if (media.storage_path) {
-            try {
-              const { data: fileData, error: fileError } = await supabase
-                .storage
-                .from('media')
-                .download(media.storage_path)
-
-              if (!fileError && fileData) {
-                const arrayBuffer = await fileData.arrayBuffer()
-                const buffer = Buffer.from(arrayBuffer)
-                base64 = buffer.toString('base64')
-              }
-            } catch (error) {
-              console.error(`Error downloading media for campaign ${campaign.id}:`, error)
-            }
-          }
-
-          // Dados comuns
+          // Dados comuns - usando apenas URL (mais leve, evita limite de tamanho do n8n)
           const commonMediaInfo = {
             id: media.id,
             fileName: media.original_name || media.file_name,
@@ -356,14 +337,13 @@ export async function GET(request: NextRequest) {
 
           // Dados específicos para cada API
           if (isTestInstance) {
-            // Evolution API - usa base64
+            // Evolution API - usa URL da biblioteca (mais leve)
             mediaInfo = {
               ...commonMediaInfo,
-              // Dados para Evolution API
-              base64: base64,
-              // Formato pronto para envio: data:mime;base64,content
-              mediaBase64: base64 ? `data:${mimeType};base64,${base64}` : null,
+              // URL pública da mídia - Evolution API aceita URL direta
+              media: mediaUrl,
             }
+            console.log(`[N8N] Evolution API media URL: ${mediaUrl}`)
           } else {
             // UAZAPI - POST /send/media
             // Tipos suportados: image, video, document, audio, myaudio, ptt, sticker
@@ -375,15 +355,14 @@ export async function GET(request: NextRequest) {
 
             mediaInfo = {
               ...commonMediaInfo,
-              // Campos para UAZAPI /send/media
-              file: mediaUrl, // URL ou base64 da mídia
+              // Campos para UAZAPI /send/media - usando apenas URL (mais leve)
+              file: mediaUrl, // URL da mídia
               type: uazapiType, // image, video, document, audio, myaudio, ptt, sticker
               caption: campaign.message, // Legenda opcional
               docName: media.original_name || media.file_name, // Nome para documentos
-              // Campos adicionais úteis
-              url: mediaUrl, // URL alternativa
-              base64: base64 ? `data:${mimeType};base64,${base64}` : null, // Base64 alternativo
+              media: mediaUrl, // URL da mídia (campo alternativo)
             }
+            console.log(`[N8N] UAZAPI media URL: ${mediaUrl}`)
           }
 
           console.log(`[N8N] Campaign ${campaign.id} has media: ${mediaType} - ${media.original_name} (${isTestInstance ? 'Evolution' : 'UAZAPI'})`)
