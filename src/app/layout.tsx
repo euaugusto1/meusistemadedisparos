@@ -23,6 +23,20 @@ export const metadata: Metadata = {
     description: 'Plataforma completa de automação WhatsApp com inteligência artificial. Disparo em massa, agendamento de campanhas e gestão de atendimento.',
     type: 'website',
     locale: 'pt_BR',
+    images: [
+      {
+        url: 'https://xnazrsweosmopqwsrtvp.supabase.co/storage/v1/object/public/media/1764199445046_automatic.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Araujo IA Solutions - Automação WhatsApp',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Araujo IA Solutions - Automação para seu atendimento',
+    description: 'Plataforma completa de automação WhatsApp com inteligência artificial.',
+    images: ['https://xnazrsweosmopqwsrtvp.supabase.co/storage/v1/object/public/media/1764199445046_automatic.jpg'],
   },
 }
 
