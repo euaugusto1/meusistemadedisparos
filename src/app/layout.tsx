@@ -8,8 +8,17 @@ const inter = Inter({ subsets: ['latin'] })
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'WhatsApp SaaS - Automação de Mensagens',
-  description: 'Sistema de automação e disparo de mensagens WhatsApp',
+  title: 'Araujo IA Solutions - Automação para seu atendimento',
+  description: 'Plataforma completa de automação WhatsApp com inteligência artificial. Disparo em massa, agendamento de campanhas, CRM integrado, follow-up automático e gestão de atendimento. Aumente suas vendas e otimize seu tempo com a Araujo IA Solutions.',
+  keywords: ['automação whatsapp', 'disparo em massa', 'whatsapp marketing', 'crm whatsapp', 'chatbot', 'inteligência artificial', 'atendimento automatizado', 'campanhas whatsapp', 'araujo ia'],
+  authors: [{ name: 'Araujo IA Solutions' }],
+  robots: 'index, follow',
+  openGraph: {
+    title: 'Araujo IA Solutions - Automação para seu atendimento',
+    description: 'Plataforma completa de automação WhatsApp com inteligência artificial. Disparo em massa, agendamento de campanhas e gestão de atendimento.',
+    type: 'website',
+    locale: 'pt_BR',
+  },
 }
 
 // Script para aplicar o tema antes do React hidratar (evita flash)
