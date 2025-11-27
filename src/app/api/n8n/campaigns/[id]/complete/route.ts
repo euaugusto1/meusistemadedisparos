@@ -44,12 +44,29 @@ export async function PATCH(
       )
     }
 
-    // Verificar se ainda há items pendentes
+    // Contar items por status diretamente da tabela campaign_items
+    // Isso garante que os contadores estão corretos mesmo se o N8N não atualizou antes
     const { count: pendingCount } = await supabase
       .from('campaign_items')
       .select('*', { count: 'exact', head: true })
       .eq('campaign_id', campaignId)
       .eq('status', 'pending')
+
+    const { count: sentCount } = await supabase
+      .from('campaign_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('campaign_id', campaignId)
+      .eq('status', 'sent')
+
+    const { count: failedCount } = await supabase
+      .from('campaign_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('campaign_id', campaignId)
+      .eq('status', 'failed')
+
+    // Atualizar contadores da campanha com valores reais
+    const actualSentCount = sentCount || 0
+    const actualFailedCount = failedCount || 0
 
     // Determinar status final
     let finalStatus: 'completed' | 'failed' | 'processing' = 'completed'
@@ -68,15 +85,17 @@ export async function PATCH(
     }
 
     // Se nenhum enviado com sucesso, marcar como failed
-    if (campaign.sent_count === 0 && campaign.failed_count > 0) {
+    if (actualSentCount === 0 && actualFailedCount > 0) {
       finalStatus = 'failed'
     }
 
-    // Atualizar campanha como concluída
+    // Atualizar campanha como concluída COM os contadores corretos
     const { data: updated, error: updateError } = await supabase
       .from('campaigns')
       .update({
         status: finalStatus,
+        sent_count: actualSentCount,
+        failed_count: actualFailedCount,
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -165,9 +184,9 @@ export async function PATCH(
       }
     }
 
-    // Calcular estatísticas finais
+    // Calcular estatísticas finais usando valores reais contados
     const successRate = campaign.total_recipients > 0
-      ? ((campaign.sent_count / campaign.total_recipients) * 100).toFixed(2)
+      ? ((actualSentCount / campaign.total_recipients) * 100).toFixed(2)
       : '0.00'
 
     // Padronizado: campaignId sempre no nível raiz para consistência no N8N
@@ -179,8 +198,8 @@ export async function PATCH(
       completedAt: updated.completed_at,
       statistics: {
         totalRecipients: campaign.total_recipients,
-        sentCount: campaign.sent_count,
-        failedCount: campaign.failed_count,
+        sentCount: actualSentCount,
+        failedCount: actualFailedCount,
         successRate: `${successRate}%`,
         finalStatus: finalStatus
       },
