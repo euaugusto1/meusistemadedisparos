@@ -104,17 +104,12 @@ export async function POST() {
     }
 
     // Log da criação
-    await logger.log({
-      action: 'instance_created',
-      userId: user.id,
-      resourceType: 'instance',
-      resourceId: newInstance.id,
-      details: {
-        instanceName,
-        type: 'premium',
-        planTier,
-        apiUrl: UAZAPI_PROD_URL,
-      },
+    await logger.log('instance_created', 'success', {
+      instanceId: newInstance.id,
+      instanceName,
+      type: 'premium',
+      planTier,
+      apiUrl: UAZAPI_PROD_URL,
     })
 
     // Retornar instância criada
