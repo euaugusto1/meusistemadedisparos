@@ -56,6 +56,8 @@ export async function POST() {
 
     console.log('Creating test instance with Evolution API...')
     console.log('Instance name:', instanceName)
+    console.log('Evolution API URL:', EVOLUTION_API_URL)
+    console.log('Evolution API Key:', EVOLUTION_API_KEY ? `${EVOLUTION_API_KEY.substring(0, 10)}...` : 'NOT SET')
 
     // Criar instância na Evolution API
     const payload: EvolutionCreateInstancePayload = {
@@ -120,6 +122,7 @@ export async function POST() {
         instance_key: instanceName,
         token: apiToken,
         api_token: apiToken,
+        api_url: EVOLUTION_API_URL,
         status: 'qr_code',
         is_test: true,
         expires_at: expiresAt.toISOString(),

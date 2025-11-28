@@ -78,9 +78,17 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
   // QR Code connection states
   const [qrCodeConnected, setQrCodeConnected] = useState(false)
 
+  // Estado para evitar hydration mismatch em datas
+  const [isMounted, setIsMounted] = useState(false)
+
   const isAdmin = profile?.role === 'admin'
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const qrCodePollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Marcar como montado para evitar hydration mismatch
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Limpar intervalos ao desmontar
   useEffect(() => {
@@ -172,24 +180,39 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
     return instance.status
   }
 
-  const handleConnect = async (instance: WhatsAppInstance) => {
+  const handleConnect = async (instance: WhatsAppInstance, retryCount = 0) => {
     setSelectedInstance(instance)
     setLoading(true)
     setError(null)
-    setQrCode(null)
+    if (retryCount === 0) {
+      setQrCode(null)
+    }
 
     try {
       const response = await fetch(`/api/instances/${instance.id}/qrcode`)
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Erro ao obter QR Code')
-      }
-
       const data = await response.json()
 
+      // Tratar resposta de retry (503 - servidor aguardando QR Code)
+      if (response.status === 503 && data.retry && retryCount < 3) {
+        console.log(`[QR Code] Servidor aguardando geração, tentativa ${retryCount + 1}/3...`)
+        // Mostrar mensagem de loading enquanto tenta novamente
+        setError('Aguardando servidor gerar QR Code... Por favor, aguarde.')
+
+        // Esperar 3 segundos e tentar novamente automaticamente
+        setTimeout(() => {
+          handleConnect(instance, retryCount + 1)
+        }, 3000)
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || 'Erro ao obter QR Code')
+      }
+
+      // Limpar erro de loading
+      setError(null)
+
       if (data.status === 'connected') {
-        setError(null)
         setSelectedInstance(null)
         // Atualizar status local
         setInstances(prev =>
@@ -213,7 +236,7 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
           )
         )
       } else {
-        throw new Error('QR Code não disponível')
+        throw new Error('QR Code não disponível. Tente novamente em alguns segundos.')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao conectar')
@@ -364,6 +387,9 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
 
   const getTimeRemaining = (expiresAt: string | null): string => {
     if (!expiresAt) return ''
+
+    // Evitar hydration mismatch - retornar placeholder durante SSR
+    if (!isMounted) return 'Calculando...'
 
     const now = new Date()
     const expires = new Date(expiresAt)
@@ -636,9 +662,7 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
                     Número:
                   </span>
                   <span className={instance.phone_number ? "text-green-600 dark:text-green-400 font-medium" : "text-muted-foreground italic"}>
-                    {instance.phone_number
-                      ? `+${instance.phone_number.replace(/^(\d{2})(\d{2})(\d{4,5})(\d{4})$/, '$1 ($2) $3-$4')}`
-                      : 'Aguardando conexão'}
+                    {instance.phone_number || 'Aguardando conexão'}
                   </span>
 
                   {/* Status da Conexão - Apenas UAZAPI */}
