@@ -43,6 +43,8 @@ import {
   MessageSquareWarning,
   Building2,
   Info,
+  Crown,
+  Sparkles,
 } from 'lucide-react'
 import { formatDate, getStatusColor } from '@/lib/utils'
 import type { WhatsAppInstance, Profile, InstanceStatus } from '@/types'
@@ -71,9 +73,11 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
   // Admin states
   const [instanceToDelete, setInstanceToDelete] = useState<WhatsAppInstance | null>(null)
   const [instanceToEdit, setInstanceToEdit] = useState<WhatsAppInstance | null>(null)
+  const [instanceToValidate, setInstanceToValidate] = useState<WhatsAppInstance | null>(null)
   const [editName, setEditName] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [updating, setUpdating] = useState(false)
+  const [validating, setValidating] = useState(false)
 
   // QR Code connection states
   const [qrCodeConnected, setQrCodeConnected] = useState(false)
@@ -82,8 +86,13 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
   const [isMounted, setIsMounted] = useState(false)
 
   const isAdmin = profile?.role === 'admin'
+  const isFreePlan = profile?.plan_tier === 'free'
+  const canDeleteInstance = isAdmin || !isFreePlan // Admin sempre pode, usuários pagos também
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const qrCodePollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  // State para modal de upgrade
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
 
   // Marcar como montado para evitar hydration mismatch
   useEffect(() => {
@@ -385,6 +394,45 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
     }
   }
 
+  const handleValidateInstance = async () => {
+    if (!instanceToValidate) return
+
+    setValidating(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/admin/instances/${instanceToValidate.id}/validate`, {
+        method: 'POST',
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.details || data.error || 'Erro ao validar instância')
+      }
+
+      // Update instance in the list - remove test flag and expires_at
+      setInstances(prev =>
+        prev.map(i =>
+          i.id === instanceToValidate.id
+            ? {
+                ...i,
+                is_test: false,
+                expires_at: null,
+                name: i.name.replace('Teste Grátis - 15 dias', 'WhatsApp Business'),
+              }
+            : i
+        )
+      )
+      setInstanceToValidate(null)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao validar instância'
+      setError(errorMessage)
+    } finally {
+      setValidating(false)
+    }
+  }
+
   const getTimeRemaining = (expiresAt: string | null): string => {
     if (!expiresAt) return ''
 
@@ -443,7 +491,7 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
                       Teste Grátis por 15 Dias
                     </h4>
                     <p className="text-xs text-orange-700 dark:text-orange-300">
-                      Servidor Evolution API • Sem cartão de crédito
+                      Araújo IA Solutions • Sem cartão de crédito
                     </p>
                   </div>
                 </div>
@@ -485,7 +533,7 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
                     Servidor Grátis para Testes
                   </h4>
                   <p className="text-xs text-orange-700 dark:text-orange-300">
-                    15 dias grátis • Evolution API • Sem cartão de crédito
+                    15 dias grátis • Araújo IA Solutions • Sem cartão de crédito
                   </p>
                 </div>
               </div>
@@ -565,14 +613,37 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
                           <Edit className="mr-2 h-4 w-4" />
                           Editar nome
                         </DropdownMenuItem>
+                        {/* Admin-only: Validate test instance as permanent */}
+                        {isAdmin && instance.is_test && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => setInstanceToValidate(instance)}
+                              className="text-green-600 focus:text-green-600"
+                            >
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Validar Permanente
+                            </DropdownMenuItem>
+                          </>
+                        )}
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => setInstanceToDelete(instance)}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Deletar
-                        </DropdownMenuItem>
+                        {canDeleteInstance ? (
+                          <DropdownMenuItem
+                            onClick={() => setInstanceToDelete(instance)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Deletar
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem
+                            onClick={() => setShowUpgradeModal(true)}
+                            className="text-amber-600 focus:text-amber-600"
+                          >
+                            <Crown className="mr-2 h-4 w-4" />
+                            Fazer Upgrade
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
@@ -633,7 +704,7 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
                 <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200 dark:border-slate-700">
                   <Server className={`h-3.5 w-3.5 ${instance.is_test ? 'text-orange-500' : 'text-blue-500'}`} />
                   <span className={`text-xs font-semibold ${instance.is_test ? 'text-orange-600 dark:text-orange-400' : 'text-blue-600 dark:text-blue-400'}`}>
-                    {instance.is_test ? 'Evolution API' : 'UAZAPI'}
+                    {instance.is_test ? 'Araújo IA Solutions' : 'UAZAPI'}
                   </span>
                   {!instance.is_test && (
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700">
@@ -915,7 +986,7 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
               Esta ação não pode ser desfeita. A instância será removida permanentemente do banco de dados
-              {instanceToDelete?.api_token ? ' e da Evolution API' : ''}.
+              {instanceToDelete?.api_token ? ' e do servidor' : ''}.
             </AlertDescription>
           </Alert>
           <div className="flex gap-2 justify-end">
@@ -937,6 +1008,115 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
                 <Trash2 className="mr-2 h-4 w-4" />
               )}
               Deletar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Validate Instance Dialog (Admin Only) */}
+      <Dialog open={!!instanceToValidate} onOpenChange={() => setInstanceToValidate(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-600">
+              <CheckCircle className="h-5 w-5" />
+              Validar Instância Permanente
+            </DialogTitle>
+            <DialogDescription>
+              Converter a instância de teste "{instanceToValidate?.name}" em uma instância permanente?
+            </DialogDescription>
+          </DialogHeader>
+          <Alert className="border-green-500/50 bg-green-50 dark:bg-green-950/20">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800 dark:text-green-200">
+              A instância será convertida para uso permanente. O período de teste será removido e o cliente poderá usar a instância sem limitação de tempo.
+            </AlertDescription>
+          </Alert>
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setInstanceToValidate(null)}
+              disabled={validating}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleValidateInstance}
+              disabled={validating}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {validating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle className="mr-2 h-4 w-4" />
+              )}
+              Validar Permanente
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upgrade Modal (Free Plan Users) */}
+      <Dialog open={showUpgradeModal} onOpenChange={setShowUpgradeModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <Crown className="h-5 w-5" />
+              Faça Upgrade do seu Plano
+            </DialogTitle>
+            <DialogDescription>
+              Para gerenciar suas instâncias com total controle, faça upgrade para um plano pago.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Alert className="border-amber-500/50 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30">
+              <Sparkles className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800 dark:text-amber-200">
+                <strong>No plano gratuito</strong>, você pode criar uma instância de teste, mas não pode excluí-la.
+                Isso garante que você aproveite ao máximo o período de avaliação.
+              </AlertDescription>
+            </Alert>
+
+            <div className="bg-gradient-to-br from-primary/5 to-blue-500/5 border border-primary/20 rounded-lg p-4 space-y-3">
+              <h4 className="font-semibold text-primary flex items-center gap-2">
+                <CheckCircle className="h-4 w-4" />
+                Benefícios do Plano Pago
+              </h4>
+              <ul className="text-sm text-muted-foreground space-y-2">
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-3 w-3 text-green-500" />
+                  Criar múltiplas instâncias
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-3 w-3 text-green-500" />
+                  Gerenciar e excluir instâncias
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-3 w-3 text-green-500" />
+                  Acesso a todos os recursos
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-3 w-3 text-green-500" />
+                  Suporte prioritário
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setShowUpgradeModal(false)}
+            >
+              Agora não
+            </Button>
+            <Button
+              onClick={() => {
+                setShowUpgradeModal(false)
+                window.location.href = '/plans'
+              }}
+              className="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white"
+            >
+              <Crown className="mr-2 h-4 w-4" />
+              Ver Planos
             </Button>
           </div>
         </DialogContent>
