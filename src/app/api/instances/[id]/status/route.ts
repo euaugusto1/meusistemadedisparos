@@ -206,14 +206,15 @@ export async function GET(
             console.log('[Evolution API] ownerJid encontrado:', ownerJid)
             if (ownerJid) {
               // Extrair apenas o número do JID (remover @s.whatsapp.net)
-              phoneNumber = ownerJid.replace('@s.whatsapp.net', '')
+              let extractedNumber = ownerJid.replace('@s.whatsapp.net', '')
               // Formatar como +55 (98) 99999-9999 se for número brasileiro
-              if (phoneNumber.startsWith('55') && phoneNumber.length >= 12) {
-                const ddd = phoneNumber.substring(2, 4)
-                const part1 = phoneNumber.substring(4, 9)
-                const part2 = phoneNumber.substring(9)
-                phoneNumber = `+55 (${ddd}) ${part1}-${part2}`
+              if (extractedNumber.startsWith('55') && extractedNumber.length >= 12) {
+                const ddd = extractedNumber.substring(2, 4)
+                const part1 = extractedNumber.substring(4, 9)
+                const part2 = extractedNumber.substring(9)
+                extractedNumber = `+55 (${ddd}) ${part1}-${part2}`
               }
+              phoneNumber = extractedNumber
               console.log('[Evolution API] phoneNumber formatado:', phoneNumber)
             }
           } else {
