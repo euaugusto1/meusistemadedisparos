@@ -257,18 +257,24 @@ export async function GET(
       // Normalizar status - A UAZAPI retorna estrutura:
       // { instance: { status: "connected", ... }, status: { connected: true, loggedIn: true, jid: "..." } }
       // O status string está em instance.status, não em status (que é um objeto)
+      // IMPORTANTE: status.connected e status.loggedIn NÃO são indicadores confiáveis!
+      // Eles podem retornar true mesmo quando a instância está aguardando QR Code.
+      // O indicador correto é instance.status + verificar se tem jid/owner (número conectado)
       const instanceStatus = statusData.instance?.status
-      const statusObjConnected = statusData.status?.connected === true || statusData.status?.loggedIn === true
+      const hasPhoneConnected = !!(statusData.status?.jid || statusData.instance?.owner)
 
-      console.log('[UAZAPI] instance.status:', instanceStatus, '| status.connected:', statusData.status?.connected, '| status.loggedIn:', statusData.status?.loggedIn)
+      console.log('[UAZAPI] instance.status:', instanceStatus, '| hasPhoneConnected:', hasPhoneConnected, '| jid:', statusData.status?.jid)
 
-      // Verificar status da instância primeiro (string), depois fallback para objeto status
-      if (instanceStatus === 'connected' || instanceStatus === 'open' || statusObjConnected) {
+      // Verificar status da instância - só considerar "connected" se:
+      // 1. instance.status é "connected" ou "open" E
+      // 2. Tem um número de telefone conectado (jid ou owner)
+      if ((instanceStatus === 'connected' || instanceStatus === 'open') && hasPhoneConnected) {
         status = 'connected'
       } else if (instanceStatus === 'qrcode' || instanceStatus === 'qr_code') {
         status = 'qr_code'
-      } else if (instanceStatus === 'connecting') {
-        status = 'connecting'
+      } else if (instanceStatus === 'connecting' || instanceStatus === 'connected' || instanceStatus === 'open') {
+        // Se está "connected/open" mas NÃO tem telefone, ainda está aguardando leitura do QR
+        status = 'qr_code'
       } else {
         status = 'disconnected'
       }

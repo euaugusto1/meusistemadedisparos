@@ -7,11 +7,11 @@ const EVOLUTION_API_URL_FALLBACK = process.env.EVOLUTION_API_URL || ''
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createClient()
-    const { id } = params
+    const { id } = await params
 
     // Verificar autenticação
     const { data: { user } } = await supabase.auth.getUser()
@@ -39,8 +39,10 @@ export async function GET(
       }, { status: 400 })
     }
 
-    // Detectar qual API usar baseado na presença do api_token
-    const isEvolutionApi = !!instance.api_token
+    // Detectar qual API usar baseado em is_test (consistente com status/qrcode/disconnect)
+    // is_test = true → Evolution API (instâncias de teste)
+    // is_test = false → UAZAPI (instâncias premium)
+    const isEvolutionApi = instance.is_test === true
 
     console.log('API Detection:', {
       isEvolutionApi,
@@ -140,8 +142,17 @@ export async function GET(
 
     } else {
       // ========== UAZAPI ==========
-      // Obter servidor correto para esta instância
-      const { url: baseUrl, token: adminToken } = getServerForInstance(instance.instance_key)
+      // Obter servidor correto para esta instância (usando api_url do banco)
+      const { url: baseUrl } = getServerForInstance(instance.instance_key, instance.api_url)
+
+      // Usar token da instância (api_token ou token)
+      const instanceToken = instance.api_token || instance.token
+      if (!instanceToken) {
+        return NextResponse.json(
+          { error: 'Token da instância não encontrado' },
+          { status: 400 }
+        )
+      }
 
       // Buscar parâmetros da URL
       const url = new URL(request.url)
@@ -153,7 +164,6 @@ export async function GET(
       if (force) apiUrl.searchParams.append('force', 'true')
       if (noparticipants) apiUrl.searchParams.append('noparticipants', 'true')
 
-      const tokenToUse = instance.token || adminToken
       console.log('Fetching groups from UAZAPI:', apiUrl.toString())
 
       // Chamar API do UAZAPI
@@ -162,7 +172,7 @@ export async function GET(
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'token': tokenToUse,
+          'token': instanceToken,
         },
       })
 

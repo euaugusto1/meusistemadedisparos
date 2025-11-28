@@ -324,18 +324,29 @@ export async function GET(
         }, { status: 404 })
       }
 
-      // Se já está conectado
-      if (currentStatus?.status === 'open' || currentStatus?.status === 'connected') {
-        // Extrair número de telefone de vários campos possíveis da resposta UAZAPI
-        // A API pode retornar em: user.id, phone_number, phone, number, user.phone
-        const phoneNumber = currentStatus.user?.id ||
-                           currentStatus.phone_number ||
-                           currentStatus.phone ||
-                           currentStatus.number ||
-                           currentStatus.user?.phone ||
-                           null
+      // Verificar se já está conectado
+      // IMPORTANTE: Só considerar conectado se tem um número de telefone (jid/owner)
+      // pois a UAZAPI pode retornar status "open/connected" mesmo sem ter lido o QR Code
+      const statusJid = currentStatus?.status?.jid || currentStatus?.instance?.owner
+      const isReallyConnected = (currentStatus?.status === 'open' || currentStatus?.status === 'connected' ||
+                                  currentStatus?.instance?.status === 'open' || currentStatus?.instance?.status === 'connected')
+                                  && !!statusJid
 
-        console.log('[UAZAPI] Instance connected! Phone:', phoneNumber)
+      if (isReallyConnected) {
+        // Extrair número de telefone do JID
+        let phoneNumber = null
+        if (statusJid) {
+          phoneNumber = statusJid.split(':')[0].split('@')[0]
+        } else {
+          phoneNumber = currentStatus.user?.id ||
+                       currentStatus.phone_number ||
+                       currentStatus.phone ||
+                       currentStatus.number ||
+                       currentStatus.user?.phone ||
+                       null
+        }
+
+        console.log('[UAZAPI] Instance really connected! Phone:', phoneNumber)
         console.log('[UAZAPI] Full status response:', JSON.stringify(currentStatus))
 
         await supabase
@@ -406,12 +417,14 @@ export async function GET(
           const statusAfterConflict = await uazapiGetStatus(baseUrl, instanceToken)
           console.log(`[UAZAPI] Status attempt ${attempt}:`, JSON.stringify(statusAfterConflict).substring(0, 300))
 
-          // Verificar se já conectou
-          if (statusAfterConflict?.status === 'open' || statusAfterConflict?.status === 'connected') {
-            const phoneNumber = statusAfterConflict.user?.id ||
-                               statusAfterConflict.phone_number ||
-                               statusAfterConflict.phone ||
-                               null
+          // Verificar se já conectou (só considerar conectado se tem JID)
+          const pollingJid = statusAfterConflict?.status?.jid || statusAfterConflict?.instance?.owner
+          const pollingConnected = (statusAfterConflict?.status === 'open' || statusAfterConflict?.status === 'connected' ||
+                                    statusAfterConflict?.instance?.status === 'open' || statusAfterConflict?.instance?.status === 'connected')
+                                    && !!pollingJid
+
+          if (pollingConnected) {
+            const phoneNumber = pollingJid ? pollingJid.split(':')[0].split('@')[0] : null
 
             await supabase
               .from('whatsapp_instances')
@@ -447,19 +460,27 @@ export async function GET(
         }, { status: 503 })
       }
 
-      // Verificar se já está conectado
-      if (qrData.status === 'open' || qrData.status === 'connected' || qrData.instance?.status === 'open') {
+      // Verificar se já está conectado (só considerar conectado se tem JID)
+      const connectJid = qrData.status?.jid || qrData.instance?.owner
+      const connectReallyConnected = (qrData.status === 'open' || qrData.status === 'connected' ||
+                                       qrData.instance?.status === 'open' || qrData.instance?.status === 'connected')
+                                       && !!connectJid
+
+      if (connectReallyConnected) {
+        const phoneFromConnect = connectJid ? connectJid.split(':')[0].split('@')[0] : null
+
         await supabase
           .from('whatsapp_instances')
           .update({
             status: 'connected',
-            phone_number: qrData.phone_number || qrData.phone || qrData.user?.id || null,
+            phone_number: phoneFromConnect,
           })
           .eq('id', id)
 
         return NextResponse.json({
           status: 'connected',
           message: 'Instância já está conectada',
+          phone_number: phoneFromConnect,
         })
       }
 

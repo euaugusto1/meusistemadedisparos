@@ -38,9 +38,10 @@ async function deleteUazapiInstance(baseUrl: string, instanceToken: string): Pro
 // DELETE - Deletar instância (apenas admin ou dono)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const supabase = createClient()
     const { data: { user }, error: userError } = await supabase.auth.getUser()
 
@@ -52,7 +53,7 @@ export async function DELETE(
     const { data: instance, error: fetchError } = await supabase
       .from('whatsapp_instances')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (fetchError || !instance) {
@@ -133,7 +134,7 @@ export async function DELETE(
     const { error: deleteError } = await supabase
       .from('whatsapp_instances')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
 
     if (deleteError) {
       console.error('Database delete error:', deleteError)
@@ -146,7 +147,7 @@ export async function DELETE(
       )
     }
 
-    console.log(`Instance ${params.id} deleted successfully`)
+    console.log(`Instance ${id} deleted successfully`)
 
     return NextResponse.json({
       success: true,
@@ -167,9 +168,10 @@ export async function DELETE(
 // PATCH - Editar instância (apenas admin ou dono)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const supabase = createClient()
     const { data: { user }, error: userError } = await supabase.auth.getUser()
 
@@ -181,7 +183,7 @@ export async function PATCH(
     const { data: instance, error: fetchError } = await supabase
       .from('whatsapp_instances')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (fetchError || !instance) {
@@ -224,7 +226,7 @@ export async function PATCH(
     const { data: updatedInstance, error: updateError } = await supabase
       .from('whatsapp_instances')
       .update({ name: name.trim() })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single()
 
@@ -239,7 +241,7 @@ export async function PATCH(
       )
     }
 
-    console.log(`Instance ${params.id} updated successfully`)
+    console.log(`Instance ${id} updated successfully`)
 
     return NextResponse.json({
       success: true,
