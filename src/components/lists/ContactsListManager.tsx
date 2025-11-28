@@ -52,6 +52,8 @@ import {
   CheckCircle2,
   Sparkles,
   Smartphone,
+  Info,
+  Lightbulb,
 } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
 import { formatDate, formatNumber, parseRecipients } from '@/lib/utils'
@@ -93,14 +95,22 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
   const [groupSearchTerm, setGroupSearchTerm] = useState('')
 
   // Plan access state
+  const [userPlanTier, setUserPlanTier] = useState<string>('free')
   const [hasGoldPlan, setHasGoldPlan] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [upgradeModalType, setUpgradeModalType] = useState<'gold' | 'bronze'>('gold')
 
   // Success modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [successMessage, setSuccessMessage] = useState({ title: '', description: '' })
 
   const connectedInstances = instances.filter(i => i.status === 'connected')
+
+  // Filter instances for group import: only Araújo IA (is_test = false)
+  const araujoIaInstances = connectedInstances.filter(i => i.is_test !== true)
+
+  // Check if user has bronze or higher plan (can access group import feature)
+  const canImportGroups = userPlanTier !== 'free'
 
   // Check user plan on mount
   useEffect(() => {
@@ -117,8 +127,11 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
           .eq('id', user.id)
           .single()
 
-        const hasAccess = profile?.role === 'admin' || profile?.plan_tier === 'gold'
-        setHasGoldPlan(hasAccess)
+        const planTier = profile?.plan_tier || 'free'
+        setUserPlanTier(planTier)
+
+        const hasGoldAccess = profile?.role === 'admin' || planTier === 'gold'
+        setHasGoldPlan(hasGoldAccess)
       } catch (err) {
         console.error('Error checking user plan:', err)
       }
@@ -126,6 +139,22 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
 
     checkUserPlan()
   }, [])
+
+  // Handle click on Import Groups button
+  const handleImportGroupsClick = () => {
+    // Free plan users should see upgrade modal
+    if (!canImportGroups) {
+      setUpgradeModalType('bronze')
+      setShowUpgradeModal(true)
+      return
+    }
+    // Check if there are Araújo IA instances available
+    if (araujoIaInstances.length === 0) {
+      alert('Nenhuma instância Araújo IA disponível para importar grupos. A importação de grupos só funciona com instâncias da plataforma Araújo IA Solutions.')
+      return
+    }
+    setShowGroupsDialog(true)
+  }
 
   // Buscar grupos da instância
   const fetchGroups = async (instanceId: string) => {
@@ -487,17 +516,16 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
     <div className="space-y-4">
       {/* Action Buttons */}
       <div className="flex justify-end gap-2">
-        {/* Import Groups Button */}
-        {connectedInstances.length > 0 && (
-          <Button
-            variant="outline"
-            onClick={() => setShowGroupsDialog(true)}
-            className="bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 transition-all duration-300 hover:scale-105 border-none"
-          >
-            <UsersRound className="mr-2 h-4 w-4" />
-            Importar Grupos
-          </Button>
-        )}
+        {/* Import Groups Button - Always show, but behavior depends on plan */}
+        <Button
+          variant="outline"
+          onClick={handleImportGroupsClick}
+          className="bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 transition-all duration-300 hover:scale-105 border-none"
+        >
+          <UsersRound className="mr-2 h-4 w-4" />
+          Importar Grupos
+          {!canImportGroups && <Lock className="ml-2 h-3 w-3" />}
+        </Button>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
@@ -566,11 +594,14 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
                   </span>
                 </div>
                 <Textarea
-                  placeholder="Cole um número por linha. Ex:&#10;5511999999999&#10;5521888888888"
+                  placeholder="Digite um número por linha no formato:&#10;&#10;5511999999999&#10;5521888888888&#10;5531977777777&#10;&#10;Formato: DDI + DDD + Número (sem espaços, traços ou parênteses)"
                   value={contactsText}
                   onChange={(e) => setContactsText(e.target.value)}
                   rows={8}
                 />
+                <p className="text-xs text-muted-foreground">
+                  <strong>Formato correto:</strong> 55 (Brasil) + DDD + Número. Ex: 5511999999999
+                </p>
               </div>
             </div>
 
@@ -720,10 +751,10 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
                   }}
                 >
                   <SelectTrigger className="flex-1 h-11">
-                    <SelectValue placeholder="Selecione uma instância conectada" />
+                    <SelectValue placeholder="Selecione uma instância Araújo IA conectada" />
                   </SelectTrigger>
                   <SelectContent>
-                    {connectedInstances.map(instance => (
+                    {araujoIaInstances.map(instance => (
                       <SelectItem key={instance.id} value={instance.id}>
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full bg-green-500"></div>
@@ -1030,7 +1061,89 @@ export function ContactsListManager({ lists: initialLists, instances }: Contacts
       <UpgradeModal
         open={showUpgradeModal}
         onOpenChange={setShowUpgradeModal}
+        type={upgradeModalType}
       />
+
+      {/* Rodapé com Dicas */}
+      <Card className="mt-8 border-dashed border-2 border-muted-foreground/20 bg-gradient-to-br from-muted/30 via-background to-muted/20">
+        <CardContent className="py-6">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Lightbulb className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-base mb-1">Dicas de Uso</h3>
+              <p className="text-sm text-muted-foreground">
+                Aprenda a importar e gerenciar suas listas de contatos
+              </p>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Dica 1 - Formato do Número */}
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-background/50 border">
+              <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-sm mb-1">Formato Correto do Número</p>
+                <p className="text-xs text-muted-foreground">
+                  Use o formato internacional: <span className="font-mono bg-muted px-1 rounded">55</span> (Brasil) +
+                  <span className="font-mono bg-muted px-1 rounded">DDD</span> +
+                  <span className="font-mono bg-muted px-1 rounded">Número</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Exemplo: <span className="font-mono text-primary">5511999999999</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Dica 2 - Importação CSV */}
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-background/50 border">
+              <FileText className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-sm mb-1">Importação via Arquivo</p>
+                <p className="text-xs text-muted-foreground">
+                  Importe arquivos <span className="font-mono bg-muted px-1 rounded">.csv</span> ou
+                  <span className="font-mono bg-muted px-1 rounded">.txt</span> com um número por linha.
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Arraste o arquivo ou clique para selecionar.
+                </p>
+              </div>
+            </div>
+
+            {/* Dica 3 - Importar Grupos */}
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-background/50 border">
+              <UsersRound className="h-4 w-4 text-orange-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-sm mb-1">Importar Grupos WhatsApp</p>
+                <p className="text-xs text-muted-foreground">
+                  {canImportGroups
+                    ? 'Use "Importar Grupos" para buscar participantes dos seus grupos WhatsApp automaticamente.'
+                    : 'Disponível a partir do plano Bronze. Importe participantes dos seus grupos automaticamente.'
+                  }
+                </p>
+              </div>
+            </div>
+
+            {/* Dica 4 - Listas Favoritas */}
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-background/50 border">
+              <Star className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-sm mb-1">Organize com Favoritos</p>
+                <p className="text-xs text-muted-foreground">
+                  Clique na estrela para marcar listas importantes como favoritas e encontrá-las mais facilmente.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-dashed">
+            <p className="text-xs text-center text-muted-foreground">
+              <strong>Araújo IA Solutions</strong> • Suas listas são privadas e protegidas por criptografia
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

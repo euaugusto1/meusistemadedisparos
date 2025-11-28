@@ -98,6 +98,7 @@ export async function GET(request: NextRequest) {
           instance_key,
           phone_number,
           api_token,
+          api_url,
           status,
           is_test
         ),
@@ -390,14 +391,14 @@ export async function GET(request: NextRequest) {
             const instanceKey = inst.instance_key || inst.name
 
             // Para Evolution API (teste): usa api_url da instância (com fallback) e api_token da tabela
-            // Para UAZAPI (produção): usa UAZAPI_ADMIN_TOKEN do ambiente e UAZAPI_BASE_URL
+            // Para UAZAPI (produção): usa api_url e api_token da instância (token específico da instância conectada)
             const apiUrl = isTestInstance
               ? (inst.api_url || EVOLUTION_API_URL_FALLBACK || 'https://dev.evo.sistemabrasil.online')
-              : (process.env.UAZAPI_BASE_URL || 'https://monitor-grupo.uazapi.com')
+              : (inst.api_url || process.env.UAZAPI_BASE_URL || 'https://monitor-grupo.uazapi.com')
 
-            const apiToken = isTestInstance
-              ? inst.api_token
-              : (process.env.UAZAPI_ADMIN_TOKEN || '')
+            // IMPORTANTE: Para UAZAPI, usar o api_token da instância conectada, NÃO o ADMIN_TOKEN
+            // O api_token é o token específico da instância que foi gerado quando ela foi criada
+            const apiToken = inst.api_token || (isTestInstance ? '' : process.env.UAZAPI_ADMIN_TOKEN || '')
 
             // Buscar número de telefone - se não estiver no banco, busca da Evolution API
             let phoneNumber = inst.phone_number

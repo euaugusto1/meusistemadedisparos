@@ -106,17 +106,19 @@ export async function POST() {
                          (instance as { number?: string }).number || null
 
       if (existing) {
-        // Atualizar status
+        // Atualizar status E token (sincronizar token do UAZAPI)
         const { error } = await supabase
           .from('whatsapp_instances')
           .update({
             status: instanceStatus,
             phone_number: phoneNumber,
+            token: instanceToken,
+            api_token: instanceToken, // Sincronizar api_token também
           })
           .eq('id', existing.id)
 
         if (!error) {
-          results.push({ key: instanceKey, action: 'updated' })
+          results.push({ key: instanceKey, action: 'updated', token: instanceToken.substring(0, 8) + '...' })
         } else {
           console.log('Erro ao atualizar:', error)
         }
@@ -129,8 +131,11 @@ export async function POST() {
             name: instanceKey,
             instance_key: instanceKey,
             token: instanceToken,
+            api_token: instanceToken, // Token para API
+            api_url: UAZAPI_BASE_URL, // URL do servidor
             status: instanceStatus,
             phone_number: phoneNumber,
+            is_test: false, // Instâncias UAZAPI não são teste
           })
 
         if (!error) {

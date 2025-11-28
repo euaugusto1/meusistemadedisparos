@@ -6,7 +6,7 @@ import { createSystemLog, extractRequestInfo } from '@/lib/system-logger'
 // Fallback para instâncias sem api_url configurada
 const EVOLUTION_API_URL_FALLBACK = process.env.EVOLUTION_API_URL || ''
 
-// Helper function to make UAZAPI requests
+// Helper function to make UAZAPI GET requests
 async function uazapiRequest(baseUrl: string, endpoint: string, token: string) {
   const response = await fetch(`${baseUrl}${endpoint}`, {
     method: 'GET',
@@ -22,6 +22,75 @@ async function uazapiRequest(baseUrl: string, endpoint: string, token: string) {
   }
 
   return response.json()
+}
+
+// Helper function to get UAZAPI instance status
+// Uses GET /instance/status with instance token
+async function uazapiGetStatus(baseUrl: string, instanceToken: string) {
+  console.log('[UAZAPI] Getting status from:', `${baseUrl}/instance/status`)
+  console.log('[UAZAPI] Token:', instanceToken?.substring(0, 10) + '...')
+
+  const response = await fetch(`${baseUrl}/instance/status`, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+      'token': instanceToken,
+    },
+  })
+
+  const data = await response.json().catch(() => ({ message: response.statusText }))
+
+  if (!response.ok) {
+    console.error('[UAZAPI] Status error:', response.status, data)
+    return null
+  }
+
+  console.log('[UAZAPI] Status response:', JSON.stringify(data).substring(0, 300))
+  return data
+}
+
+// Helper function to connect UAZAPI instance and get QR Code
+// Uses POST /instance/connect with instance token
+// Documentação: https://docs.uazapi.com/endpoint/post/instance~connect
+async function uazapiConnect(baseUrl: string, instanceToken: string) {
+  console.log('[UAZAPI] Connecting to get QR Code:', `${baseUrl}/instance/connect`)
+  console.log('[UAZAPI] Token:', instanceToken?.substring(0, 10) + '...')
+
+  const response = await fetch(`${baseUrl}/instance/connect`, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'token': instanceToken,
+    },
+    body: '{}', // Body vazio para obter QR Code (sem phone = QR Code, com phone = pairing code)
+  })
+
+  const data = await response.json().catch(() => ({ message: response.statusText }))
+
+  if (!response.ok) {
+    console.error('[UAZAPI] Connect error:', response.status, data)
+    // Se for 409 (conflict), a instância já está connecting
+    // IMPORTANTE: A resposta 409 pode conter o QR Code no campo instance.qrcode
+    if (response.status === 409) {
+      // Extrair QR Code da resposta 409 se disponível
+      const qrFromConflict = data.instance?.qrcode || data.qrcode
+      if (qrFromConflict) {
+        console.log('[UAZAPI] 409 Conflict with QR Code available!')
+        return {
+          status: 'connecting',
+          conflict: true,
+          qrcode: qrFromConflict,
+          instance: data.instance
+        }
+      }
+      return { status: 'connecting', conflict: true }
+    }
+    throw new Error(data.message || `UAZAPI Error: ${response.status}`)
+  }
+
+  console.log('[UAZAPI] Connect success, status:', data.instance?.status || data.status)
+  return data
 }
 
 // Helper function to get QR Code from Evolution API with retry/polling
@@ -130,8 +199,10 @@ export async function GET(
       return NextResponse.json({ error: 'Instância não encontrada' }, { status: 404 })
     }
 
-    // Detectar qual API usar baseado na presença de api_token
-    const isEvolutionApi = !!instance.api_token
+    // Detectar qual API usar:
+    // - is_test = true → Evolution API (instâncias de teste)
+    // - is_test = false → UAZAPI (instâncias premium)
+    const isEvolutionApi = instance.is_test === true
 
     if (isEvolutionApi) {
       // ========== EVOLUTION API ==========
@@ -224,45 +295,180 @@ export async function GET(
       }
     } else {
       // ========== UAZAPI ==========
-      // Obter servidor correto para esta instância
-      const { url: baseUrl, token: adminToken } = getServerForInstance(instance.instance_key)
+      // Obter servidor correto para esta instância (usando api_url do banco se disponível)
+      const { url: baseUrl } = getServerForInstance(instance.instance_key, instance.api_url)
 
-      // Verificar status atual primeiro
-      try {
-        const statusData = await uazapiRequest(
-          baseUrl,
-          `/instance/status?key=${instance.instance_key}`,
-          adminToken
-        )
+      console.log('[UAZAPI] Getting QR Code from:', baseUrl, 'Instance:', instance.instance_key)
 
-        if (statusData.status === 'connected' || statusData.connectionStatus === 'connected' || statusData.state === 'open') {
-          // Já está conectado, atualizar banco
+      // Obter token da instância (salvo no banco quando a instância foi criada)
+      const instanceToken = instance.api_token || instance.token
+
+      if (!instanceToken) {
+        console.error('[UAZAPI] Instance token not found in database')
+        return NextResponse.json({ error: 'Token da instância não encontrado' }, { status: 400 })
+      }
+
+      console.log('[UAZAPI] Using instance token:', instanceToken?.substring(0, 10) + '...')
+
+      // Primeiro verificar o status atual da instância
+      const currentStatus = await uazapiGetStatus(baseUrl, instanceToken)
+      console.log('[UAZAPI] Current status:', JSON.stringify(currentStatus).substring(0, 500))
+
+      // Se o token é inválido, a instância pode ter sido deletada/expirada no UAZAPI
+      if (currentStatus === null) {
+        console.error('[UAZAPI] Instance not found or token invalid - instance may have been deleted')
+        return NextResponse.json({
+          error: 'Instância não encontrada no servidor UAZAPI. Ela pode ter sido deletada ou expirada. Por favor, delete esta instância e crie uma nova.',
+          code: 'INSTANCE_NOT_FOUND',
+          shouldDelete: true
+        }, { status: 404 })
+      }
+
+      // Se já está conectado
+      if (currentStatus?.status === 'open' || currentStatus?.status === 'connected') {
+        // Extrair número de telefone de vários campos possíveis da resposta UAZAPI
+        // A API pode retornar em: user.id, phone_number, phone, number, user.phone
+        const phoneNumber = currentStatus.user?.id ||
+                           currentStatus.phone_number ||
+                           currentStatus.phone ||
+                           currentStatus.number ||
+                           currentStatus.user?.phone ||
+                           null
+
+        console.log('[UAZAPI] Instance connected! Phone:', phoneNumber)
+        console.log('[UAZAPI] Full status response:', JSON.stringify(currentStatus))
+
+        await supabase
+          .from('whatsapp_instances')
+          .update({
+            status: 'connected',
+            phone_number: phoneNumber,
+          })
+          .eq('id', id)
+
+        return NextResponse.json({
+          status: 'connected',
+          message: 'Instância já está conectada',
+          phone_number: phoneNumber,
+        })
+      }
+
+      // Se já está connecting E tem QR Code disponível, retornar o QR Code existente
+      if (currentStatus?.status === 'connecting' && currentStatus?.qrcode) {
+        console.log('[UAZAPI] Instance already connecting with QR Code available')
+
+        await supabase
+          .from('whatsapp_instances')
+          .update({ status: 'qr_code' })
+          .eq('id', id)
+
+        return NextResponse.json({
+          qr_code: currentStatus.qrcode,
+          status: 'qr_code',
+        })
+      }
+
+      // Usar POST /instance/connect para conectar e obter QR Code
+      // Documentação: https://docs.uazapi.com/endpoint/post/instance~connect
+      const qrData = await uazapiConnect(baseUrl, instanceToken)
+
+      console.log('[UAZAPI] Connect response:', JSON.stringify(qrData).substring(0, 500))
+
+      // Se recebeu 409 (conflict), verificar se já tem QR Code na resposta
+      if (qrData.conflict) {
+        console.log('[UAZAPI] Conflict detected')
+
+        // Se a resposta 409 já contém o QR Code, retorná-lo imediatamente
+        if (qrData.qrcode) {
+          console.log('[UAZAPI] QR Code found in 409 response, returning immediately')
+
           await supabase
             .from('whatsapp_instances')
-            .update({
-              status: 'connected',
-              phone_number: statusData.phone_number || statusData.phone || statusData.user?.id || null,
-            })
+            .update({ status: 'qr_code' })
             .eq('id', id)
 
           return NextResponse.json({
-            status: 'connected',
-            message: 'Instância já está conectada',
+            qr_code: qrData.qrcode,
+            status: 'qr_code',
           })
         }
-      } catch (statusError) {
-        console.log('Status check failed, proceeding to get QR code:', statusError)
+
+        // Se não tem QR Code na resposta 409, fazer polling
+        console.log('[UAZAPI] No QR Code in 409 response, polling for QR Code...')
+
+        // Polling com até 5 tentativas, aguardando 2 segundos entre cada
+        const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+        for (let attempt = 1; attempt <= 5; attempt++) {
+          console.log(`[UAZAPI] Polling attempt ${attempt}/5...`)
+          await delay(2000)
+
+          const statusAfterConflict = await uazapiGetStatus(baseUrl, instanceToken)
+          console.log(`[UAZAPI] Status attempt ${attempt}:`, JSON.stringify(statusAfterConflict).substring(0, 300))
+
+          // Verificar se já conectou
+          if (statusAfterConflict?.status === 'open' || statusAfterConflict?.status === 'connected') {
+            const phoneNumber = statusAfterConflict.user?.id ||
+                               statusAfterConflict.phone_number ||
+                               statusAfterConflict.phone ||
+                               null
+
+            await supabase
+              .from('whatsapp_instances')
+              .update({ status: 'connected', phone_number: phoneNumber })
+              .eq('id', id)
+
+            return NextResponse.json({
+              status: 'connected',
+              message: 'Instância conectada com sucesso!',
+              phone_number: phoneNumber,
+            })
+          }
+
+          // Verificar se tem QR Code disponível
+          if (statusAfterConflict?.qrcode) {
+            await supabase
+              .from('whatsapp_instances')
+              .update({ status: 'qr_code' })
+              .eq('id', id)
+
+            return NextResponse.json({
+              qr_code: statusAfterConflict.qrcode,
+              status: 'qr_code',
+            })
+          }
+        }
+
+        // Após 5 tentativas sem sucesso, retornar erro com retry habilitado
+        return NextResponse.json({
+          error: 'O servidor está gerando o QR Code. Por favor, aguarde alguns segundos e clique novamente.',
+          status: 'connecting',
+          retry: true
+        }, { status: 503 })
       }
 
-      // Obter QR Code
-      const qrData = await uazapiRequest(
-        baseUrl,
-        `/instance/qrcode?key=${instance.instance_key}`,
-        adminToken
-      )
+      // Verificar se já está conectado
+      if (qrData.status === 'open' || qrData.status === 'connected' || qrData.instance?.status === 'open') {
+        await supabase
+          .from('whatsapp_instances')
+          .update({
+            status: 'connected',
+            phone_number: qrData.phone_number || qrData.phone || qrData.user?.id || null,
+          })
+          .eq('id', id)
 
-      if (!qrData.qr_code) {
-        return NextResponse.json({ error: 'QR Code não disponível' }, { status: 400 })
+        return NextResponse.json({
+          status: 'connected',
+          message: 'Instância já está conectada',
+        })
+      }
+
+      // UAZAPI /instance/connect retorna o QR Code no campo 'qrcode' ou 'instance.qrcode'
+      const qrCode = qrData.qrcode || qrData.instance?.qrcode || qrData.qr_code || qrData.base64
+
+      if (!qrCode) {
+        console.log('[UAZAPI] QR Code not in response:', JSON.stringify(qrData))
+        return NextResponse.json({ error: 'QR Code não disponível', details: qrData }, { status: 400 })
       }
 
       // Atualizar status para qr_code
@@ -286,7 +492,7 @@ export async function GET(
       })
 
       return NextResponse.json({
-        qr_code: qrData.qr_code,
+        qr_code: qrCode,
         status: 'qr_code',
       })
     }

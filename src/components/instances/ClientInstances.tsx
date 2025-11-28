@@ -31,6 +31,7 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
+  AlertCircle,
   TestTube2,
   Clock,
   Trash2,
@@ -45,6 +46,12 @@ import {
   Info,
   Crown,
   Sparkles,
+  Lightbulb,
+  Brain,
+  MessageSquare,
+  Zap,
+  Target,
+  Users,
 } from 'lucide-react'
 import { formatDate, getStatusColor } from '@/lib/utils'
 import type { WhatsAppInstance, Profile, InstanceStatus } from '@/types'
@@ -94,6 +101,12 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
   // State para modal de upgrade
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
 
+  // State para criação de instância premium
+  const [creatingPremium, setCreatingPremium] = useState(false)
+
+  // Verificar se o usuário tem plano Bronze ou superior
+  const hasPaidPlan = !isFreePlan || isAdmin
+
   // Marcar como montado para evitar hydration mismatch
   useEffect(() => {
     setIsMounted(true)
@@ -137,16 +150,61 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
     return () => clearInterval(interval)
   }, [instances])
 
+  // Função para verificar status da instância
+  const checkInstanceStatus = async (instance: WhatsAppInstance): Promise<InstanceStatus> => {
+    try {
+      console.log('[Polling] Verificando status da instância:', instance.id)
+      const response = await fetch(`/api/instances/${instance.id}/status`)
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('[Polling] Status recebido:', data.status, 'Phone:', data.phone_number)
+
+        // Atualizar estado local
+        setInstances(prev =>
+          prev.map(i =>
+            i.id === instance.id
+              ? { ...i, status: data.status, phone_number: data.phone_number || i.phone_number }
+              : i
+          )
+        )
+
+        return data.status
+      } else {
+        console.error('[Polling] Erro na resposta:', response.status)
+      }
+    } catch (err) {
+      console.error('[Polling] Erro ao verificar status:', err)
+    }
+    return instance.status
+  }
+
   // Poll para verificar status quando aguardando QR
   useEffect(() => {
     if (selectedInstance && qrCode && !qrCodeConnected) {
-      pollIntervalRef.current = setInterval(async () => {
-        const status = await checkInstanceStatus(selectedInstance)
+      console.log('[Polling] Iniciando polling para instância:', selectedInstance.id)
+
+      // Verificar imediatamente
+      checkInstanceStatus(selectedInstance).then(status => {
+        console.log('[Polling] Status inicial:', status)
         if (status === 'connected') {
+          setQrCodeConnected(true)
+        }
+      })
+
+      // Configurar intervalo
+      pollIntervalRef.current = setInterval(async () => {
+        console.log('[Polling] Verificando status...')
+        const status = await checkInstanceStatus(selectedInstance)
+        console.log('[Polling] Status atual:', status)
+
+        if (status === 'connected') {
+          console.log('[Polling] Conectado! Fechando modal...')
           // Mostrar feedback de sucesso
           setQrCodeConnected(true)
           if (pollIntervalRef.current) {
             clearInterval(pollIntervalRef.current)
+            pollIntervalRef.current = null
           }
 
           // Fechar modal após 2 segundos
@@ -161,33 +219,13 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
 
     return () => {
       if (pollIntervalRef.current) {
+        console.log('[Polling] Limpando intervalo')
         clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedInstance, qrCode, qrCodeConnected])
-
-  const checkInstanceStatus = async (instance: WhatsAppInstance): Promise<InstanceStatus> => {
-    try {
-      const response = await fetch(`/api/instances/${instance.id}/status`)
-      if (response.ok) {
-        const data = await response.json()
-
-        // Atualizar estado local
-        setInstances(prev =>
-          prev.map(i =>
-            i.id === instance.id
-              ? { ...i, status: data.status, phone_number: data.phone_number || i.phone_number }
-              : i
-          )
-        )
-
-        return data.status
-      }
-    } catch (err) {
-      console.error('Erro ao verificar status:', err)
-    }
-    return instance.status
-  }
 
   const handleConnect = async (instance: WhatsAppInstance, retryCount = 0) => {
     setSelectedInstance(instance)
@@ -222,15 +260,24 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
       setError(null)
 
       if (data.status === 'connected') {
-        setSelectedInstance(null)
-        // Atualizar status local
+        // Atualizar status local com número de telefone se disponível
         setInstances(prev =>
           prev.map(i =>
             i.id === instance.id
-              ? { ...i, status: 'connected' as InstanceStatus }
+              ? {
+                  ...i,
+                  status: 'connected' as InstanceStatus,
+                  phone_number: data.phone_number || i.phone_number
+                }
               : i
           )
         )
+        // Mostrar feedback de sucesso no modal por 2 segundos
+        setQrCodeConnected(true)
+        setTimeout(() => {
+          setSelectedInstance(null)
+          setQrCodeConnected(false)
+        }, 2000)
         return
       }
 
@@ -328,6 +375,47 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
       setError(errorMessage)
     } finally {
       setCreatingTest(false)
+    }
+  }
+
+  const handleCreatePremiumInstance = async () => {
+    setCreatingPremium(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/instances/create-premium', {
+        method: 'POST',
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.details || data.error || 'Erro ao criar instância premium')
+      }
+
+      // Add new instance to the list
+      setInstances(prev => [data.instance, ...prev])
+
+      // Se retornou QR Code, abrir modal com o QR
+      if (data.qrcode) {
+        setSelectedInstance(data.instance)
+        setQrCode(data.qrcode)
+      } else {
+        // Buscar QR Code da instância criada
+        const qrResponse = await fetch(`/api/instances/${data.instance.id}/qrcode`)
+        if (qrResponse.ok) {
+          const qrData = await qrResponse.json()
+          if (qrData.qrcode) {
+            setSelectedInstance(data.instance)
+            setQrCode(qrData.qrcode)
+          }
+        }
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao criar instância premium'
+      setError(errorMessage)
+    } finally {
+      setCreatingPremium(false)
     }
   }
 
@@ -456,6 +544,77 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
   }
 
   if (instances.length === 0) {
+    // Plano Bronze ou superior - mostrar opção premium Araújo IA
+    if (hasPaidPlan) {
+      return (
+        <Card className="border-2 border-dashed border-muted-foreground/20 bg-gradient-to-br from-background via-muted/5 to-background overflow-hidden">
+          <CardContent className="py-16 px-6 text-center space-y-6">
+            {/* Icon with glow effect - Blue for premium */}
+            <div className="relative inline-block">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full blur-2xl opacity-20 animate-pulse"></div>
+              <div className="relative bg-gradient-to-br from-blue-100 to-cyan-100 dark:from-blue-950 dark:to-cyan-950 p-6 rounded-full">
+                <Building2 className="h-16 w-16 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+
+            {/* Title with gradient */}
+            <div className="space-y-2">
+              <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 dark:from-blue-400 dark:to-cyan-400 bg-clip-text text-transparent">
+                Conecte sua Instância Premium
+              </h3>
+              <p className="text-muted-foreground max-w-md mx-auto text-base">
+                Crie sua instância na plataforma Araújo IA Solutions e conecte-se escaneando o QR Code.
+              </p>
+            </div>
+
+            {/* Premium Instance Button */}
+            <div className="pt-4 max-w-md mx-auto">
+              <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl blur opacity-25 group-hover:opacity-40 transition duration-500"></div>
+                <div className="relative p-6 bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-50 dark:from-blue-950 dark:via-cyan-950 dark:to-blue-950 border-2 border-blue-300/50 dark:border-blue-700/50 rounded-xl shadow-lg">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-3 rounded-lg shadow-md">
+                      <QrCode className="h-7 w-7 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <h4 className="font-bold text-base mb-0.5 text-blue-900 dark:text-blue-100">
+                        Instância Premium Araújo IA
+                      </h4>
+                      <p className="text-xs text-blue-700 dark:text-blue-300">
+                        Araújo IA Solutions • Conexão estável e recursos completos
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={handleCreatePremiumInstance}
+                    disabled={creatingPremium}
+                    size="lg"
+                    className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                  >
+                    {creatingPremium ? (
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    ) : (
+                      <QrCode className="mr-2 h-5 w-5" />
+                    )}
+                    {creatingPremium ? 'Criando instância...' : 'Criar e Conectar via QR Code'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Info badge */}
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800">
+                <CheckCircle className="h-3 w-3 mr-1 text-blue-600" />
+                Plano {profile?.plan_tier?.charAt(0).toUpperCase()}{profile?.plan_tier?.slice(1)} Ativo
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )
+    }
+
+    // Plano Free - mostrar opção de teste gratuito
     return (
       <Card className="border-2 border-dashed border-muted-foreground/20 bg-gradient-to-br from-background via-muted/5 to-background overflow-hidden">
         <CardContent className="py-16 px-6 text-center space-y-6">
@@ -518,42 +677,82 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
 
   return (
     <div className="space-y-6">
-      {/* Test Instance Creation Button - Enhanced with shimmer effect */}
-      <div className="relative group">
-        <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-600 via-yellow-500 to-orange-600 rounded-xl blur opacity-30 group-hover:opacity-50 transition duration-500 animate-pulse"></div>
-        <Card className="relative bg-gradient-to-r from-orange-50 via-yellow-50 to-orange-50 dark:from-orange-950 dark:via-yellow-950 dark:to-orange-950 border-2 border-orange-300/50 dark:border-orange-700/50 shadow-lg">
-          <CardContent className="py-5">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-4 text-left">
-                <div className="bg-gradient-to-br from-orange-500 to-yellow-500 p-3 rounded-xl shadow-md">
-                  <TestTube2 className="h-8 w-8 text-white" />
+      {/* Instance Creation Card - Based on Plan */}
+      {hasPaidPlan ? (
+        /* Premium Instance Creation - For Bronze+ Plans */
+        <div className="relative group">
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 via-cyan-500 to-blue-600 rounded-xl blur opacity-30 group-hover:opacity-50 transition duration-500 animate-pulse"></div>
+          <Card className="relative bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 dark:from-blue-950 dark:via-cyan-950 dark:to-blue-950 border-2 border-blue-300/50 dark:border-blue-700/50 shadow-lg">
+            <CardContent className="py-5">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4 text-left">
+                  <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-3 rounded-xl shadow-md">
+                    <QrCode className="h-8 w-8 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-base text-blue-900 dark:text-blue-100">
+                      Adicionar Instância Premium
+                    </h4>
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                      Araújo IA Solutions • Conexão estável • Recursos completos
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-bold text-base text-orange-900 dark:text-orange-100">
-                    Servidor Grátis para Testes
-                  </h4>
-                  <p className="text-xs text-orange-700 dark:text-orange-300">
-                    15 dias grátis • Araújo IA Solutions • Sem cartão de crédito
-                  </p>
-                </div>
+                <Button
+                  onClick={handleCreatePremiumInstance}
+                  disabled={creatingPremium}
+                  size="lg"
+                  className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex-shrink-0"
+                >
+                  {creatingPremium ? (
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  ) : (
+                    <QrCode className="mr-2 h-5 w-5" />
+                  )}
+                  {creatingPremium ? 'Criando...' : 'Criar via QR Code'}
+                </Button>
               </div>
-              <Button
-                onClick={handleCreateTestInstance}
-                disabled={creatingTest}
-                size="lg"
-                className="bg-gradient-to-r from-orange-600 to-yellow-600 hover:from-orange-700 hover:to-yellow-700 text-white shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex-shrink-0"
-              >
-                {creatingTest ? (
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                ) : (
-                  <TestTube2 className="mr-2 h-5 w-5" />
-                )}
-                {creatingTest ? 'Criando...' : 'Criar Instância Grátis'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        /* Test Instance Creation - For Free Plan */
+        <div className="relative group">
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-600 via-yellow-500 to-orange-600 rounded-xl blur opacity-30 group-hover:opacity-50 transition duration-500 animate-pulse"></div>
+          <Card className="relative bg-gradient-to-r from-orange-50 via-yellow-50 to-orange-50 dark:from-orange-950 dark:via-yellow-950 dark:to-orange-950 border-2 border-orange-300/50 dark:border-orange-700/50 shadow-lg">
+            <CardContent className="py-5">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4 text-left">
+                  <div className="bg-gradient-to-br from-orange-500 to-yellow-500 p-3 rounded-xl shadow-md">
+                    <TestTube2 className="h-8 w-8 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-base text-orange-900 dark:text-orange-100">
+                      Servidor Grátis para Testes
+                    </h4>
+                    <p className="text-xs text-orange-700 dark:text-orange-300">
+                      15 dias grátis • Araújo IA Solutions • Sem cartão de crédito
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleCreateTestInstance}
+                  disabled={creatingTest}
+                  size="lg"
+                  className="bg-gradient-to-r from-orange-600 to-yellow-600 hover:from-orange-700 hover:to-yellow-700 text-white shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex-shrink-0"
+                >
+                  {creatingTest ? (
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  ) : (
+                    <TestTube2 className="mr-2 h-5 w-5" />
+                  )}
+                  {creatingTest ? 'Criando...' : 'Criar Instância Grátis'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Instances Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -704,7 +903,7 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
                 <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200 dark:border-slate-700">
                   <Server className={`h-3.5 w-3.5 ${instance.is_test ? 'text-orange-500' : 'text-blue-500'}`} />
                   <span className={`text-xs font-semibold ${instance.is_test ? 'text-orange-600 dark:text-orange-400' : 'text-blue-600 dark:text-blue-400'}`}>
-                    {instance.is_test ? 'Araújo IA Solutions' : 'UAZAPI'}
+                    {instance.is_test ? 'Evolution API' : 'Araújo IA Solutions'}
                   </span>
                   {!instance.is_test && (
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700">
@@ -736,7 +935,7 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
                     {instance.phone_number || 'Aguardando conexão'}
                   </span>
 
-                  {/* Status da Conexão - Apenas UAZAPI */}
+                  {/* Status da Conexão - Apenas Araújo IA */}
                   {!instance.is_test && (
                     <>
                       <span className="text-muted-foreground flex items-center gap-1">
@@ -812,7 +1011,7 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
       </div>
 
       {/* QR Code Dialog - Enhanced with backdrop blur and animations */}
-      <Dialog open={!!selectedInstance && !!qrCode} onOpenChange={handleCloseDialog}>
+      <Dialog open={!!selectedInstance} onOpenChange={handleCloseDialog}>
         <DialogContent className="max-w-md backdrop-blur-sm bg-background/95 border-2 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
@@ -844,6 +1043,49 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
                     Sua instância está pronta para enviar mensagens
                   </p>
                 </div>
+              </div>
+            ) : loading && !qrCode ? (
+              /* Loading State */
+              <div className="flex flex-col items-center justify-center py-10 space-y-5">
+                <div className="relative p-1 rounded-2xl bg-gradient-to-br from-primary via-blue-600 to-purple-600">
+                  <div className="flex flex-col items-center justify-center p-5 bg-white dark:bg-gray-900 rounded-xl w-72 h-72">
+                    <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
+                    <p className="text-sm text-muted-foreground text-center">
+                      Gerando QR Code...
+                    </p>
+                    <p className="text-xs text-muted-foreground text-center mt-2">
+                      Aguarde alguns segundos
+                    </p>
+                  </div>
+                </div>
+                {error && (
+                  <div className="text-center p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+                    <p className="text-sm text-yellow-600 dark:text-yellow-400">{error}</p>
+                  </div>
+                )}
+              </div>
+            ) : error && !qrCode ? (
+              /* Error State */
+              <div className="flex flex-col items-center justify-center py-10 space-y-5">
+                <div className="relative p-1 rounded-2xl bg-gradient-to-br from-red-500 via-orange-500 to-yellow-500">
+                  <div className="flex flex-col items-center justify-center p-5 bg-white dark:bg-gray-900 rounded-xl w-72 h-72">
+                    <AlertCircle className="h-16 w-16 text-red-500 mb-4" />
+                    <p className="text-sm text-red-600 dark:text-red-400 text-center font-medium">
+                      Erro ao gerar QR Code
+                    </p>
+                    <p className="text-xs text-muted-foreground text-center mt-2 max-w-[200px]">
+                      {error}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full transition-all duration-300 hover:scale-105"
+                  onClick={() => selectedInstance && handleConnect(selectedInstance)}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Tentar Novamente
+                </Button>
               </div>
             ) : (
               <>
@@ -1197,6 +1439,97 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
                 <CheckCircle className="h-3 w-3 text-amber-500" />
                 Mantenha a instância conectada
               </span>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Dicas de Uso - Rodapé */}
+      <Card className="mt-4 border-dashed border-2 border-muted-foreground/20 bg-gradient-to-br from-muted/30 via-background to-muted/20">
+        <CardContent className="py-6">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Lightbulb className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-base mb-1">Dicas de Uso</h3>
+              <p className="text-sm text-muted-foreground">
+                Aproveite ao máximo sua instância WhatsApp com Inteligência Artificial
+              </p>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Dica 1 - IA para Mensagens */}
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-background/50 border">
+              <Brain className="h-4 w-4 text-purple-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-sm mb-1">Mensagens com IA</p>
+                <p className="text-xs text-muted-foreground">
+                  Use a Inteligência Artificial para criar mensagens personalizadas e envolventes para suas campanhas.
+                </p>
+              </div>
+            </div>
+
+            {/* Dica 2 - Campanhas Inteligentes */}
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-background/50 border">
+              <Target className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-sm mb-1">Campanhas Inteligentes</p>
+                <p className="text-xs text-muted-foreground">
+                  Crie campanhas segmentadas com textos gerados por IA para aumentar seu engajamento.
+                </p>
+              </div>
+            </div>
+
+            {/* Dica 3 - Respostas Automáticas */}
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-background/50 border">
+              <Zap className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-sm mb-1">Automação Inteligente</p>
+                <p className="text-xs text-muted-foreground">
+                  Configure agentes de IA para responder automaticamente e qualificar leads 24/7.
+                </p>
+              </div>
+            </div>
+
+            {/* Dica 4 - Templates com IA */}
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-background/50 border">
+              <MessageSquare className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-sm mb-1">Templates com IA</p>
+                <p className="text-xs text-muted-foreground">
+                  Gere templates de mensagens otimizados para conversão usando nossa IA integrada.
+                </p>
+              </div>
+            </div>
+
+            {/* Dica 5 - Segmentação */}
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-background/50 border">
+              <Users className="h-4 w-4 text-orange-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-sm mb-1">Listas Segmentadas</p>
+                <p className="text-xs text-muted-foreground">
+                  Organize seus contatos em listas e importe grupos do WhatsApp para campanhas direcionadas.
+                </p>
+              </div>
+            </div>
+
+            {/* Dica 6 - Múltiplas Instâncias */}
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-background/50 border">
+              <Smartphone className="h-4 w-4 text-cyan-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-sm mb-1">Múltiplas Instâncias</p>
+                <p className="text-xs text-muted-foreground">
+                  Conecte vários números WhatsApp para escalar suas operações de atendimento e marketing.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-dashed">
+            <p className="text-xs text-center text-muted-foreground">
+              <strong>Araújo IA Solutions</strong> • Potencialize seu WhatsApp com Inteligência Artificial
             </p>
           </div>
         </CardContent>

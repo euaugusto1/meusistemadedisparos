@@ -6,18 +6,23 @@ import { getServerForInstance } from '@/services/uazapi'
 const EVOLUTION_API_URL_FALLBACK = process.env.EVOLUTION_API_URL || ''
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || ''
 
-// Helper function to make UAZAPI requests
-async function uazapiRequest(baseUrl: string, endpoint: string, token: string) {
+// Helper function to make UAZAPI requests with instance token
+async function uazapiRequest(baseUrl: string, endpoint: string, instanceToken: string) {
+  console.log('[UAZAPI] Request:', `${baseUrl}${endpoint}`)
+  console.log('[UAZAPI] Using instance token:', instanceToken?.substring(0, 10) + '...')
+
   const response = await fetch(`${baseUrl}${endpoint}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
-      'admintoken': token,
+      'Accept': 'application/json',
+      'token': instanceToken, // Usar token da instância, não admintoken
     },
   })
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }))
+    console.error('[UAZAPI] Request error:', response.status, error)
     throw new Error(error.message || `UAZAPI Error: ${response.status}`)
   }
 
@@ -111,8 +116,10 @@ export async function GET(
     let status: string
     let phoneNumber: string | null = null
 
-    // Detectar qual API usar baseado na presença de api_token
-    const isEvolutionApi = !!instance.api_token
+    // Detectar qual API usar:
+    // - is_test = true → Evolution API (instâncias de teste)
+    // - is_test = false → UAZAPI (instâncias premium)
+    const isEvolutionApi = instance.is_test === true
 
     if (isEvolutionApi) {
       // Usar Evolution API - Usar api_url da instância com fallback
@@ -225,28 +232,62 @@ export async function GET(
         }
       }
     } else {
-      // Usar UAZAPI
-      const { url: baseUrl, token: adminToken } = getServerForInstance(instance.instance_key)
+      // Usar UAZAPI (usando api_url do banco se disponível)
+      const { url: baseUrl } = getServerForInstance(instance.instance_key, instance.api_url)
+
+      // Usar token da instância (salvo no banco quando a instância foi criada)
+      const instanceToken = instance.api_token || instance.token
+
+      if (!instanceToken) {
+        console.error('[UAZAPI] Instance token not found in database')
+        return NextResponse.json({ error: 'Token da instância não encontrado' }, { status: 400 })
+      }
+
+      console.log('[UAZAPI] Checking status from:', baseUrl, 'Instance:', instance.instance_key)
 
       const statusData = await uazapiRequest(
         baseUrl,
-        `/instance/status?key=${instance.instance_key}`,
-        adminToken
+        `/instance/status`,
+        instanceToken
       )
 
-      // Normalizar status
-      status = statusData.status || statusData.connectionStatus || statusData.state || 'disconnected'
-      if (status === 'open' || status === 'connected') {
+      // Log completo da resposta para debug
+      console.log('[UAZAPI] Full status response:', JSON.stringify(statusData))
+
+      // Normalizar status - A UAZAPI retorna estrutura:
+      // { instance: { status: "connected", ... }, status: { connected: true, loggedIn: true, jid: "..." } }
+      // O status string está em instance.status, não em status (que é um objeto)
+      const instanceStatus = statusData.instance?.status
+      const statusObjConnected = statusData.status?.connected === true || statusData.status?.loggedIn === true
+
+      console.log('[UAZAPI] instance.status:', instanceStatus, '| status.connected:', statusData.status?.connected, '| status.loggedIn:', statusData.status?.loggedIn)
+
+      // Verificar status da instância primeiro (string), depois fallback para objeto status
+      if (instanceStatus === 'connected' || instanceStatus === 'open' || statusObjConnected) {
         status = 'connected'
-      } else if (status === 'qrcode' || status === 'qr_code') {
+      } else if (instanceStatus === 'qrcode' || instanceStatus === 'qr_code') {
         status = 'qr_code'
-      } else if (status === 'connecting') {
+      } else if (instanceStatus === 'connecting') {
         status = 'connecting'
       } else {
         status = 'disconnected'
       }
 
-      phoneNumber = statusData.phone_number || statusData.phone || statusData.number || null
+      // Extrair número de telefone de vários campos possíveis da resposta UAZAPI
+      // A API pode retornar em: instance.owner, status.jid, user.id, phone_number, phone, number
+      const jid = statusData.status?.jid || statusData.instance?.owner
+      if (jid) {
+        // Extrair número do JID (formato: 559831962090:22@s.whatsapp.net ou 559831962090@s.whatsapp.net)
+        phoneNumber = jid.split(':')[0].split('@')[0]
+      } else {
+        phoneNumber = statusData.user?.id ||
+                     statusData.phone_number ||
+                     statusData.phone ||
+                     statusData.number ||
+                     null
+      }
+
+      console.log('[UAZAPI] Status:', status, 'Phone:', phoneNumber)
     }
 
     await supabase

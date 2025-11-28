@@ -1,8 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getServerForInstance } from '@/services/uazapi'
 
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || ''
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || ''
+
+// Helper para deletar instância UAZAPI
+// Documentação: DELETE /instance com header 'token' da instância
+async function deleteUazapiInstance(baseUrl: string, instanceToken: string): Promise<boolean> {
+  try {
+    console.log('[UAZAPI] Deletando instância de:', baseUrl)
+    console.log('[UAZAPI] Token:', instanceToken?.substring(0, 10) + '...')
+
+    const response = await fetch(`${baseUrl}/instance`, {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json',
+        'token': instanceToken,
+      },
+    })
+
+    const data = await response.json().catch(() => ({}))
+
+    if (response.ok) {
+      console.log('[UAZAPI] Instância deletada com sucesso:', data)
+      return true
+    } else {
+      console.error('[UAZAPI] Erro ao deletar:', response.status, data)
+      return false
+    }
+  } catch (error) {
+    console.error('[UAZAPI] Erro ao deletar instância:', error)
+    return false
+  }
+}
 
 // DELETE - Deletar instância (apenas admin ou dono)
 export async function DELETE(
@@ -49,8 +80,8 @@ export async function DELETE(
       )
     }
 
-    // Deletar da Evolution API (se houver api_token, é Evolution API)
-    if (instance.api_token && EVOLUTION_API_URL && EVOLUTION_API_KEY) {
+    // Deletar da Evolution API (se for instância de teste)
+    if (instance.is_test && instance.api_token && EVOLUTION_API_URL && EVOLUTION_API_KEY) {
       try {
         const response = await fetch(
           `${EVOLUTION_API_URL}/instance/delete/${instance.instance_key}`,
@@ -75,6 +106,26 @@ export async function DELETE(
           error
         )
         // Continua mesmo se falhar na Evolution API
+      }
+    }
+
+    // Deletar da UAZAPI (se NÃO for instância de teste - instância premium)
+    if (!instance.is_test) {
+      const instanceToken = instance.api_token || instance.token
+
+      if (instanceToken) {
+        const { url: baseUrl } = getServerForInstance(instance.instance_key, instance.api_url)
+        console.log(`[UAZAPI] Deletando instância ${instance.instance_key} de ${baseUrl}`)
+
+        const deleted = await deleteUazapiInstance(baseUrl, instanceToken)
+
+        if (deleted) {
+          console.log(`[UAZAPI] Instância ${instance.instance_key} deletada com sucesso`)
+        } else {
+          console.warn(`[UAZAPI] Falha ao deletar ${instance.instance_key} - continuando com deleção local`)
+        }
+      } else {
+        console.warn(`[UAZAPI] Token não encontrado para instância ${instance.instance_key}`)
       }
     }
 

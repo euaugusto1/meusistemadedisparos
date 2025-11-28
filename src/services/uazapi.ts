@@ -4,15 +4,42 @@
 
 import type { ButtonConfig, ButtonType, UazapiInstance, UazapiSendResponse } from '@/types'
 
+// Servidor principal UAZAPI (monitor-grupo)
 const UAZAPI_BASE_URL = process.env.UAZAPI_BASE_URL || 'https://monitor-grupo.uazapi.com'
-const UAZAPI_ADMIN_TOKEN = process.env.UAZAPI_ADMIN_TOKEN || ''
+const UAZAPI_ADMIN_TOKEN = process.env.UAZAPI_ADMIN_TOKEN || 'bxQWIA0PCVxhejo2yvYoVgtQ9SWx4S5qjkWQAwORviB9kzqwa5'
 
-// UAZAPI Free Test Server
-export const UAZAPI_FREE_URL = 'https://free.uazapi.com'
-export const UAZAPI_FREE_TOKEN = 'ZaW1qwTEkuq7Ub1cBUuyMiK5bNSu3nnMQ9Ih7kIEIc2cISRV8t'
+// UAZAPI Free Server (para planos Bronze+)
+export const UAZAPI_FREE_URL = process.env.UAZAPI_FREE_URL || 'https://free.uazapi.com'
+export const UAZAPI_FREE_TOKEN = process.env.UAZAPI_FREE_TOKEN || 'ZaW1qwTEkuq7Ub1cBUuyMiK5bNSu3nnMQ9lh7klElc2clSRV8t'
 
 // Helper to get correct server for an instance
-export function getServerForInstance(instanceKey: string): { url: string; token: string } {
+// Agora suporta api_url diretamente da instância no banco de dados
+export function getServerForInstance(instanceKey: string, apiUrl?: string | null): { url: string; token: string } {
+  // Se tem api_url definida, usar ela
+  if (apiUrl) {
+    // Determinar token baseado na URL
+    if (apiUrl.includes('free.uazapi.com')) {
+      return {
+        url: apiUrl,
+        token: UAZAPI_FREE_TOKEN
+      }
+    }
+    // Servidor principal monitor-grupo
+    return {
+      url: apiUrl,
+      token: UAZAPI_ADMIN_TOKEN
+    }
+  }
+
+  // Fallback: detectar pelo prefixo do instanceKey
+  // Instâncias premium criadas pela nova API começam com "wpp_"
+  if (instanceKey.startsWith('wpp_')) {
+    return {
+      url: UAZAPI_FREE_URL,
+      token: UAZAPI_FREE_TOKEN
+    }
+  }
+
   // Instâncias do servidor free começam com "free-"
   if (instanceKey.startsWith('free-')) {
     return {

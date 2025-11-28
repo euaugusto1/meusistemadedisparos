@@ -27,7 +27,14 @@
       "Bash(set NODE_OPTIONS=--max-old-space-size=4096)",
       "Bash(cat:*)",
       "Bash(ls:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(for i in 1 2 3 4 5)",
+      "Bash(do)",
+      "Bash(echo:*)",
+      "Bash(done)",
+      "Bash(for i in 1 2 3 4 5 6 7 8)",
+      "Bash(do echo \"=== Tentativa $i ===\")",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []

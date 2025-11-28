@@ -527,13 +527,14 @@ export function InstancesManager({ instances: initialInstances, users }: Instanc
   }
 
   const exportToCSV = () => {
-    const headers = ['Nome', 'Usuário', 'Status', 'Telefone', 'Instance Key', 'Criada em']
+    const headers = ['Nome', 'Usuário', 'Status', 'Telefone', 'Instance Key', 'Token', 'Criada em']
     const rows = filteredInstances.map(i => [
       i.name,
       i.user?.full_name || i.user?.email || 'N/A',
       STATUS_LABELS[i.status],
       i.phone_number || 'N/A',
       i.instance_key,
+      i.api_token || i.token || 'N/A',
       formatDate(i.created_at),
     ])
 
@@ -789,6 +790,7 @@ export function InstancesManager({ instances: initialInstances, users }: Instanc
                 <TableHead>Status</TableHead>
                 <TableHead>Telefone</TableHead>
                 <TableHead>Instance Key</TableHead>
+                <TableHead>Token</TableHead>
                 <TableHead>Criada em</TableHead>
                 <TableHead className="w-[100px]">Ações</TableHead>
               </TableRow>
@@ -814,6 +816,15 @@ export function InstancesManager({ instances: initialInstances, users }: Instanc
                     <code className="text-xs bg-muted px-1 py-0.5 rounded">
                       {instance.instance_key.slice(0, 20)}...
                     </code>
+                  </TableCell>
+                  <TableCell>
+                    {(instance.api_token || instance.token) ? (
+                      <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                        {(instance.api_token || instance.token || '').slice(0, 12)}...
+                      </code>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">N/A</span>
+                    )}
                   </TableCell>
                   <TableCell>{formatDate(instance.created_at)}</TableCell>
                   <TableCell>
@@ -1142,7 +1153,7 @@ export function InstancesManager({ instances: initialInstances, users }: Instanc
             <div className="space-y-2">
               <Label>Token da Instância *</Label>
               <Input placeholder="Ex: 6aa45dbd-5b4a-4e47-8cae-c3a9ca997489" value={newToken} onChange={(e) => setNewToken(e.target.value)} className="font-mono text-sm" />
-              <p className="text-xs text-muted-foreground">Este token é usado para autenticar chamadas à API do UAZAPI para esta instância específica.</p>
+              <p className="text-xs text-muted-foreground">Este token é usado para autenticar chamadas à API Araújo IA para esta instância específica.</p>
             </div>
           </div>
           <DialogFooter>

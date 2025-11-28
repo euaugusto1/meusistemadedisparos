@@ -1,0 +1,166 @@
+{
+  "name": "Extract WhatsApp Groups - Evolution API",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-manual",
+      "name": "Executar Manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://dev.evo.sistemabrasil.online/group/fetchAllGroups/test_1e98397a_1764295544789",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "getParticipants",
+              "value": "true"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "0vNoU03S1sZY2HNMWwRwfdMZZUFxPPrB"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "fetch-groups",
+      "name": "Buscar Grupos Evolution API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Processa a resposta da Evolution API\nconst response = $input.all();\n\n// Log da resposta bruta para debug\nconsole.log('=== RESPOSTA BRUTA DA EVOLUTION API ===');\nconsole.log(JSON.stringify(response, null, 2));\n\n// Extrair dados\nlet groups = [];\n\nif (response && response.length > 0) {\n  const data = response[0].json;\n  \n  // A resposta pode ser um array direto ou estar em data.body\n  if (Array.isArray(data)) {\n    groups = data;\n  } else if (data.body && Array.isArray(data.body)) {\n    groups = data.body;\n  } else if (data.data && Array.isArray(data.data)) {\n    groups = data.data;\n  } else {\n    // Se for objeto único, colocar em array\n    groups = [data];\n  }\n}\n\nconsole.log(`\\n=== TOTAL DE GRUPOS: ${groups.length} ===\\n`);\n\n// Mapear cada grupo para análise\nconst result = groups.map((group, index) => {\n  console.log(`\\n--- GRUPO ${index + 1} ---`);\n  console.log('Campos disponíveis:', Object.keys(group));\n  console.log('id:', group.id);\n  console.log('remoteJid:', group.remoteJid);\n  console.log('jid:', group.jid);\n  console.log('groupId:', group.groupId);\n  console.log('subject:', group.subject);\n  console.log('size:', group.size);\n  \n  return {\n    // Todos os campos possíveis para identificar o JID correto\n    _index: index + 1,\n    _allFields: Object.keys(group),\n    \n    // Campos de identificação (qual é o correto?)\n    id: group.id || null,\n    remoteJid: group.remoteJid || null,\n    jid: group.jid || null,\n    groupId: group.groupId || null,\n    \n    // Dados do grupo\n    subject: group.subject || group.name || 'Sem nome',\n    description: group.desc || group.description || '',\n    size: group.size || 0,\n    owner: group.owner || null,\n    creation: group.creation || null,\n    \n    // Participantes\n    participantsCount: (group.participants || []).length,\n    participants: (group.participants || []).slice(0, 3).map(p => ({\n      id: p.id || p,\n      admin: p.admin\n    })),\n    \n    // Objeto completo para análise\n    _rawData: group\n  };\n});\n\nreturn result;"
+      },
+      "id": "process-response",
+      "name": "Processar e Analisar Estrutura",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "mode": "jsonToBinary",
+        "convertAllData": true,
+        "sourceKey": "data",
+        "options": {
+          "fileName": "grupos-whatsapp.json"
+        }
+      },
+      "id": "to-json-file",
+      "name": "Converter para JSON",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "options": {
+          "fileName": "grupos-estrutura-completa.json"
+        }
+      },
+      "id": "export-full",
+      "name": "Exportar Estrutura Completa",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [900, 480]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gera um resumo dos campos encontrados\nconst items = $input.all();\n\nif (items.length === 0) {\n  return [{ json: { error: 'Nenhum grupo encontrado' } }];\n}\n\n// Analisar primeiro grupo para entender a estrutura\nconst firstGroup = items[0].json;\n\nconst summary = {\n  totalGroups: items.length,\n  \n  // Qual campo usar como remoteJID?\n  campoJID: {\n    id: firstGroup.id,\n    remoteJid: firstGroup.remoteJid,\n    jid: firstGroup.jid,\n    groupId: firstGroup.groupId,\n  },\n  \n  // Recomendação\n  recomendacao: firstGroup.id ? 'Usar campo \"id\"' :\n                firstGroup.remoteJid ? 'Usar campo \"remoteJid\"' :\n                firstGroup.jid ? 'Usar campo \"jid\"' :\n                'Verificar _rawData',\n  \n  // Campos disponíveis\n  camposDisponiveis: firstGroup._allFields,\n  \n  // Amostra de grupos\n  amostraGrupos: items.slice(0, 5).map(item => ({\n    nome: item.json.subject,\n    id: item.json.id,\n    remoteJid: item.json.remoteJid,\n    jid: item.json.jid,\n    participantes: item.json.participantsCount\n  }))\n};\n\nconsole.log('\\n========== RESUMO ==========');\nconsole.log(JSON.stringify(summary, null, 2));\nconsole.log('============================\\n');\n\nreturn [{ json: summary }];"
+      },
+      "id": "generate-summary",
+      "name": "Gerar Resumo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 480]
+    }
+  ],
+  "connections": {
+    "Executar Manualmente": {
+      "main": [
+        [
+          {
+            "node": "Buscar Grupos Evolution API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Grupos Evolution API": {
+      "main": [
+        [
+          {
+            "node": "Processar e Analisar Estrutura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar e Analisar Estrutura": {
+      "main": [
+        [
+          {
+            "node": "Converter para JSON",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Gerar Resumo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar Resumo": {
+      "main": [
+        [
+          {
+            "node": "Exportar Estrutura Completa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "instanceId": "extract-groups-debug"
+  },
+  "tags": [
+    {
+      "name": "Debug",
+      "id": "1"
+    },
+    {
+      "name": "WhatsApp",
+      "id": "2"
+    }
+  ]
+}
