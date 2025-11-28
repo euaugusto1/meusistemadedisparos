@@ -38,6 +38,7 @@ export type LogAction =
   | 'instance_deleted'
   | 'instance_transferred'
   | 'instance_qr_generated'
+  | 'instance_validated'
   // Plans & Payments
   | 'plan_purchased'
   | 'plan_upgraded'
