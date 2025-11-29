@@ -133,11 +133,17 @@ export async function PATCH(
         .single()
 
       if (campaign) {
-        // Decrementar crédito
-        await supabase.rpc('decrement_user_credits', {
-          user_uuid: campaign.user_id,
+        // Decrementar crédito - usar função correta do banco
+        const { error: creditError } = await supabase.rpc('decrement_credits', {
+          user_id: campaign.user_id,
           amount: 1
         })
+
+        if (creditError) {
+          console.error('Erro ao decrementar créditos:', creditError)
+        } else {
+          console.log(`[Credits] Decrementado 1 crédito do usuário ${campaign.user_id}`)
+        }
       }
     }
 
