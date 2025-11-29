@@ -49,10 +49,40 @@ async function evolutionApiRequest(baseUrl: string, instanceName: string, apiKey
   return response.json()
 }
 
+// Helper function to fetch instance details by name (includes ownerJid)
+async function fetchEvolutionInstanceByName(baseUrl: string, globalApiKey: string, instanceName: string) {
+  try {
+    console.log('[Evolution API] Buscando detalhes da instância por nome:', instanceName)
+    const response = await fetch(
+      `${baseUrl}/instance/fetchInstances?instanceName=${instanceName}`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': globalApiKey,
+        },
+      }
+    )
+
+    if (!response.ok) {
+      console.log('[Evolution API] fetchInstances por nome falhou:', response.status)
+      return null
+    }
+
+    const data = await response.json()
+    // Pode retornar array ou objeto único
+    const instance = Array.isArray(data) ? data[0] : data
+    console.log('[Evolution API] Detalhes da instância:', JSON.stringify(instance).substring(0, 300))
+    return instance
+  } catch (e) {
+    console.error('[Evolution API] Erro ao buscar instância por nome:', e)
+    return null
+  }
+}
+
 // Helper function to find instance by token when name doesn't match
 async function findEvolutionInstanceByToken(baseUrl: string, globalApiKey: string, instanceToken: string) {
   try {
-    console.log('[Evolution API] Buscando instância por token:', instanceToken)
+    console.log('[Evolution API] Buscando instância por token:', instanceToken?.substring(0, 10) + '...')
     const response = await fetch(
       `${baseUrl}/instance/fetchInstances`,
       {
@@ -77,7 +107,7 @@ async function findEvolutionInstanceByToken(baseUrl: string, globalApiKey: strin
     console.log('[Evolution API] Instâncias encontradas:', instances.length)
     // Comparar tokens case-insensitive
     const found = instances.find((inst: { token?: string }) =>
-      inst.token?.toLowerCase() === instanceToken.toLowerCase()
+      inst.token?.toLowerCase() === instanceToken?.toLowerCase()
     )
     console.log('[Evolution API] Instância encontrada por token:', found ? found.name : 'não encontrada')
     return found
@@ -124,7 +154,9 @@ export async function GET(
     if (isEvolutionApi) {
       // Usar Evolution API - Usar api_url da instância com fallback
       const evolutionApiUrl = instance.api_url || EVOLUTION_API_URL_FALLBACK
-      const apiKey = instance.api_token || EVOLUTION_API_KEY
+      // IMPORTANTE: Usar EVOLUTION_API_KEY global para endpoints administrativos
+      // O token da instância (instance.api_token) não funciona para connectionState/fetchInstances
+      const globalApiKey = EVOLUTION_API_KEY
 
       if (!evolutionApiUrl) {
         return NextResponse.json(
@@ -133,19 +165,60 @@ export async function GET(
         )
       }
 
+      if (!globalApiKey) {
+        return NextResponse.json(
+          { error: 'EVOLUTION_API_KEY não configurada' },
+          { status: 500 }
+        )
+      }
+
       let instanceName = instance.instance_key
       let evolutionInstance = null
 
       console.log('[Evolution API] Verificando status para instance_key:', instanceName)
-      console.log('[Evolution API] api_token:', instance.api_token)
+      console.log('[Evolution API] Usando EVOLUTION_API_KEY global')
 
       // Primeiro tentar buscar status pelo nome da instância
       try {
-        const statusData = await evolutionApiRequest(evolutionApiUrl, instanceName, apiKey)
+        const statusData = await evolutionApiRequest(evolutionApiUrl, instanceName, globalApiKey)
         console.log('[Evolution API] Status por nome:', statusData)
         const state = statusData.state || statusData.instance?.state || 'close'
-        if (state === 'open') {
+
+        // O endpoint /connectionState NÃO retorna ownerJid, precisamos buscar de /fetchInstances
+        // quando state === 'open' para verificar se realmente tem telefone conectado
+        let ownerJid = statusData.instance?.ownerJid || statusData.ownerJid
+
+        if (state === 'open' && !ownerJid) {
+          // Buscar ownerJid do fetchInstances - usar nome da instância (mais eficiente)
+          console.log('[Evolution API] State=open mas sem ownerJid no connectionState, buscando de fetchInstances...')
+          // Pegar o nome da instância da resposta do connectionState
+          const realInstanceName = statusData.instance?.instanceName || instanceName
+          evolutionInstance = await fetchEvolutionInstanceByName(evolutionApiUrl, globalApiKey, realInstanceName)
+          if (evolutionInstance) {
+            ownerJid = evolutionInstance.ownerJid
+            console.log('[Evolution API] ownerJid obtido de fetchInstances:', ownerJid)
+          }
+        }
+
+        const hasPhoneConnected = !!ownerJid
+        console.log('[Evolution API] state:', state, '| ownerJid:', ownerJid, '| hasPhoneConnected:', hasPhoneConnected)
+
+        if (state === 'open' && hasPhoneConnected) {
           status = 'connected'
+          // Extrair número de telefone do ownerJid
+          if (ownerJid) {
+            let extractedNumber = ownerJid.replace('@s.whatsapp.net', '')
+            if (extractedNumber.startsWith('55') && extractedNumber.length >= 12) {
+              const ddd = extractedNumber.substring(2, 4)
+              const part1 = extractedNumber.substring(4, 9)
+              const part2 = extractedNumber.substring(9)
+              extractedNumber = `+55 (${ddd}) ${part1}-${part2}`
+            }
+            phoneNumber = extractedNumber
+          }
+        } else if (state === 'open' && !hasPhoneConnected) {
+          // Estado "open" mas sem telefone = aguardando QR Code
+          status = 'qr_code'
         } else if (state === 'connecting') {
           status = 'connecting'
         } else {
@@ -160,8 +233,27 @@ export async function GET(
           instanceName = evolutionInstance.name
           console.log('[Evolution API] Encontrou instância por token:', instanceName, 'connectionStatus:', evolutionInstance.connectionStatus)
           const connectionStatus = evolutionInstance.connectionStatus
-          if (connectionStatus === 'open') {
+
+          // IMPORTANTE: Verificar ownerJid também para instâncias encontradas por token
+          const ownerJid = evolutionInstance.ownerJid || evolutionInstance.instance?.ownerJid
+          const hasPhoneConnected = !!ownerJid
+          console.log('[Evolution API] connectionStatus:', connectionStatus, '| ownerJid:', ownerJid, '| hasPhoneConnected:', hasPhoneConnected)
+
+          if (connectionStatus === 'open' && hasPhoneConnected) {
             status = 'connected'
+            // Extrair número de telefone
+            if (ownerJid) {
+              let extractedNumber = ownerJid.replace('@s.whatsapp.net', '')
+              if (extractedNumber.startsWith('55') && extractedNumber.length >= 12) {
+                const ddd = extractedNumber.substring(2, 4)
+                const part1 = extractedNumber.substring(4, 9)
+                const part2 = extractedNumber.substring(9)
+                extractedNumber = `+55 (${ddd}) ${part1}-${part2}`
+              }
+              phoneNumber = extractedNumber
+            }
+          } else if (connectionStatus === 'open' && !hasPhoneConnected) {
+            status = 'qr_code'
           } else if (connectionStatus === 'connecting') {
             status = 'connecting'
           } else {
@@ -173,64 +265,6 @@ export async function GET(
         }
       }
 
-      // Obter número de telefone - buscar do endpoint fetchInstances
-      if (status === 'connected') {
-        try {
-          // Se já temos a instância do fallback por token, usar ela
-          let instanceInfo = evolutionInstance
-
-          // Se não temos, buscar
-          if (!instanceInfo) {
-            // Primeiro tentar buscar pela instância específica
-            const instancesResponse = await fetch(
-              `${evolutionApiUrl}/instance/fetchInstances?instanceName=${instanceName}`,
-              {
-                method: 'GET',
-                headers: {
-                  'apikey': EVOLUTION_API_KEY,
-                },
-              }
-            )
-
-            if (instancesResponse.ok) {
-              const instancesData = await instancesResponse.json()
-              // Verificar se encontrou (pode retornar erro 404 ou array vazio)
-              if (instancesData && !instancesData.error) {
-                instanceInfo = Array.isArray(instancesData) ? instancesData[0] : instancesData
-              }
-            }
-
-            // Se não encontrou pelo nome, buscar todas as instâncias e encontrar pelo token
-            if (!instanceInfo && instance.api_token) {
-              instanceInfo = await findEvolutionInstanceByToken(evolutionApiUrl, EVOLUTION_API_KEY, instance.api_token)
-            }
-          }
-
-          // Extrair número do ownerJid
-          if (instanceInfo) {
-            console.log('[Evolution API] instanceInfo para ownerJid:', JSON.stringify(instanceInfo).substring(0, 500))
-            const ownerJid = instanceInfo.ownerJid || instanceInfo.instance?.owner || instanceInfo.owner
-            console.log('[Evolution API] ownerJid encontrado:', ownerJid)
-            if (ownerJid) {
-              // Extrair apenas o número do JID (remover @s.whatsapp.net)
-              let extractedNumber = ownerJid.replace('@s.whatsapp.net', '')
-              // Formatar como +55 (98) 99999-9999 se for número brasileiro
-              if (extractedNumber.startsWith('55') && extractedNumber.length >= 12) {
-                const ddd = extractedNumber.substring(2, 4)
-                const part1 = extractedNumber.substring(4, 9)
-                const part2 = extractedNumber.substring(9)
-                extractedNumber = `+55 (${ddd}) ${part1}-${part2}`
-              }
-              phoneNumber = extractedNumber
-              console.log('[Evolution API] phoneNumber formatado:', phoneNumber)
-            }
-          } else {
-            console.log('[Evolution API] instanceInfo não encontrado')
-          }
-        } catch (e) {
-          console.error('Erro ao buscar número:', e)
-        }
-      }
     } else {
       // Usar UAZAPI (usando api_url do banco se disponível)
       const { url: baseUrl } = getServerForInstance(instance.instance_key, instance.api_url)

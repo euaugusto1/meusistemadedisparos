@@ -93,7 +93,8 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
   const [isMounted, setIsMounted] = useState(false)
 
   const isAdmin = profile?.role === 'admin'
-  const isFreePlan = profile?.plan_tier === 'free'
+  // Considerar como Free se plan_tier é 'free', null ou undefined (novos usuários)
+  const isFreePlan = !profile?.plan_tier || profile.plan_tier === 'free'
   const canDeleteInstance = isAdmin || !isFreePlan // Admin sempre pode, usuários pagos também
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const qrCodePollIntervalRef = useRef<NodeJS.Timeout | null>(null)
@@ -104,8 +105,9 @@ export function ClientInstances({ instances: initialInstances, profile }: Client
   // State para criação de instância premium
   const [creatingPremium, setCreatingPremium] = useState(false)
 
-  // Verificar se o usuário tem plano Bronze ou superior
-  const hasPaidPlan = !isFreePlan || isAdmin
+  // Verificar se o usuário tem plano Bronze ou superior (bronze, silver, gold, etc.)
+  // Novos usuários (plan_tier null/undefined) são tratados como Free
+  const hasPaidPlan = profile?.plan_tier && profile.plan_tier !== 'free' || isAdmin
 
   // Marcar como montado para evitar hydration mismatch
   useEffect(() => {

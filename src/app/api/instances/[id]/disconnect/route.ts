@@ -106,8 +106,10 @@ export async function POST(
       return NextResponse.json({ error: 'Instância não encontrada' }, { status: 404 })
     }
 
-    // Detectar qual API usar baseado na presença de api_token
-    const isEvolutionApi = !!instance.api_token
+    // Detectar qual API usar:
+    // - is_test = true → Evolution API (instâncias de teste)
+    // - is_test = false → UAZAPI (instâncias premium)
+    const isEvolutionApi = instance.is_test === true
 
     if (isEvolutionApi) {
       // ========== EVOLUTION API ==========
@@ -120,7 +122,16 @@ export async function POST(
         )
       }
 
+      if (!EVOLUTION_API_KEY) {
+        return NextResponse.json(
+          { error: 'EVOLUTION_API_KEY não configurada' },
+          { status: 500 }
+        )
+      }
+
       let instanceName = instance.instance_key
+      console.log('[Evolution API] Desconectando instância de teste:', instanceName)
+      console.log('[Evolution API] URL:', evolutionApiUrl)
 
       // Tentar encontrar a instância pelo token se o nome não corresponder
       try {

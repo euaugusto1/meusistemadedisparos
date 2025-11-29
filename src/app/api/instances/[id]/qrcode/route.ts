@@ -5,6 +5,7 @@ import { createSystemLog, extractRequestInfo } from '@/lib/system-logger'
 
 // Fallback para instâncias sem api_url configurada
 const EVOLUTION_API_URL_FALLBACK = process.env.EVOLUTION_API_URL || ''
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || ''
 
 // Helper function to make UAZAPI GET requests
 async function uazapiRequest(baseUrl: string, endpoint: string, token: string) {
@@ -93,22 +94,70 @@ async function uazapiConnect(baseUrl: string, instanceToken: string) {
   return data
 }
 
+// Helper function to fetch instance details including ownerJid
+async function fetchEvolutionInstanceDetails(baseUrl: string, instanceName: string, globalApiKey: string) {
+  try {
+    const response = await fetch(
+      `${baseUrl}/instance/fetchInstances?instanceName=${instanceName}`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': globalApiKey,
+        },
+      }
+    )
+
+    if (!response.ok) {
+      console.log('[Evolution API] fetchInstances failed:', response.status)
+      return null
+    }
+
+    const data = await response.json()
+    // Pode retornar array ou objeto único
+    const instance = Array.isArray(data) ? data[0] : data
+    console.log('[Evolution API] Instance details:', JSON.stringify(instance).substring(0, 500))
+    return instance
+  } catch (e) {
+    console.error('[Evolution API] Error fetching instance details:', e)
+    return null
+  }
+}
+
 // Helper function to get QR Code from Evolution API with retry/polling
-async function getEvolutionQRCode(baseUrl: string, instanceName: string, apiKey: string, maxRetries = 5) {
+async function getEvolutionQRCode(baseUrl: string, instanceName: string, globalApiKey: string, instanceToken?: string, maxRetries = 5) {
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+  let currentInstanceName = instanceName
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     console.log(`[Evolution API] Tentativa ${attempt}/${maxRetries} para obter QR Code...`)
 
     const response = await fetch(
-      `${baseUrl}/instance/connect/${instanceName}`,
+      `${baseUrl}/instance/connect/${currentInstanceName}`,
       {
         method: 'GET',
         headers: {
-          'apikey': apiKey,
+          'apikey': globalApiKey,
         },
       }
     )
+
+    // Se a instância não foi encontrada pelo nome, tentar buscar por token
+    if (!response.ok && response.status === 404 && instanceToken && attempt === 1) {
+      console.log(`[Evolution API] Instância não encontrada por nome, buscando por token...`)
+      const instanceByToken = await findEvolutionInstanceByToken(baseUrl, globalApiKey, instanceToken)
+      if (instanceByToken) {
+        console.log(`[Evolution API] Encontrou instância por token:`, instanceByToken.name)
+        currentInstanceName = instanceByToken.name
+
+        // Se já está conectada, retornar imediatamente
+        if (instanceByToken.connectionStatus === 'open' && instanceByToken.ownerJid) {
+          return { alreadyConnected: true, ownerJid: instanceByToken.ownerJid, instanceName: currentInstanceName }
+        }
+
+        // Tentar novamente com o nome correto
+        continue
+      }
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: response.statusText }))
@@ -124,13 +173,21 @@ async function getEvolutionQRCode(baseUrl: string, instanceName: string, apiKey:
 
     if (qrCode || pairingCode) {
       console.log(`[Evolution API] QR Code obtido na tentativa ${attempt}`)
-      return data
+      return { ...data, instanceName: currentInstanceName }
     }
 
     // Verificar se já está conectado
     if (data.state === 'open' || data.instance?.state === 'open') {
-      console.log(`[Evolution API] Instância já conectada`)
-      return { ...data, alreadyConnected: true }
+      // Buscar detalhes da instância para obter ownerJid
+      const instanceDetails = await fetchEvolutionInstanceDetails(baseUrl, currentInstanceName, globalApiKey)
+      const ownerJid = instanceDetails?.ownerJid || data.instance?.ownerJid || data.ownerJid
+
+      if (ownerJid) {
+        console.log(`[Evolution API] Instância conectada com ownerJid:`, ownerJid)
+        return { ...data, alreadyConnected: true, ownerJid, instanceName: currentInstanceName }
+      } else {
+        console.log(`[Evolution API] State=open mas sem ownerJid, continuando polling...`)
+      }
     }
 
     // Se ainda está connecting e não é a última tentativa, esperar e tentar novamente
@@ -142,20 +199,60 @@ async function getEvolutionQRCode(baseUrl: string, instanceName: string, apiKey:
 
   // Retornar última resposta mesmo sem QR Code
   const finalResponse = await fetch(
-    `${baseUrl}/instance/connect/${instanceName}`,
+    `${baseUrl}/instance/connect/${currentInstanceName}`,
     {
       method: 'GET',
       headers: {
-        'apikey': apiKey,
+        'apikey': globalApiKey,
       },
     }
   )
 
-  return finalResponse.json()
+  const finalData = await finalResponse.json()
+  return { ...finalData, instanceName: currentInstanceName }
 }
 
-// Helper function to check Evolution API connection state
-async function getEvolutionConnectionState(baseUrl: string, instanceName: string, apiKey: string) {
+// Helper function to find instance by token when name doesn't match
+async function findEvolutionInstanceByToken(baseUrl: string, globalApiKey: string, instanceToken: string) {
+  try {
+    console.log('[Evolution API] Buscando instância por token:', instanceToken?.substring(0, 10) + '...')
+    const response = await fetch(
+      `${baseUrl}/instance/fetchInstances`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': globalApiKey,
+        },
+      }
+    )
+
+    if (!response.ok) {
+      console.log('[Evolution API] fetchInstances falhou:', response.status)
+      return null
+    }
+
+    const instances = await response.json()
+    if (!Array.isArray(instances)) {
+      console.log('[Evolution API] fetchInstances não retornou array')
+      return null
+    }
+
+    console.log('[Evolution API] Instâncias encontradas:', instances.length)
+    // Comparar tokens case-insensitive
+    const found = instances.find((inst: { token?: string }) =>
+      inst.token?.toLowerCase() === instanceToken?.toLowerCase()
+    )
+    console.log('[Evolution API] Instância encontrada por token:', found ? found.name : 'não encontrada')
+    return found
+  } catch (e) {
+    console.error('[Evolution API] Erro ao buscar instância por token:', e)
+    return null
+  }
+}
+
+// Helper function to check Evolution API connection state with token fallback
+async function getEvolutionConnectionState(baseUrl: string, instanceName: string, apiKey: string, instanceToken?: string) {
+  // Primeiro tentar buscar pelo nome
   const response = await fetch(
     `${baseUrl}/instance/connectionState/${instanceName}`,
     {
@@ -166,11 +263,29 @@ async function getEvolutionConnectionState(baseUrl: string, instanceName: string
     }
   )
 
-  if (!response.ok) {
-    return null
+  if (response.ok) {
+    const data = await response.json()
+    return { ...data, instanceName }
   }
 
-  return response.json()
+  // Se falhou, tentar buscar por token (fallback para quando instance_key não corresponde)
+  console.log('[Evolution API] connectionState falhou para', instanceName, '- tentando buscar por token')
+  if (instanceToken) {
+    const instanceByToken = await findEvolutionInstanceByToken(baseUrl, apiKey, instanceToken)
+    if (instanceByToken) {
+      console.log('[Evolution API] Encontrou instância por token:', instanceByToken.name, 'status:', instanceByToken.connectionStatus)
+      return {
+        instance: {
+          instanceName: instanceByToken.name,
+          state: instanceByToken.connectionStatus,
+          ownerJid: instanceByToken.ownerJid
+        },
+        instanceName: instanceByToken.name
+      }
+    }
+  }
+
+  return null
 }
 
 export async function GET(
@@ -207,7 +322,9 @@ export async function GET(
     if (isEvolutionApi) {
       // ========== EVOLUTION API ==========
       const evolutionApiUrl = instance.api_url || EVOLUTION_API_URL_FALLBACK
-      const apiKey = instance.api_token
+      // IMPORTANTE: Usar EVOLUTION_API_KEY global para endpoints administrativos
+      // O token da instância (instance.api_token) não funciona para connectionState/fetchInstances
+      const globalApiKey = EVOLUTION_API_KEY
 
       if (!evolutionApiUrl) {
         return NextResponse.json(
@@ -216,39 +333,82 @@ export async function GET(
         )
       }
 
+      if (!globalApiKey) {
+        return NextResponse.json(
+          { error: 'EVOLUTION_API_KEY não configurada' },
+          { status: 500 }
+        )
+      }
+
       console.log('[Evolution API] Getting QR Code from:', evolutionApiUrl, 'Instance:', instance.instance_key)
 
       try {
         // Primeiro verificar o estado atual da conexão
-        const connectionState = await getEvolutionConnectionState(evolutionApiUrl, instance.instance_key, apiKey)
+        // Passa o token da instância para fallback caso o instance_key não corresponda ao nome real
+        const connectionState = await getEvolutionConnectionState(evolutionApiUrl, instance.instance_key, globalApiKey, instance.api_token)
         console.log('[Evolution API] Connection state:', connectionState)
 
-        if (connectionState?.instance?.state === 'open') {
+        // IMPORTANTE: Só considerar "connected" se tem ownerJid (telefone conectado)
+        // Evolution API pode retornar state='open' mesmo sem ter telefone conectado
+        const ownerJid = connectionState?.instance?.ownerJid
+        const hasPhoneConnected = !!ownerJid
+        console.log('[Evolution API] QR check - state:', connectionState?.instance?.state, '| ownerJid:', ownerJid)
+
+        if (connectionState?.instance?.state === 'open' && hasPhoneConnected) {
+          // Extrair número de telefone
+          let phoneNumber = null
+          if (ownerJid) {
+            let extractedNumber = ownerJid.replace('@s.whatsapp.net', '')
+            if (extractedNumber.startsWith('55') && extractedNumber.length >= 12) {
+              const ddd = extractedNumber.substring(2, 4)
+              const part1 = extractedNumber.substring(4, 9)
+              const part2 = extractedNumber.substring(9)
+              extractedNumber = `+55 (${ddd}) ${part1}-${part2}`
+            }
+            phoneNumber = extractedNumber
+          }
+
           await supabase
             .from('whatsapp_instances')
-            .update({ status: 'connected' })
+            .update({ status: 'connected', phone_number: phoneNumber })
             .eq('id', id)
 
           return NextResponse.json({
             status: 'connected',
             message: 'Instância já está conectada',
+            phone_number: phoneNumber,
           })
         }
 
         // Obter QR Code com retry/polling
-        const qrData = await getEvolutionQRCode(evolutionApiUrl, instance.instance_key, apiKey, 5)
+        // Passa o token da instância para fallback caso o instance_key não corresponda
+        const qrData = await getEvolutionQRCode(evolutionApiUrl, instance.instance_key, globalApiKey, instance.api_token, 5)
         console.log('[Evolution API] Final QR response:', JSON.stringify(qrData).substring(0, 500))
 
         // Verificar se está conectado (pode ter conectado durante o polling)
         if (qrData.alreadyConnected) {
+          // Extrair número de telefone do ownerJid
+          let phoneNumber = null
+          if (qrData.ownerJid) {
+            let extractedNumber = qrData.ownerJid.replace('@s.whatsapp.net', '')
+            if (extractedNumber.startsWith('55') && extractedNumber.length >= 12) {
+              const ddd = extractedNumber.substring(2, 4)
+              const part1 = extractedNumber.substring(4, 9)
+              const part2 = extractedNumber.substring(9)
+              extractedNumber = `+55 (${ddd}) ${part1}-${part2}`
+            }
+            phoneNumber = extractedNumber
+          }
+
           await supabase
             .from('whatsapp_instances')
-            .update({ status: 'connected' })
+            .update({ status: 'connected', phone_number: phoneNumber })
             .eq('id', id)
 
           return NextResponse.json({
             status: 'connected',
             message: 'Instância já está conectada',
+            phone_number: phoneNumber,
           })
         }
 
