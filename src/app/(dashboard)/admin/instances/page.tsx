@@ -19,17 +19,17 @@ export default async function AdminInstancesPage() {
     redirect('/dashboard')
   }
 
-  // Obter todas as instâncias com informações do usuário
-  const { data: instances } = await supabase
+  // Admin usa service role para ver todos os usuários (bypass RLS)
+  const adminSupabase = createAdminClient()
+
+  // Obter todas as instâncias com informações do usuário (usando admin client para bypass RLS nos profiles)
+  const { data: instances } = await adminSupabase
     .from('whatsapp_instances')
     .select(`
       *,
       user:profiles(id, email, full_name)
     `)
     .order('created_at', { ascending: false })
-
-  // Admin usa service role para ver todos os usuários (bypass RLS)
-  const adminSupabase = createAdminClient()
   const { data: users } = await adminSupabase
     .from('profiles')
     .select('id, email, full_name, role')

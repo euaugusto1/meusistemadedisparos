@@ -187,11 +187,12 @@ export function InstancesManager({ instances: initialInstances, users }: Instanc
 
   const refreshInstances = async () => {
     try {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('whatsapp_instances')
-        .select('*, user:profiles(*)')
-        .order('created_at', { ascending: false })
+      // Usar API admin para bypass RLS e obter dados do usuário
+      const response = await fetch('/api/admin/instances')
+      if (!response.ok) {
+        throw new Error('Erro ao buscar instâncias')
+      }
+      const { instances: data } = await response.json()
 
       if (data) {
         setInstances(data as any)
